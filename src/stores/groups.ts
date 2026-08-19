@@ -17,18 +17,22 @@ const STORE_FILE = 'groups.json'
 
 export const groups = ref<Group[]>([])
 export const modelMeta = reactive<Record<string, ModelMeta>>({})
+export const modelDisplayNames = reactive<Record<string, string>>({})
 
 export async function loadGroups() {
   const store = await load(STORE_FILE, { autoSave: true })
   groups.value = await store.get<Group[]>('groups') ?? []
   const saved = await store.get<Record<string, ModelMeta>>('modelMeta') ?? {}
   Object.assign(modelMeta, saved)
+  const savedNames = await store.get<Record<string, string>>('modelDisplayNames') ?? {}
+  Object.assign(modelDisplayNames, savedNames)
 }
 
 export async function saveGroups() {
   const store = await load(STORE_FILE, { autoSave: true })
   await store.set('groups', groups.value)
   await store.set('modelMeta', { ...modelMeta })
+  await store.set('modelDisplayNames', { ...modelDisplayNames })
   await store.save()
 }
 

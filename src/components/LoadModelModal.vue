@@ -9,7 +9,7 @@
       <!-- Modelo cargado actualmente -->
       <div v-if="loadedModel" class="modal-section-title">Currently Loaded (1)</div>
       <div v-if="loadedModel" class="modal-model-row loaded" @click="$emit('close')">
-        <span class="modal-model-name">{{ loadedModel.name }}</span>
+        <span class="modal-model-name">{{ modelDisplayNames[loadedModel.path] || loadedModel.name }}</span>
         <span class="tag quant">{{ loadedModel.name.split('-').pop()?.replace('.gguf','').replace('.GGUF','') }}</span>
         <span class="tag" style="background:#1a2a1a; color:#4af54a;">GGUF</span>
         <span class="badge" v-if="loadedModel.name.toLowerCase().includes('mtp')">MTP</span>
@@ -27,7 +27,7 @@
           :class="{ active: loadedModel?.path === model.path }"
           @click="selectModel(model)"
         >
-          <span class="modal-model-name">{{ model.name }}</span>
+          <span class="modal-model-name">{{ modelDisplayNames[model.path] || model.name }}</span>
           <span class="tag quant">{{ model.name.split('-').pop()?.replace('.gguf','').replace('.GGUF','') }}</span>
           <span class="tag" style="background:#2a2a2a; color:#888;">GGUF</span>
           <div style="flex:1"></div>
@@ -41,6 +41,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { allModels, loadedModel, selectedModel, modelLoading } from '../stores/selectedModel'
+import { modelDisplayNames } from '../stores/groups'
 import { invoke } from '@tauri-apps/api/core'
 import { loadConfig, loadModelConfig } from '../stores/config'
 

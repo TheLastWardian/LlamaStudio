@@ -52,7 +52,14 @@
               <span class="badge">{{ model.params || '?' }}</span>
             </div>
             <div class="col-cell" :style="{ width: columns[2].width + 'px' }">{{ model.publisher }}</div>
-            <div class="col-cell" :style="{ width: columns[3].width + 'px' }">{{ model.name }}</div>
+            <div class="col-cell" :style="{ width: columns[3].width + 'px' }">
+              <template v-if="renamingPath === model.path">
+                <input class="rename-input" v-model="renameValue" @keyup.enter="confirmRename" @keyup.escape="cancelRename" @blur="confirmRename" @click.stop />
+              </template>
+              <template v-else>
+                {{ modelDisplayNames[model.path] || model.name }}
+              </template>
+            </div>
             <div class="col-cell" :style="{ width: columns[4].width + 'px' }">
               <span class="tag quant">{{ model.name.split('-').pop()?.replace('.gguf','').replace('.GGUF','') }}</span>
             </div>
@@ -96,6 +103,7 @@
         <div class="ctx-item" @click="handleTogglePin(ctxMenu.modelPath!)">
           {{ modelMeta[ctxMenu.modelPath!]?.pinned ? '📌 Unpin' : '📌 Pin' }}
         </div>
+        <div class="ctx-item" @click="startRename(ctxMenu.modelPath!)">✏ Rename</div>
         <div class="ctx-divider"></div>
         <div class="ctx-item" @click="moveToGroupMenu = !moveToGroupMenu">
           📁 Move to group ▶
@@ -126,11 +134,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { selectedModel, allModels } from '../stores/selectedModel'
 import { loadConfig } from '../stores/config'
-import { groups, modelMeta, createGroup, deleteGroup, moveModelToGroup, togglePin, saveGroups } from '../stores/groups'
+import { groups, modelMeta, modelDisplayNames, createGroup, deleteGroup, moveModelToGroup, togglePin, saveGroups } from '../stores/groups'
 import type { ModelFile } from '../stores/selectedModel'
 
 const search = ref('')
@@ -273,9 +281,48 @@ const dragging = ref<{ modelPath: string, x: number, y: number } | null>(null)
 const dropTarget = ref<string | null>(null)
 const dropModelPath = ref<string | null>(null)
 const listVersion = ref(0)
+const renamingPath = ref<string | null>(null)
+const renameValue = ref('')
+
+function startRename(modelPath: string) {
+  closeCtxMenu()
+  setTimeout(() => {
+    renamingPath.value = modelPath
+    renameValue.value = modelDisplayNames[modelPath] || models.value.find(m => m.path === modelPath)?.name || ''
+  }, 50)
+}
+
+watch(renamingPath, async (newPath) => {
+  if (newPath) {
+    await nextTick()
+    await nextTick()
+    const input = document.querySelector('.rename-input') as HTMLInputElement
+    if (input) {
+      input.focus()
+      input.select()
+    }
+  }
+})
+
+function confirmRename() {
+  if (renamingPath.value) {
+    if (renameValue.value.trim()) {
+      modelDisplayNames[renamingPath.value] = renameValue.value.trim()
+    } else {
+      delete modelDisplayNames[renamingPath.value]
+    }
+    saveGroups()
+  }
+  renamingPath.value = null
+}
+
+function cancelRename() {
+  renamingPath.value = null
+}
 
 function onModelMouseDown(e: MouseEvent, modelPath: string) {
   if (e.button !== 0) return
+  if (renamingPath.value) return
   e.preventDefault()
   
   const startX = e.clientX
@@ -356,3 +403,16 @@ function onModelMouseDown(e: MouseEvent, modelPath: string) {
   window.addEventListener('mouseleave', onUp)
 }
 </script>
+
+<style scoped>
+.rename-input {
+  background: #2a2a2a;
+  border: 1px solid #5a8af5;
+  border-radius: 3px;
+  color: #fff;
+  padding: 2px 6px;
+  font-size: 12px;
+  width: 100%;
+  outline: none;
+}
+</style>
