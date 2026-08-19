@@ -12,8 +12,9 @@
       <DeveloperView v-if="currentView === 'developer'" />
       <SettingsView v-if="currentView === 'settings'" />
     </div>
-    <div class="resize-handle" @mousedown="startResize"></div>
-    <RightPanel :style="{ width: rightPanelWidth + 'px' }" />
+    <div v-if="currentView !== 'developer' || loadedModel" class="resize-handle" @mousedown="startResize"></div>
+    <RightPanel v-if="currentView !== 'developer' || loadedModel" :style="{ width: rightPanelWidth + 'px' }" />
+    <div v-else-if="currentView === 'developer'" style="width: 0px"></div>
   </div>
 </template>
 
