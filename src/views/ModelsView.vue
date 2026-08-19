@@ -21,12 +21,13 @@
           <div 
             v-if="section.group"
             class="group-header"
+            :data-group-id="section.group.id"
             @contextmenu="onRightClickGroup($event, section.group.id)"
           >
             <span>📁 {{ section.group.name }}</span>
             <span style="color:#555; font-size:11px;">{{ section.models.length }} models</span>
           </div>
-          <div v-else-if="groupedModels.length > 1" class="group-header ungrouped">
+          <div v-else-if="groupedModels.length > 1" class="group-header ungrouped" data-group-id="ungrouped">
             <span>Ungrouped</span>
             <span style="color:#555; font-size:11px;">{{ section.models.length }} models</span>
           </div>
@@ -36,9 +37,12 @@
             v-for="model in section.models"
             :key="model.path"
             class="model-row"
+            :data-group-id="section.group?.id ?? 'ungrouped'"
+            :data-model-path="model.path"
             :class="{ selected: selectedModel?.path === model.path }"
             @click="selectedModel = model"
             @contextmenu="onRightClickModel($event, model.path)"
+            @mousedown="onModelMouseDown($event, model.path)"
           >
             <div class="col-cell" :style="{ width: columns[0].width + 'px' }">
               <span class="pin-icon" @click.stop="handleTogglePin(model.path)" :class="{ pinned: modelMeta[model.path]?.pinned }">📌</span>
@@ -126,7 +130,7 @@ import { ref, computed, onMounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { selectedModel, allModels } from '../stores/selectedModel'
 import { loadConfig } from '../stores/config'
-import { groups, modelMeta, createGroup, deleteGroup, moveModelToGroup, togglePin } from '../stores/groups'
+import { groups, modelMeta, createGroup, deleteGroup, moveModelToGroup, togglePin, saveGroups } from '../stores/groups'
 import type { ModelFile } from '../stores/selectedModel'
 
 const search = ref('')
@@ -264,70 +268,79 @@ function startColResize(e: MouseEvent, col: typeof columns.value[0]) {
   window.addEventListener('mouseup', onUp)
 }
 
-const dragModel = ref<string | null>(null)
-const dragGroup = ref<string | null>(null)
-const dragOverGroup = ref<string | null>(null)
+const dragging = ref<{ modelPath: string, x: number, y: number } | null>(null)
+const dropTarget = ref<string | null>(null)
 
-function onModelDragStart(e: DragEvent, modelPath: string) {
-  dragModel.value = modelPath
-  dragGroup.value = null
-  e.dataTransfer!.effectAllowed = 'move'
-}
-
-function onGroupDragStart(e: DragEvent, groupId: string) {
-  dragGroup.value = groupId
-  dragModel.value = null
-  e.dataTransfer!.effectAllowed = 'move'
-}
-
-function onDragOverGroup(e: DragEvent, groupId: string | null) {
+function onModelMouseDown(e: MouseEvent, modelPath: string) {
+  if (e.button !== 0) return
   e.preventDefault()
-  dragOverGroup.value = groupId ?? 'ungrouped'
-}
+  
+  const startX = e.clientX
+  const startY = e.clientY
+  let started = false
+  let dropModelPath: string | null = null
 
-function onDragLeave() {
-  dragOverGroup.value = null
-}
-
-function onDropOnGroup(e: DragEvent, groupId: string | null) {
-  e.preventDefault()
-  dragOverGroup.value = null
-
-  if (dragModel.value) {
-    moveModelToGroup(dragModel.value, groupId)
-    dragModel.value = null
-  } else if (dragGroup.value && groupId !== null) {
-    const from = groups.value.findIndex(g => g.id === dragGroup.value)
-    const to = groups.value.findIndex(g => g.id === groupId)
-    if (from !== -1 && to !== -1) {
-      const arr = [...groups.value]
-      const [moved] = arr.splice(from, 1)
-      arr.splice(to, 0, moved)
-      arr.forEach((g, i) => g.order = i)
-      groups.value = arr
-      saveGroups()
+  function onMove(e: MouseEvent) {
+    if (!started && Math.abs(e.clientX - startX) + Math.abs(e.clientY - startY) > 8) {
+      started = true
     }
-    dragGroup.value = null
+    if (started) {
+      dragging.value = { modelPath, x: e.clientX, y: e.clientY }
+      const el = document.elementFromPoint(e.clientX, e.clientY)
+      const groupEl = el?.closest('[data-group-id]')
+      dropTarget.value = groupEl?.getAttribute('data-group-id') ?? null
+      dropModelPath = groupEl?.getAttribute('data-model-path') ?? null
+    }
   }
-}
 
-function onDropOnModel(e: DragEvent, targetPath: string, groupId: string | null) {
-  e.preventDefault()
-  dragOverGroup.value = null
-
-  if (dragModel.value && dragModel.value !== targetPath) {
-    moveModelToGroup(dragModel.value, groupId)
-    
-    const meta = modelMeta.value
-    if (!meta[dragModel.value]) meta[dragModel.value] = { groupId, pinned: false, order: 0 }
-    if (!meta[targetPath]) meta[targetPath] = { groupId, pinned: false, order: 0 }
-    
-    const fromOrder = meta[dragModel.value].order
-    const toOrder = meta[targetPath].order
-    meta[dragModel.value].order = toOrder
-    meta[targetPath].order = fromOrder
-    saveGroups()
-    dragModel.value = null
+  function cleanup() {
+    window.removeEventListener('mousemove', onMove)
+    window.removeEventListener('mouseup', onUp)
+    window.removeEventListener('mouseleave', onUp)
   }
+
+  function onUp() {
+    if (started && dragging.value) {
+      const gId = dropTarget.value === 'ungrouped' ? null : dropTarget.value
+
+      if (dropModelPath && dropModelPath !== modelPath) {
+        // Reordenar dentro del grupo
+        const meta = modelMeta.value
+        const targetGroupId = meta[dropModelPath]?.groupId ?? null
+        
+        if (!meta[modelPath]) meta[modelPath] = { groupId: targetGroupId, pinned: false, order: 0 }
+        else meta[modelPath].groupId = targetGroupId
+
+        const groupModels = models.value
+          .filter(m => (meta[m.path]?.groupId ?? null) === targetGroupId)
+          .sort((a, b) => (meta[a.path]?.order ?? 0) - (meta[b.path]?.order ?? 0))
+
+        const fromIdx = groupModels.findIndex(m => m.path === modelPath)
+        const toIdx = groupModels.findIndex(m => m.path === dropModelPath)
+
+        if (fromIdx !== -1 && toIdx !== -1) {
+          const arr = [...groupModels]
+          const [moved] = arr.splice(fromIdx === -1 ? arr.length : fromIdx, 1)
+          arr.splice(toIdx, 0, moved)
+          arr.forEach((m, i) => {
+            if (!meta[m.path]) meta[m.path] = { groupId: targetGroupId, pinned: false, order: i }
+            else meta[m.path].order = i
+          })
+        }
+        saveGroups()
+      } else if (dropTarget.value !== null) {
+        moveModelToGroup(modelPath, gId)
+      }
+    }
+
+    dragging.value = null
+    dropTarget.value = null
+    dropModelPath = null
+    cleanup()
+  }
+
+  window.addEventListener('mousemove', onMove)
+  window.addEventListener('mouseup', onUp)
+  window.addEventListener('mouseleave', onUp)
 }
 </script>
