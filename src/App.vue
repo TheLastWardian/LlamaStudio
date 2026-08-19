@@ -25,6 +25,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window'
 import { listen } from '@tauri-apps/api/event'
 import { serverLogs, modelLoading, selectedModel, loadedModel } from './stores/selectedModel'
 import { loadConfig } from './stores/config'
+import { loadGroups } from './stores/groups'
 import Sidebar from './components/Sidebar.vue'
 import ModelsView from './views/ModelsView.vue'
 import DeveloperView from './views/DeveloperView.vue'
@@ -62,6 +63,7 @@ function startResize(e: MouseEvent) {
 }
 
 onMounted(async () => {
+  await loadGroups()
   await invoke('load_window_state').catch(() => {})
 
   await listen<string>('llama-log', (event) => {

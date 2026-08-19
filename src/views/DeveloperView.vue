@@ -11,8 +11,11 @@
       <div style="flex:1"></div>
       <span style="color:#555; font-size:12px;">Reachable at</span>
       <span style="color:#5a8af5; font-size:12px; margin: 0 8px;">http://127.0.0.1:8080</span>
-      <button class="btn-load" style="width:auto; padding: 5px 12px;">+ Load Model</button>
+      <button class="btn-load" style="width:auto; padding: 5px 12px;" @click="showModal = true">+ Load Model</button>
     </div>
+    <!-- resto existente -->
+    
+    <LoadModelModal v-if="showModal" @close="showModal = false" />
 
     <!-- Loaded models -->
     <div v-if="modelLoading" class="loading-banner">
@@ -55,9 +58,11 @@
 import { ref, watch, nextTick } from 'vue'
 import { serverLogs, loadedModel, modelLoading } from '../stores/selectedModel'
 import { invoke } from '@tauri-apps/api/core'
+import LoadModelModal from '../components/LoadModelModal.vue'
 
 const logsEl = ref<HTMLElement>()
 const logs = serverLogs
+const showModal = ref(false)
 
 async function eject() {
   await invoke('stop_model')
