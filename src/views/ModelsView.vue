@@ -197,7 +197,7 @@ const groupedModels = computed(() => {
       const aPinned = modelMeta[a.path]?.pinned ?? false
       const bPinned = modelMeta[b.path]?.pinned ?? false
       if (aPinned !== bPinned) return aPinned ? -1 : 1
-      return 0
+      return (modelMeta[a.path]?.order ?? 0) - (modelMeta[b.path]?.order ?? 0)
     })
   result.push({ group: null, models: ungrouped })
 
@@ -302,7 +302,7 @@ function onModelMouseDown(e: MouseEvent, modelPath: string) {
   }
 
   function onUp() {
-    if (started && dragging.value) {
+      if (started && dragging.value) {
       const gId = dropTarget.value === 'ungrouped' ? null : dropTarget.value
 
       if (dropModelPath.value && dropModelPath.value !== modelPath) {
@@ -327,7 +327,7 @@ function onModelMouseDown(e: MouseEvent, modelPath: string) {
         const fromIdx = groupModels.findIndex(m => m.path === modelPath)
         const toIdx = groupModels.findIndex(m => m.path === dropModelPath.value)
 
-        console.log('fromIdx', fromIdx, 'toIdx', toIdx, 'groupModels', groupModels.map(m => m.name))
+
 
         if (fromIdx !== -1 && toIdx !== -1) {
           const arr = [...groupModels]
