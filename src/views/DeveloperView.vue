@@ -20,14 +20,17 @@
     </div>
     <div class="dev-loaded-section">
       <div style="color:#666; font-size:11px; text-transform:uppercase; margin-bottom:8px;">Loaded Models</div>
-      <div class="dev-model-row">
+      
+      <div v-if="loadedModel" class="dev-model-row">
         <span class="badge-ready">READY</span>
-        <span class="tag qwen" style="font-size:10px;">llm qwen3.8-27b</span>
-        <span class="tag" style="background:#1a3a1a; color:#5af55a; font-size:10px;">MTP</span>
+        <span class="tag qwen" style="font-size:10px;">{{ loadedModel.arch }} {{ loadedModel.name }}</span>
         <div style="flex:1"></div>
-        <span style="color:#555; font-size:11px;">Size 16.12 GB</span>
-        <span style="color:#555; font-size:11px; margin: 0 12px;">Parallel 2</span>
-        <button class="btn-eject">⏏ Eject</button>
+        <span style="color:#555; font-size:11px;">{{ (loadedModel.size_bytes / 1024 / 1024 / 1024).toFixed(2) }} GB</span>
+        <button class="btn-eject" @click="eject">⏏ Eject</button>
+      </div>
+      
+      <div v-else style="color:#444; font-size:12px; padding:8px 0;">
+        No model loaded.
       </div>
     </div>
 
@@ -50,10 +53,17 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue'
-import { modelLoading, serverLogs } from '../stores/selectedModel'
+import { serverLogs, loadedModel, modelLoading } from '../stores/selectedModel'
+import { invoke } from '@tauri-apps/api/core'
 
 const logsEl = ref<HTMLElement>()
 const logs = serverLogs
+
+async function eject() {
+  await invoke('stop_model')
+  loadedModel.value = null
+  modelLoading.value = false
+}
 
 watch(logs, () => {
   nextTick(() => {

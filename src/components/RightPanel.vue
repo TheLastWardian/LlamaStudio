@@ -36,9 +36,9 @@
 
       <div class="panel-section">
         <div class="section-title">≋ Advanced</div>
-        <div class="field">
+        <div class="field" title="Hilos de CPU para generación de tokens. Máximo útil = threads de tu CPU (24 para Ryzen 9 5900x)">
           <label>CPU Thread Pool Size</label>
-          <input type="number" v-model.number="modelCfg.cpuThreads" class="field-input" />
+          <input type="number" v-model="modelCfg.cpuThreads" class="field-input" min="1" max="24" />
         </div>
         <div class="field">
           <label>Evaluation Batch Size</label>
@@ -120,6 +120,44 @@
             <option value="high">High</option>
             <option value="xhigh">XHigh</option>
             <option value="max">Max</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="section-title">🌐 Server</div>
+        <div class="field">
+          <label>Host</label>
+          <select class="field-select" v-model="modelCfg.host">
+            <option value="127.0.0.1">localhost (127.0.0.1)</option>
+            <option value="0.0.0.0">All interfaces (0.0.0.0)</option>
+          </select>
+        </div>
+        <div class="field" title="Nombre del modelo expuesto en la API. Útil para identificarlo desde clientes como Open WebUI.">
+          <label>Alias</label>
+          <input type="text" v-model="modelCfg.alias" class="field-input" placeholder="optional" />
+        </div>
+        <div class="field" title="Hilos para procesar requests HTTP. 2-4 es suficiente para uso personal.">
+          <label>HTTP Threads</label>
+          <input type="number" v-model="modelCfg.threadsHttp" class="field-input" min="1" max="8" />
+        </div>
+        <div class="field" title="Desactiva el calentamiento inicial al cargar. Carga más rápido pero el primer request puede tardar más.">
+          <label>No Warmup</label>
+          <input type="checkbox" v-model="modelCfg.noWarmup" class="toggle" />
+        </div>
+        <div class="field" title="Segundos de inactividad antes de liberar VRAM. -1 = nunca dormir.">
+          <label>Sleep Idle (seconds)</label>
+          <input type="number" v-model="modelCfg.sleepIdle" class="field-input" min="-1" />
+        </div>
+        <div class="field" title="Mantiene el historial completo de thinking en el contexto, no solo el del último mensaje.">
+          <label>Reasoning Preserve</label>
+          <input type="checkbox" v-model="modelCfg.reasoningPreserve" class="toggle" />
+        </div>
+        <div class="field" title="'On' ajusta parámetros automáticamente para que el modelo entre en VRAM. 'Off' = control manual total.">
+          <label>Fit</label>
+          <select class="field-select" v-model="modelCfg.fit">
+            <option value="on">On</option>
+            <option value="off">Off</option>
           </select>
         </div>
       </div>
@@ -284,7 +322,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
-import { selectedModel, allModels, modelLoading } from '../stores/selectedModel'
+import { selectedModel, allModels, modelLoading, loadedModel } from '../stores/selectedModel'
 import { loadConfig, loadModelConfig, saveModelConfig, type ModelConfig } from '../stores/config'
 
 const activeTab = ref('load')
@@ -304,6 +342,13 @@ const modelCfg = ref<ModelConfig>({
   reasoningBudget: '-1',
   reasoningEffort: 'default',
   draftModelPath: '',
+  host: '127.0.0.1',
+  alias: '',
+  threadsHttp: 2,
+  noWarmup: false,
+  sleepIdle: -1,
+  reasoningPreserve: false,
+  fit: 'on',
 })
 
 const maxContext = computed(() => selectedModel.value?.max_context || 262144)
@@ -356,16 +401,24 @@ async function loadModel() {
       physicalBatch: Number(modelCfg.value.physicalBatch),
       flashAttention: modelCfg.value.flashAttention,
       specType: modelCfg.value.specType,
+      draftModelPath: modelCfg.value.draftModelPath,
       maxDraftTokens: Number(modelCfg.value.maxDraftTokens),
       draftProbability: modelCfg.value.draftProbability,
       kCacheQuant: modelCfg.value.kCacheQuant,
       vCacheQuant: modelCfg.value.vCacheQuant,
+      port: config.port,
+      host: modelCfg.value.host ?? '127.0.0.1',
+      alias: modelCfg.value.alias ?? '',
+      threadsHttp: Number(modelCfg.value.threadsHttp ?? 2),
+      noWarmup: modelCfg.value.noWarmup ?? false,
+      sleepIdle: Number(modelCfg.value.sleepIdle ?? -1),
+      reasoningPreserve: modelCfg.value.reasoningPreserve ?? false,
+      fit: modelCfg.value.fit ?? 'on',
       reasoningBudget: Number(modelCfg.value.reasoningBudget),
       reasoningEffort: modelCfg.value.reasoningEffort,
-      draftModelPath: modelCfg.value.draftModelPath,
-      port: config.port,
     })
     console.log('invoke result:', result)
+    loadedModel.value = selectedModel.value
   } catch (e) {
     console.error('invoke error:', e)
     error.value = String(e)
@@ -378,6 +431,7 @@ async function loadModel() {
 async function stopModel() {
   await invoke('stop_model')
   modelLoading.value = false
+  loadedModel.value = null
 }
 
 function copy(text: string) {

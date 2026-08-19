@@ -190,14 +190,21 @@ fn load_model(
     physical_batch: i32,
     flash_attention: bool,
     spec_type: String,
+    draft_model_path: String,
     max_draft_tokens: i32,
     draft_probability: f32,
     k_cache_quant: String,
     v_cache_quant: String,
+    port: i32,
+    host: String,
+    alias: String,
+    threads_http: i32,
+    no_warmup: bool,
+    sleep_idle: i32,
+    reasoning_preserve: bool,
+    fit: String,
     reasoning_budget: i32,
     reasoning_effort: String,
-    draft_model_path: String,
-    port: i32,
 ) -> Result<String, String> {
     let mut child_lock = state.0.lock().unwrap();
 
@@ -213,11 +220,33 @@ fn load_model(
        .arg("-b").arg(eval_batch.to_string())
        .arg("-ub").arg(physical_batch.to_string())
        .arg("--port").arg(port.to_string())
+       .arg("--host").arg(&host)
+       .arg("--threads-http").arg(threads_http.to_string())
        .arg("--cache-prompt")
+       .arg("--props")
        .arg("--jinja")
-        .arg("-np").arg("1")
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::piped());
+       .arg("-np").arg("1")
+       .arg("-kvo")
+       .arg("--fit").arg(&fit)
+       .arg("--load-mode").arg("mmap")
+       .stdout(Stdio::inherit())
+       .stderr(Stdio::piped());
+
+    if !alias.is_empty() {
+        cmd.arg("--alias").arg(&alias);
+    }
+
+    if no_warmup {
+        cmd.arg("--no-warmup");
+    }
+
+    if sleep_idle > 0 {
+        cmd.arg("--sleep-idle-seconds").arg(sleep_idle.to_string());
+    }
+
+    if reasoning_preserve {
+        cmd.arg("--reasoning-preserve");
+    }
 
     if flash_attention {
         cmd.arg("-fa").arg("on");

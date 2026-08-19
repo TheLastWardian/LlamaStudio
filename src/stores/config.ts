@@ -17,6 +17,13 @@ export interface ModelConfig {
   reasoningBudget: string
   reasoningEffort: string
   draftModelPath: string
+  host: string
+  alias: string
+  threadsHttp: number
+  noWarmup: boolean
+  sleepIdle: number
+  reasoningPreserve: boolean
+  fit: string
 }
 
 const modelDefaults: ModelConfig = {
@@ -35,6 +42,13 @@ const modelDefaults: ModelConfig = {
   reasoningEffort: 'default',
   draftModelPath: '',
   minimizeToTray: false,
+  host: '127.0.0.1',
+  alias: '',
+  threadsHttp: 2,
+  noWarmup: false,
+  sleepIdle: -1,
+  reasoningPreserve: false,
+  fit: 'on',
 }
 
 export async function loadModelConfig(modelPath: string): Promise<ModelConfig> {

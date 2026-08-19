@@ -18,3 +18,5 @@ export const allModels = ref<ModelFile[]>([])
 export const modelLoading = ref(false)
 
 export const serverLogs = ref<{time: string, level: string, msg: string}[]>([])
+
+export const loadedModel = ref<ModelFile | null>(null)
