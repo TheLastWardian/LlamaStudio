@@ -307,7 +307,7 @@ fn stop_model(state: State<ServerProcess>) -> Result<(), String> {
 #[tauri::command]
 fn save_window_state<R: Runtime>(app: tauri::AppHandle<R>) -> Result<(), String> {
     let window = app.get_webview_window("main").ok_or("no window")?;
-    let size = window.inner_size().map_err(|e| e.to_string())?;
+    let size = window.outer_size().map_err(|e| e.to_string())?;
     let pos = window.outer_position().map_err(|e| e.to_string())?;
     
     let config_dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
@@ -325,13 +325,9 @@ fn load_window_state<R: Runtime>(app: tauri::AppHandle<R>) -> Result<(), String>
     let data = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
     let v: serde_json::Value = serde_json::from_str(&data).map_err(|e| e.to_string())?;
     let window = app.get_webview_window("main").ok_or("no window")?;
-    let w = v["w"].as_u64().unwrap_or(800) as u32;
-    let h = v["h"].as_u64().unwrap_or(600) as u32;
-    let w = w.clamp(400, 3840);
-    let h = h.clamp(300, 2160);
     window.set_size(tauri::Size::Physical(tauri::PhysicalSize {
-        width: w,
-        height: h,
+        width: v["w"].as_u64().unwrap_or(1200) as u32,
+        height: v["h"].as_u64().unwrap_or(800) as u32,
     })).map_err(|e| e.to_string())?;
     window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
         x: v["x"].as_i64().unwrap_or(100) as i32,

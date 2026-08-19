@@ -1,5 +1,5 @@
 <template>
-  <div class="app" v-show="windowReady">
+  <div class="app">
     <Sidebar :currentView="currentView" :previousView="previousView" @navigate="currentView = $event" />
     <div class="main">
       <div v-if="modelLoading" class="loading-overlay">
@@ -36,7 +36,6 @@ const currentView = ref('models')
 const previousView = ref('models')
 const selectedModel = ref({ name: 'Qwen3.8 27B', layers: 65 })
 const rightPanelWidth = ref(300)
-const windowReady = ref(false)
 
 watch(currentView, (newView, oldView) => {
   if (newView !== 'settings') {
@@ -66,7 +65,6 @@ function startResize(e: MouseEvent) {
 onMounted(async () => {
   await loadGroups()
   await invoke('load_window_state').catch(() => {})
-  windowReady.value = true
 
   await listen<string>('llama-log', (event) => {
     const line = event.payload
