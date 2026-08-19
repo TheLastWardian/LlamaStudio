@@ -39,7 +39,7 @@
             class="model-row"
             :data-group-id="section.group?.id ?? 'ungrouped'"
             :data-model-path="model.path"
-            :class="{ selected: selectedModel?.path === model.path }"
+            :class="{ selected: selectedModel?.path === model.path, 'drop-target': dropTarget !== null && dragging?.modelPath !== model.path && dropModelPath === model.path }"
             @click="selectedModel = model"
             @contextmenu="onRightClickModel($event, model.path)"
             @mousedown="onModelMouseDown($event, model.path)"
@@ -168,6 +168,7 @@ onMounted(async () => {
 
 // Modelos agrupados y ordenados
 const groupedModels = computed(() => {
+  listVersion.value
   const filtered = models.value.filter(m =>
     m.name.toLowerCase().includes(search.value.toLowerCase()) ||
     m.publisher.toLowerCase().includes(search.value.toLowerCase())
@@ -179,22 +180,22 @@ const groupedModels = computed(() => {
   const sortedGroups = [...groups.value].sort((a, b) => a.order - b.order)
   for (const group of sortedGroups) {
     const groupModels = filtered
-      .filter(m => modelMeta.value[m.path]?.groupId === group.id)
+      .filter(m => modelMeta[m.path]?.groupId === group.id)
       .sort((a, b) => {
-        const aPinned = modelMeta.value[a.path]?.pinned ?? false
-        const bPinned = modelMeta.value[b.path]?.pinned ?? false
+        const aPinned = modelMeta[a.path]?.pinned ?? false
+        const bPinned = modelMeta[b.path]?.pinned ?? false
         if (aPinned !== bPinned) return aPinned ? -1 : 1
-        return (modelMeta.value[a.path]?.order ?? 0) - (modelMeta.value[b.path]?.order ?? 0)
+        return (modelMeta[a.path]?.order ?? 0) - (modelMeta[b.path]?.order ?? 0)
       })
     result.push({ group, models: groupModels })
   }
 
   // Ungrouped
   const ungrouped = filtered
-    .filter(m => !modelMeta.value[m.path]?.groupId || !groups.value.find(g => g.id === modelMeta.value[m.path]?.groupId))
+    .filter(m => !modelMeta[m.path]?.groupId || !groups.value.find(g => g.id === modelMeta[m.path]?.groupId))
     .sort((a, b) => {
-      const aPinned = modelMeta.value[a.path]?.pinned ?? false
-      const bPinned = modelMeta.value[b.path]?.pinned ?? false
+      const aPinned = modelMeta[a.path]?.pinned ?? false
+      const bPinned = modelMeta[b.path]?.pinned ?? false
       if (aPinned !== bPinned) return aPinned ? -1 : 1
       return 0
     })
@@ -270,6 +271,8 @@ function startColResize(e: MouseEvent, col: typeof columns.value[0]) {
 
 const dragging = ref<{ modelPath: string, x: number, y: number } | null>(null)
 const dropTarget = ref<string | null>(null)
+const dropModelPath = ref<string | null>(null)
+const listVersion = ref(0)
 
 function onModelMouseDown(e: MouseEvent, modelPath: string) {
   if (e.button !== 0) return
@@ -278,7 +281,6 @@ function onModelMouseDown(e: MouseEvent, modelPath: string) {
   const startX = e.clientX
   const startY = e.clientY
   let started = false
-  let dropModelPath: string | null = null
 
   function onMove(e: MouseEvent) {
     if (!started && Math.abs(e.clientX - startX) + Math.abs(e.clientY - startY) > 8) {
@@ -289,7 +291,7 @@ function onModelMouseDown(e: MouseEvent, modelPath: string) {
       const el = document.elementFromPoint(e.clientX, e.clientY)
       const groupEl = el?.closest('[data-group-id]')
       dropTarget.value = groupEl?.getAttribute('data-group-id') ?? null
-      dropModelPath = groupEl?.getAttribute('data-model-path') ?? null
+      dropModelPath.value = groupEl?.getAttribute('data-model-path') ?? null
     }
   }
 
@@ -303,31 +305,41 @@ function onModelMouseDown(e: MouseEvent, modelPath: string) {
     if (started && dragging.value) {
       const gId = dropTarget.value === 'ungrouped' ? null : dropTarget.value
 
-      if (dropModelPath && dropModelPath !== modelPath) {
-        // Reordenar dentro del grupo
-        const meta = modelMeta.value
-        const targetGroupId = meta[dropModelPath]?.groupId ?? null
+      if (dropModelPath.value && dropModelPath.value !== modelPath) {
+        const targetGroupId = modelMeta[dropModelPath.value]?.groupId ?? null
         
-        if (!meta[modelPath]) meta[modelPath] = { groupId: targetGroupId, pinned: false, order: 0 }
-        else meta[modelPath].groupId = targetGroupId
+        // Asignar al grupo del target
+        const newMeta = { ...modelMeta }
+        if (!newMeta[modelPath]) newMeta[modelPath] = { groupId: targetGroupId, pinned: false, order: 999 }
+        else newMeta[modelPath] = { ...newMeta[modelPath], groupId: targetGroupId }
 
+        // Obtener todos los modelos del grupo destino incluyendo el que movemos
         const groupModels = models.value
-          .filter(m => (meta[m.path]?.groupId ?? null) === targetGroupId)
-          .sort((a, b) => (meta[a.path]?.order ?? 0) - (meta[b.path]?.order ?? 0))
+          .filter(m => (newMeta[m.path]?.groupId ?? null) === targetGroupId)
+          .sort((a, b) => (newMeta[a.path]?.order ?? 0) - (newMeta[b.path]?.order ?? 0))
+
+        // Si no está en la lista aún, agregarlo
+        if (!groupModels.find(m => m.path === modelPath)) {
+          const draggedModel = models.value.find(m => m.path === modelPath)
+          if (draggedModel) groupModels.push(draggedModel)
+        }
 
         const fromIdx = groupModels.findIndex(m => m.path === modelPath)
-        const toIdx = groupModels.findIndex(m => m.path === dropModelPath)
+        const toIdx = groupModels.findIndex(m => m.path === dropModelPath.value)
+
+        console.log('fromIdx', fromIdx, 'toIdx', toIdx, 'groupModels', groupModels.map(m => m.name))
 
         if (fromIdx !== -1 && toIdx !== -1) {
           const arr = [...groupModels]
-          const [moved] = arr.splice(fromIdx === -1 ? arr.length : fromIdx, 1)
+          const [moved] = arr.splice(fromIdx, 1)
           arr.splice(toIdx, 0, moved)
           arr.forEach((m, i) => {
-            if (!meta[m.path]) meta[m.path] = { groupId: targetGroupId, pinned: false, order: i }
-            else meta[m.path].order = i
+            newMeta[m.path] = { ...(newMeta[m.path] ?? { groupId: targetGroupId, pinned: false }), order: i }
           })
         }
+        Object.assign(modelMeta, newMeta)
         saveGroups()
+        listVersion.value++
       } else if (dropTarget.value !== null) {
         moveModelToGroup(modelPath, gId)
       }
@@ -335,7 +347,7 @@ function onModelMouseDown(e: MouseEvent, modelPath: string) {
 
     dragging.value = null
     dropTarget.value = null
-    dropModelPath = null
+    dropModelPath.value = null
     cleanup()
   }
 

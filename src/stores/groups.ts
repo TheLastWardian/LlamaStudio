@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 import { load } from '@tauri-apps/plugin-store'
 
 export interface Group {
@@ -16,18 +16,19 @@ export interface ModelMeta {
 const STORE_FILE = 'groups.json'
 
 export const groups = ref<Group[]>([])
-export const modelMeta = ref<Record<string, ModelMeta>>({})
+export const modelMeta = reactive<Record<string, ModelMeta>>({})
 
 export async function loadGroups() {
   const store = await load(STORE_FILE, { autoSave: true })
   groups.value = await store.get<Group[]>('groups') ?? []
-  modelMeta.value = await store.get<Record<string, ModelMeta>>('modelMeta') ?? {}
+  const saved = await store.get<Record<string, ModelMeta>>('modelMeta') ?? {}
+  Object.assign(modelMeta, saved)
 }
 
 export async function saveGroups() {
   const store = await load(STORE_FILE, { autoSave: true })
   await store.set('groups', groups.value)
-  await store.set('modelMeta', modelMeta.value)
+  await store.set('modelMeta', { ...modelMeta })
   await store.save()
 }
 
@@ -41,28 +42,28 @@ export function createGroup(name: string) {
 export function deleteGroup(id: string) {
   groups.value = groups.value.filter(g => g.id !== id)
   // mover modelos del grupo eliminado a ungrouped
-  for (const key in modelMeta.value) {
-    if (modelMeta.value[key].groupId === id) {
-      modelMeta.value[key].groupId = null
+  for (const key in modelMeta) {
+    if (modelMeta[key].groupId === id) {
+      modelMeta[key].groupId = null
     }
   }
   saveGroups()
 }
 
 export function moveModelToGroup(modelPath: string, groupId: string | null) {
-  if (!modelMeta.value[modelPath]) {
-    modelMeta.value[modelPath] = { groupId, pinned: false, order: 0 }
+  if (!modelMeta[modelPath]) {
+    modelMeta[modelPath] = { groupId, pinned: false, order: 0 }
   } else {
-    modelMeta.value[modelPath].groupId = groupId
+    modelMeta[modelPath].groupId = groupId
   }
   saveGroups()
 }
 
 export function togglePin(modelPath: string) {
-  if (!modelMeta.value[modelPath]) {
-    modelMeta.value[modelPath] = { groupId: null, pinned: true, order: 0 }
+  if (!modelMeta[modelPath]) {
+    modelMeta[modelPath] = { groupId: null, pinned: true, order: 0 }
   } else {
-    modelMeta.value[modelPath].pinned = !modelMeta.value[modelPath].pinned
+    modelMeta[modelPath].pinned = !modelMeta[modelPath].pinned
   }
   saveGroups()
 }
