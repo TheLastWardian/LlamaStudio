@@ -172,6 +172,8 @@ fn scan_models(models_path: String) -> Vec<ModelFile> {
                     .unwrap_or_default();
                 let ctx_key = format!("{}.context_length", arch);
                 let max_context = meta.get(&ctx_key)
+                    .or_else(|| meta.get("llama.context_length"))
+                    .or_else(|| meta.get("model.context_length"))
                     .and_then(|v| v.parse::<u32>().ok())
                     .unwrap_or(0);
 

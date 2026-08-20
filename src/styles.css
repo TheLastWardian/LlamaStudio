@@ -351,7 +351,7 @@ body {
 }
 
 .field-input {
-  width: 90px;
+  width: 70px;
   background: #2a2a2a;
   border: 1px solid #333;
   border-radius: 4px;
@@ -370,6 +370,13 @@ body {
   padding: 3px 6px;
   font-size: 12px;
   outline: none;
+  text-align: center;
+  text-align-last: center;
+}
+
+.field-select option {
+  direction: ltr;
+  text-align: left;
 }
 
 .slider {
@@ -385,9 +392,36 @@ body {
 }
 
 .toggle {
-  width: 16px;
-  height: 16px;
-  accent-color: #5a8af5;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 32px;
+  height: 18px;
+  background: #3a3a3a;
+  border-radius: 9px;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.toggle:checked {
+  background: #5a8af5;
+}
+
+.toggle::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border-radius: 50%;
+  top: 2px;
+  left: 2px;
+  transition: left 0.2s;
+}
+
+.toggle:checked::after {
+  left: 16px;
 }
 
 .panel-footer {
@@ -815,6 +849,14 @@ body {
   padding: 12px;
   border-top: 1px solid #2a2a2a;
 }
+
+.arch-qwen35 { background: #1a3a5c; color: #5aacf5; }
+.arch-qwen35moe { background: #1a2a4a; color: #4a9af5; }
+.arch-qwen3 { background: #1a3a5c; color: #5aacf5; }
+.arch-gemma4 { background: #2a1a3a; color: #b55af5; }
+.arch-gemma4-assistant { background: #2a1a3a; color: #b55af5; }
+.arch-llama { background: #3a2a1a; color: #f5a55a; }
+.arch-mistral { background: #1a3a2a; color: #5af5aa; }
 
 .chat-view {
   display: flex;
