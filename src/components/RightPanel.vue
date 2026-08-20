@@ -355,7 +355,6 @@ const draftModels = computed(() => {
 watch(selectedModel, async (model) => {
   if (model) {
     const cfg = await loadModelConfig(model.path)
-    console.log('layer_count:', model.layer_count, 'arch:', model.arch, 'name:', model.name)
     if (!cfg.cpuThreads || cfg.cpuThreads === 0) {
       cfg.cpuThreads = await invoke<number>('get_cpu_threads')
     }
