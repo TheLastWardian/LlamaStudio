@@ -36,6 +36,7 @@ export default {
     ungrouped: 'Sin grupo',
   },
   load: {
+    contextAndOffload: '⚙ Longitud de contexto y descarga GPU',
     title: 'Cargar',
     contextLength: 'Longitud de contexto',
     modelSupportsTokens: 'El modelo soporta hasta {max} tokens',

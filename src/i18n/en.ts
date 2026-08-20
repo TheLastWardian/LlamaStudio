@@ -36,6 +36,7 @@ export default {
     ungrouped: 'Ungrouped',
   },
   load: {
+    contextAndOffload: '⚙ Context and Offload',
     title: 'Load',
     contextLength: 'Context Length',
     modelSupportsTokens: 'Model supports up to {max} tokens',
