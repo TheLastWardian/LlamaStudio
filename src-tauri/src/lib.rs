@@ -8,6 +8,9 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use std::io::{BufRead, BufReader, Read};
 use std::thread;
 use std::collections::HashMap;
+use std::os::windows::process::CommandExt;
+
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 #[derive(Serialize)]
 pub struct ModelFile {
@@ -327,7 +330,9 @@ fn load_model(
         cmd.arg("--system-prompt").arg(&system_prompt);
     }
 
-    let mut child = cmd.spawn()
+    let child = cmd
+        .creation_flags(CREATE_NO_WINDOW)
+        .spawn()
         .map_err(|e| format!("Failed to spawn: {}", e))?;
 
     let stderr = child.stderr.take().unwrap();
