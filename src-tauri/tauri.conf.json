@@ -16,7 +16,9 @@
         "title": "llamastudio",
         "width": 800,
         "height": 600,
-        "closable": true
+        "closable": true,
+        "visible": false,
+        "backgroundColor": "#1a1a1a"
       }
     ],
     "security": {

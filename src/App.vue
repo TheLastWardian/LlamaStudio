@@ -65,8 +65,10 @@ function startResize(e: MouseEvent) {
 }
 
 onMounted(async () => {
+  const win = getCurrentWindow()
   await loadGroups()
   await invoke('load_window_state').catch(() => {})
+  await win.show()
 
   if (unlistenLogs) unlistenLogs()
   
@@ -96,7 +98,6 @@ onMounted(async () => {
     }
   })
 
-  const win = getCurrentWindow()
   await win.listen('tauri://close-requested', async () => {
     const config = await loadConfig()
     if (config.minimizeToTray) {
