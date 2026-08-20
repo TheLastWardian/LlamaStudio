@@ -207,7 +207,6 @@ fn load_model(
     reasoning_effort: String,
     parallel: i32,
     mlock: bool,
-    #[serde(default)]
     mmap: bool,
     n_cpu_moe: i32,
 ) -> Result<String, String> {
