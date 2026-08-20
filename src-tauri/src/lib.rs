@@ -330,7 +330,7 @@ fn load_model(
         cmd.arg("--system-prompt").arg(&system_prompt);
     }
 
-    let child = cmd
+    let mut child = cmd
         .creation_flags(CREATE_NO_WINDOW)
         .spawn()
         .map_err(|e| format!("Failed to spawn: {}", e))?;
