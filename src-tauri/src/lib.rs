@@ -24,6 +24,7 @@ pub struct ModelFile {
     pub params: String,
     pub max_context: u32,
     pub layer_count: u32,
+    pub is_moe: bool,
     pub mmproj_paths: Vec<String>,
 }
 
@@ -226,6 +227,11 @@ fn scan_models(models_path: String) -> Vec<ModelFile> {
                     .or_else(|| meta.get("llama.block_count"))
                     .and_then(|v| v.parse::<u32>().ok())
                     .unwrap_or(999);
+                let expert_count = meta.get(&format!("{}.expert_count", arch))
+                    .or_else(|| meta.get("llama.expert_count"))
+                    .and_then(|v| v.parse::<u32>().ok())
+                    .unwrap_or(0);
+                let is_moe = expert_count > 0 || arch.contains("moe");
 
                 models.push(ModelFile {
                     name: file_name,
@@ -237,6 +243,7 @@ fn scan_models(models_path: String) -> Vec<ModelFile> {
                     params,
                     max_context,
                     layer_count,
+                    is_moe,
                     mmproj_paths: mmproj_files.clone(),
                 });
             }
@@ -284,6 +291,7 @@ fn load_model(
     vision_enabled: bool,
     mmproj_path: String,
     system_prompt: String,
+    seed: i32,
 ) -> Result<String, String> {
     let mut child_lock = state.0.lock().unwrap();
 
@@ -368,6 +376,10 @@ fn load_model(
 
     if n_cpu_moe > 0 {
         cmd.arg("--n-cpu-moe").arg(n_cpu_moe.to_string());
+    }
+
+    if seed != -1 {
+        cmd.arg("--seed").arg(seed.to_string());
     }
 
     if vision_enabled && !mmproj_path.is_empty() {

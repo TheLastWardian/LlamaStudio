@@ -113,7 +113,11 @@
           <label>{{ t('load.kvUnified') }}</label>
           <input type="checkbox" v-model="modelCfg.kvUnified" class="toggle" />
         </div>
-        <div class="field" :title="t('load.cpuMoETooltip')">
+        <div class="field" :title="t('load.seedTooltip')">
+          <label>{{ t('load.seed') }}</label>
+          <input type="number" v-model="modelCfg.seed" class="field-input" />
+        </div>
+        <div class="field" v-if="selectedModel?.is_moe" :title="t('load.cpuMoETooltip')">
           <label>{{ t('load.cpuMoE') }}</label>
           <input type="number" v-model="modelCfg.nCpuMoe" class="field-input" min="0" />
         </div>
@@ -339,6 +343,7 @@ const modelCfg = ref<ModelConfig>({
   kvUnified: false,
   nCpuMoe: 0,
   systemPrompt: '',
+  seed: -1,
 })
 
 const maxContext = computed(() => selectedModel.value?.max_context || 262144)
@@ -419,6 +424,7 @@ async function loadModel() {
       visionEnabled: modelCfg.value.visionEnabled ?? false,
       mmprojPath: modelCfg.value.mmprojPath ?? '',
       systemPrompt: modelCfg.value.systemPrompt ?? '',
+      seed: Number(modelCfg.value.seed ?? -1),
     })
     console.log('invoke result:', result)
     loadedModel.value = selectedModel.value

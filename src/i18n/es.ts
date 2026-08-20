@@ -66,6 +66,8 @@ export default {
     kvUnifiedTooltip: 'Unified KV cache. Activa: --kv-unified, Desactiva: --no-kv-unified.',
     cpuMoE: 'Capas MoE CPU',
     cpuMoETooltip: 'Para modelos MoE (como Qwen3.6 35B): número de capas de expertos que van a CPU. Libera VRAM a costa de velocidad.',
+    seed: 'Semilla',
+    seedTooltip: 'Semilla para reproducibilidad. -1 = aleatoria.',
     vision: 'Visión',
     visionTooltip: 'Activa el modelo de visión para procesar imágenes.',
     visionLabel: 'Visión (mmproj)',

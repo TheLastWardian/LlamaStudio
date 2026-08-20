@@ -10,6 +10,7 @@ export interface ModelFile {
   params: string
   max_context: number
   layer_count: number
+  is_moe: boolean
   mmproj_paths: string[]
 }
 

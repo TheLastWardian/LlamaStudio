@@ -355,6 +355,7 @@ async function invokeLoad(modelPath: string, cfg: ModelConfig) {
     mmap: cfg.mmap ?? false,
     kvUnified: cfg.kvUnified ?? false,
     systemPrompt: cfg.systemPrompt ?? '',
+    seed: Number(cfg.seed ?? -1),
   })
 }
 

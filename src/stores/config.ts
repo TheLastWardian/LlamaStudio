@@ -32,6 +32,7 @@ export interface ModelConfig {
   visionEnabled: boolean
   mmprojPath: string
   systemPrompt: string
+  seed: number
 }
 
 const modelDefaults: ModelConfig = {
@@ -64,6 +65,7 @@ const modelDefaults: ModelConfig = {
   visionEnabled: false,
   mmprojPath: '',
   systemPrompt: '',
+  seed: -1,
 }
 
 export async function loadModelConfig(modelPath: string): Promise<ModelConfig> {
