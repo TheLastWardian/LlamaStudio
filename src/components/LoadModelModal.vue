@@ -64,7 +64,7 @@
             <input type="range" min="512" :max="configModel.max_context || 262144" step="512" v-model="tempCfg.contextLength" class="slider full-width" />
             <div class="field">
               <label>{{ t('load.gpuOffload') }}</label>
-              <input type="range" min="0" max="999" v-model="tempCfg.gpuOffload" class="slider" />
+              <input type="range" min="0" :max="configModel?.layer_count ?? 999" v-model="tempCfg.gpuOffload" class="slider" />
               <span class="slider-value">{{ tempCfg.gpuOffload }}</span>
             </div>
           </div>
@@ -320,10 +320,12 @@ async function invokeLoad(modelPath: string, cfg: ModelConfig) {
   const config = await loadConfig()
   const cpuThreads = cfg.cpuThreads ?? 0
   const resolvedThreads = cpuThreads > 0 ? cpuThreads : await invoke<number>('get_cpu_threads')
+  const gpuLayers = cfg.gpuOffload ?? 0
+  const resolvedGpu = gpuLayers > 0 ? gpuLayers : (configModel.value?.layer_count ?? 999)
   await invoke('load_model', {
     llamaPath: config.llamaPath,
     modelPath,
-    gpuLayers: Number(cfg.gpuOffload ?? 65),
+    gpuLayers: resolvedGpu,
     contextLength: Number(cfg.contextLength ?? 4096),
     cpuThreads: resolvedThreads,
     evalBatch: Number(cfg.evalBatch ?? 2048),

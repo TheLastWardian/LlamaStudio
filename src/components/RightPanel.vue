@@ -29,7 +29,7 @@
         />
         <div class="field">
           <label>{{ t('load.gpuOffload') }}</label>
-          <input type="range" min="0" max="999" v-model.number="modelCfg.gpuOffload" class="slider" />
+          <input type="range" min="0" :max="selectedModel?.layer_count ?? 999" v-model.number="modelCfg.gpuOffload" class="slider" />
           <span class="slider-value">{{ modelCfg.gpuOffload }}</span>
         </div>
       </div>
@@ -313,7 +313,7 @@ const hasUnsavedChanges = computed(() => {
 
 const modelCfg = ref<ModelConfig>({
   contextLength: 4096,
-  gpuOffload: 65,
+  gpuOffload: 0,
   cpuThreads: 0,
   evalBatch: 2048,
   physicalBatch: 512,
@@ -355,8 +355,13 @@ const draftModels = computed(() => {
 watch(selectedModel, async (model) => {
   if (model) {
     const cfg = await loadModelConfig(model.path)
+    console.log('layer_count:', model.layer_count, 'arch:', model.arch, 'name:', model.name)
     if (!cfg.cpuThreads || cfg.cpuThreads === 0) {
       cfg.cpuThreads = await invoke<number>('get_cpu_threads')
+    }
+    const maxLayers = model.layer_count ?? 999
+    if (!cfg.gpuOffload || cfg.gpuOffload > maxLayers) {
+      cfg.gpuOffload = maxLayers
     }
     modelCfg.value = cfg
   }

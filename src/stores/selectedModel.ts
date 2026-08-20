@@ -9,6 +9,7 @@ export interface ModelFile {
   arch: string
   params: string
   max_context: number
+  layer_count: number
   mmproj_paths: string[]
 }
 

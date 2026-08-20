@@ -23,6 +23,7 @@ pub struct ModelFile {
     pub arch: String,
     pub params: String,
     pub max_context: u32,
+    pub layer_count: u32,
     pub mmproj_paths: Vec<String>,
 }
 
@@ -90,7 +91,47 @@ fn read_gguf_metadata(path: &str) -> HashMap<String, String> {
                 if std::io::Read::read_exact(&mut reader, &mut sbuf).is_err() { break; }
                 meta.insert(key, String::from_utf8_lossy(&sbuf).to_string());
             }
-            9 => break,
+            9 => { // ARRAY
+                let mut atype_buf = [0u8; 4];
+                if std::io::Read::read_exact(&mut reader, &mut atype_buf).is_err() { break; }
+                let atype = u32::from_le_bytes(atype_buf);
+
+                let mut alen_buf = [0u8; 8];
+                if std::io::Read::read_exact(&mut reader, &mut alen_buf).is_err() { break; }
+                let alen = u64::from_le_bytes(alen_buf);
+
+                let element_size: Option<u64> = match atype {
+                    0 => Some(1),  // UINT8
+                    1 => Some(1),  // INT8
+                    2 => Some(2),  // UINT16
+                    3 => Some(2),  // INT16
+                    4 => Some(4),  // UINT32
+                    5 => Some(4),  // INT32
+                    6 => Some(4),  // FLOAT32
+                    7 => Some(1),  // BOOL
+                    10 => Some(8), // UINT64
+                    11 => Some(8), // INT64
+                    12 => Some(8), // FLOAT64
+                    _ => None,
+                };
+
+                if let Some(esize) = element_size {
+                    let total = esize * alen;
+                    let mut skip = vec![0u8; total as usize];
+                    if std::io::Read::read_exact(&mut reader, &mut skip).is_err() { break; }
+                } else if atype == 8 {
+                    for _ in 0..alen {
+                        let mut slen_buf = [0u8; 8];
+                        if std::io::Read::read_exact(&mut reader, &mut slen_buf).is_err() { break; }
+                        let slen = u64::from_le_bytes(slen_buf);
+                        if slen > 1_000_000 { break; }
+                        let mut skip = vec![0u8; slen as usize];
+                        if std::io::Read::read_exact(&mut reader, &mut skip).is_err() { break; }
+                    }
+                } else {
+                    break;
+                }
+            }
             10 => {
                 let mut v = [0u8; 8];
                 if std::io::Read::read_exact(&mut reader, &mut v).is_err() { break; }
@@ -180,6 +221,11 @@ fn scan_models(models_path: String) -> Vec<ModelFile> {
                     .or_else(|| meta.get("model.context_length"))
                     .and_then(|v| v.parse::<u32>().ok())
                     .unwrap_or(0);
+                let layer_key = format!("{}.block_count", arch);
+                let layer_count = meta.get(&layer_key)
+                    .or_else(|| meta.get("llama.block_count"))
+                    .and_then(|v| v.parse::<u32>().ok())
+                    .unwrap_or(999);
 
                 models.push(ModelFile {
                     name: file_name,
@@ -190,6 +236,7 @@ fn scan_models(models_path: String) -> Vec<ModelFile> {
                     arch,
                     params,
                     max_context,
+                    layer_count,
                     mmproj_paths: mmproj_files.clone(),
                 });
             }
