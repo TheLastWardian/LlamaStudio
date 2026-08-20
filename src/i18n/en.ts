@@ -116,7 +116,7 @@ export default {
     selectPreset: 'Select a Preset...',
     savePreset: '+ Save Preset As...',
     systemPrompt: 'System Prompt',
-    promptPlaceholder: 'Example, "Only answer in rhymes"',
+    systemPromptPlaceholder: 'Example, "Only answer in rhymes"',
     tokenCount: 'Token count: N/A',
     enableThinking: 'Enable Thinking',
     settings: 'Settings',

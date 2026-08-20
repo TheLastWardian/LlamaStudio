@@ -350,6 +350,7 @@ async function invokeLoad(modelPath: string, cfg: ModelConfig) {
     mmprojPath: cfg.mmprojPath ?? '',
     mmap: cfg.mmap ?? false,
     kvUnified: cfg.kvUnified ?? false,
+    systemPrompt: cfg.systemPrompt ?? '',
   })
 }
 

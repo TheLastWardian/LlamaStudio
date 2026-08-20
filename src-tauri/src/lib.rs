@@ -230,6 +230,7 @@ fn load_model(
     n_cpu_moe: i32,
     vision_enabled: bool,
     mmproj_path: String,
+    system_prompt: String,
 ) -> Result<String, String> {
     let mut child_lock = state.0.lock().unwrap();
 
@@ -318,6 +319,10 @@ fn load_model(
 
     if vision_enabled && !mmproj_path.is_empty() {
         cmd.arg("--mmproj").arg(&mmproj_path);
+    }
+
+    if !system_prompt.is_empty() {
+        cmd.arg("--system-prompt").arg(&system_prompt);
     }
 
     let mut child = cmd.spawn()

@@ -217,91 +217,13 @@
     </div>
 
     <div v-if="activeTab === 'inference'">
-      <!-- Preset -->
-      <div class="panel-section">
-        <div class="section-title">{{ t('inference.preset') }}</div>
-        <div class="field">
-          <select class="field-select" style="flex:1">
-            <option>{{ t('inference.selectPreset') }}</option>
-          </select>
-        </div>
-        <div class="field">
-          <button class="btn-secondary" style="flex:1">{{ t('inference.savePreset') }}</button>
-        </div>
-      </div>
-
-      <!-- System Prompt -->
       <div class="panel-section">
         <div class="section-title">{{ t('inference.systemPrompt') }}</div>
-        <textarea
-          class="system-prompt"
-          :placeholder="t('inference.promptPlaceholder')"
-          v-model="systemPrompt"
+        <textarea 
+          class="system-prompt" 
+          :placeholder="t('inference.systemPromptPlaceholder')"
+          v-model="modelCfg.systemPrompt"
         ></textarea>
-        <div style="text-align:right; color:#555; font-size:11px; margin-top:4px;">{{ t('inference.tokenCount') }}</div>
-      </div>
-
-      <!-- Reasoning -->
-      <div class="panel-section">
-        <div class="section-title">{{ t('inference.enableThinking') }}</div>
-        <div class="field">
-          <label>{{ t('inference.enableThinking') }}</label>
-          <input type="checkbox" checked class="toggle" v-model="enableThinking" />
-        </div>
-        <div class="field" v-if="enableThinking">
-          <label>{{ t('load.reasoningBudget') }}</label>
-          <span style="color:#555; font-size:12px;">{{ t('load.unrestricted') }}</span>
-        </div>
-      </div>
-
-      <!-- Settings -->
-      <div class="panel-section">
-        <div class="section-title">{{ t('inference.settings') }}</div>
-        <div class="field">
-          <label>{{ t('inference.temperature') }}</label>
-          <input type="number" value="1" step="0.05" class="field-input" />
-        </div>
-        <div class="field">
-          <label>{{ t('inference.limitResponse') }}</label>
-          <input type="checkbox" class="toggle" />
-        </div>
-        <div class="field">
-          <label>{{ t('inference.contextOverflow') }}</label>
-          <select class="field-select">
-            <option selected>{{ t('inference.truncateMiddle') }}</option>
-            <option>{{ t('inference.stop') }}</option>
-            <option>{{ t('inference.roll') }}</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>{{ t('inference.stopStrings') }}</label>
-          <input type="text" class="field-input" :placeholder="t('inference.stopStringsPlaceholder')" style="width:120px" />
-        </div>
-      </div>
-
-      <!-- Sampling -->
-      <div class="panel-section">
-        <div class="section-title">{{ t('inference.sampling') }}</div>
-        <div class="field">
-          <label>{{ t('inference.topK') }}</label>
-          <input type="number" value="20" class="field-input" />
-        </div>
-        <div class="field">
-          <label>{{ t('inference.repeatPenalty') }}</label>
-          <input type="number" value="1" step="0.05" class="field-input" />
-        </div>
-        <div class="field">
-          <label>{{ t('inference.presencePenalty') }}</label>
-          <input type="checkbox" class="toggle" />
-        </div>
-        <div class="field">
-          <label>{{ t('inference.topP') }}</label>
-          <input type="number" value="0.95" step="0.05" class="field-input" />
-        </div>
-        <div class="field">
-          <label>{{ t('inference.minP') }}</label>
-          <input type="number" value="0.05" step="0.05" class="field-input" />
-        </div>
       </div>
     </div>
 
@@ -381,7 +303,7 @@ const hasUnsavedChanges = computed(() => {
     'contextLength', 'gpuOffload', 'cpuThreads', 'evalBatch', 'physicalBatch',
     'flashAttention', 'specType', 'maxDraftTokens', 'kCacheQuant', 'vCacheQuant',
     'reasoningBudget', 'reasoningEffort', 'parallel', 'mlock', 'nCpuMoe',
-    'host', 'noWarmup', 'sleepIdle', 'reasoningPreserve', 'fit', 'visionEnabled', 'mmprojPath'
+    'host', 'noWarmup', 'sleepIdle', 'reasoningPreserve', 'fit', 'visionEnabled', 'mmprojPath', 'systemPrompt'
   ]
   
   return keys.some(k => String(modelCfg.value[k]) !== String(loadedModelConfig.value![k]))
@@ -414,6 +336,7 @@ const modelCfg = ref<ModelConfig>({
   mmap: false,
   kvUnified: false,
   nCpuMoe: 0,
+  systemPrompt: '',
 })
 
 const maxContext = computed(() => selectedModel.value?.max_context || 262144)
@@ -439,10 +362,6 @@ watch(modelCfg, async (cfg) => {
     await saveModelConfig(selectedModel.value.path, cfg)
   }
 }, { deep: true })
-
-// Inference settings
-const systemPrompt = ref('')
-const enableThinking = ref(true)
 
 const loading = ref(false)
 const error = ref('')
@@ -489,6 +408,7 @@ async function loadModel() {
       nCpuMoe: Number(modelCfg.value.nCpuMoe ?? 0),
       visionEnabled: modelCfg.value.visionEnabled ?? false,
       mmprojPath: modelCfg.value.mmprojPath ?? '',
+      systemPrompt: modelCfg.value.systemPrompt ?? '',
     })
     console.log('invoke result:', result)
     loadedModel.value = selectedModel.value
