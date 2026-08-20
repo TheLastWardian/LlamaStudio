@@ -695,7 +695,7 @@ body {
   border: 1px solid #333;
   border-radius: 8px;
   width: 700px;
-  max-height: 70vh;
+  max-height: 85vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -758,4 +758,26 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 300px;
+}
+
+.pin-indicator {
+  font-size: 10px;
+  margin-right: 4px;
+}
+
+.modal-wide {
+  width: 700px;
+}
+
+.modal-config-body {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-config-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid #2a2a2a;
 }

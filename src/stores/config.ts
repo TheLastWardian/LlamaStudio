@@ -24,6 +24,9 @@ export interface ModelConfig {
   sleepIdle: number
   reasoningPreserve: boolean
   fit: string
+  parallel: number
+  mlock: boolean
+  nCpuMoe: number
 }
 
 const modelDefaults: ModelConfig = {
@@ -41,7 +44,6 @@ const modelDefaults: ModelConfig = {
   reasoningBudget: '-1',
   reasoningEffort: 'default',
   draftModelPath: '',
-  minimizeToTray: false,
   host: '127.0.0.1',
   alias: '',
   threadsHttp: 2,
@@ -49,13 +51,16 @@ const modelDefaults: ModelConfig = {
   sleepIdle: -1,
   reasoningPreserve: false,
   fit: 'on',
+  parallel: 1,
+  mlock: false,
+  nCpuMoe: 0,
 }
 
 export async function loadModelConfig(modelPath: string): Promise<ModelConfig> {
   const store = await load(STORE_FILE, { autoSave: true })
   const key = 'model:' + modelPath.replace(/[\\/]/g, '_')
-  const saved = await store.get<ModelConfig>(key)
-  return saved ?? { ...modelDefaults }
+  const saved = await store.get<Partial<ModelConfig>>(key)
+  return { ...modelDefaults, ...saved }
 }
 
 export async function saveModelConfig(modelPath: string, config: ModelConfig): Promise<void> {

@@ -205,6 +205,9 @@ fn load_model(
     fit: String,
     reasoning_budget: i32,
     reasoning_effort: String,
+    parallel: i32,
+    mlock: bool,
+    n_cpu_moe: i32,
 ) -> Result<String, String> {
     let mut child_lock = state.0.lock().unwrap();
 
@@ -225,8 +228,8 @@ fn load_model(
        .arg("--cache-prompt")
        .arg("--props")
        .arg("--jinja")
-       .arg("-np").arg("1")
-       .arg("-kvo")
+        .arg("-np").arg(parallel.to_string())
+        .arg("-kvo")
        .arg("--fit").arg(&fit)
        .arg("--load-mode").arg("mmap")
        .stdout(Stdio::inherit())
@@ -275,6 +278,14 @@ fn load_model(
 
     if reasoning_effort != "default" {
         cmd.arg("--reasoning-effort").arg(&reasoning_effort);
+    }
+
+    if mlock {
+        cmd.arg("--mlock");
+    }
+
+    if n_cpu_moe > 0 {
+        cmd.arg("--n-cpu-moe").arg(n_cpu_moe.to_string());
     }
 
     let mut child = cmd.spawn()

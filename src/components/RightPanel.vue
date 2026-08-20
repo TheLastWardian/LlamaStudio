@@ -95,6 +95,18 @@
             <option value="Q4_0">Q4_0</option>
           </select>
         </div>
+        <div class="field" title="Número de slots de inferencia simultáneos. Más slots = más memoria. LM Studio usa 4 por defecto.">
+          <label>Parallel Slots</label>
+          <input type="number" v-model="modelCfg.parallel" class="field-input" min="1" max="16" />
+        </div>
+        <div class="field" title="Bloquea el modelo en RAM, evita que el sistema operativo lo mueva a swap.">
+          <label>mlock</label>
+          <input type="checkbox" v-model="modelCfg.mlock" class="toggle" />
+        </div>
+        <div class="field" title="Para modelos MoE (como Qwen3.6 35B): número de capas de expertos que van a CPU. Libera VRAM a costa de velocidad.">
+          <label>CPU MoE Layers</label>
+          <input type="number" v-model="modelCfg.nCpuMoe" class="field-input" min="0" />
+        </div>
       </div>
 
       <div class="panel-section">
@@ -349,6 +361,9 @@ const modelCfg = ref<ModelConfig>({
   sleepIdle: -1,
   reasoningPreserve: false,
   fit: 'on',
+  parallel: 1,
+  mlock: false,
+  nCpuMoe: 0,
 })
 
 const maxContext = computed(() => selectedModel.value?.max_context || 262144)
@@ -416,6 +431,9 @@ async function loadModel() {
       fit: modelCfg.value.fit ?? 'on',
       reasoningBudget: Number(modelCfg.value.reasoningBudget),
       reasoningEffort: modelCfg.value.reasoningEffort,
+      parallel: Number(modelCfg.value.parallel ?? 1),
+      mlock: modelCfg.value.mlock ?? false,
+      nCpuMoe: Number(modelCfg.value.nCpuMoe ?? 0),
     })
     console.log('invoke result:', result)
     loadedModel.value = selectedModel.value
