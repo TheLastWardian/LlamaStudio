@@ -150,10 +150,11 @@ export default {
   },
   developer: {
     running: 'Running',
+    stopped: 'Stopped',
     serverSettings: 'Server Settings',
     mcpJson: 'mcp.json',
     reachableAt: 'Reachable at',
-    loadModel: '+ Load Model',
+    loadModel: 'Load Model',
     loading: 'Loading model...',
     loadedModels: 'Loaded Models',
     ready: 'READY',

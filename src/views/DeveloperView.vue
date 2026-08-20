@@ -3,15 +3,13 @@
     <!-- Topbar -->
     <div class="topbar">
       <div class="dev-status">
-        <span class="status-dot running"></span>
-        <span class="status-text">{{ t('developer.running') }}</span>
+        <span class="status-dot" :class="loadedModel ? 'running' : 'stopped'"></span>
+        <span class="status-text">{{ loadedModel ? t('developer.running') : t('developer.stopped') }}</span>
       </div>
-      <button class="btn-secondary">{{ t('developer.serverSettings') }}</button>
-      <button class="btn-secondary">mcp.json</button>
       <div style="flex:1"></div>
       <span style="color:#555; font-size:12px;">{{ t('developer.reachableAt') }}</span>
-      <span style="color:#5a8af5; font-size:12px; margin: 0 8px;">http://127.0.0.1:8080</span>
-      <button class="btn-load" style="width:auto; padding: 5px 12px;" @click="showModal = true">{{ t('developer.loadModel') }}</button>
+      <span style="color:#5a8af5; font-size:12px; margin: 0 8px;">http://127.0.0.1:{{ port }}</span>
+      <button class="btn-load" style="width:auto; padding: 5px 12px;" @click="showModal = true">+ {{ t('developer.loadModel') }}</button>
     </div>
     <!-- resto existente -->
     
@@ -55,15 +53,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
+import { ref, watch, nextTick, onMounted } from 'vue'
 import { serverLogs, loadedModel, modelLoading } from '../stores/selectedModel'
 import { invoke } from '@tauri-apps/api/core'
+import { loadConfig } from '../stores/config'
 import LoadModelModal from '../components/LoadModelModal.vue'
 import { t } from '../i18n'
 
 const logsEl = ref<HTMLElement>()
 const logs = serverLogs
 const showModal = ref(false)
+const port = ref(8080)
+
+onMounted(async () => {
+  const config = await loadConfig()
+  port.value = config.port
+})
 
 function escHtml(str: string): string {
   return str
