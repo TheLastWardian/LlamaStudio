@@ -19,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { listen } from '@tauri-apps/api/event'
@@ -36,6 +36,8 @@ const currentView = ref('models')
 const previousView = ref('models')
 const selectedModel = ref({ name: 'Qwen3.8 27B', layers: 65 })
 const rightPanelWidth = ref(300)
+
+let unlistenLogs: (() => void) | null = null
 
 watch(currentView, (newView, oldView) => {
   if (newView !== 'settings') {
@@ -66,7 +68,9 @@ onMounted(async () => {
   await loadGroups()
   await invoke('load_window_state').catch(() => {})
 
-  await listen<string>('llama-log', (event) => {
+  if (unlistenLogs) unlistenLogs()
+  
+  unlistenLogs = await listen<string>('llama-log', (event) => {
     const line = event.payload
     const clean = line.replace(/\x1B\[[0-9;]*m/g, '').replace(/INFO/g, '')
     const match = clean.match(/^(\S+)\s+([IWED])\s+(.+)$/)
@@ -97,5 +101,9 @@ onMounted(async () => {
       await win.destroy()
     }
   })
+})
+
+onUnmounted(() => {
+  if (unlistenLogs) unlistenLogs()
 })
 </script>
