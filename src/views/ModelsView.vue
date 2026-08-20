@@ -21,18 +21,27 @@
           <div 
             v-if="section.group"
             class="group-header"
+            :class="{ 'drop-group-target': dropGroupTarget === section.group.id }"
             :data-group-id="section.group.id"
+            @mousedown="onGroupMouseDown($event, section.group.id)"
             @contextmenu="onRightClickGroup($event, section.group.id)"
           >
+            <span class="group-collapse-icon" @click.stop="toggleCollapse(section.group.id)">
+              {{ collapsedGroups[section.group.id] ? '▶' : '▼' }}
+            </span>
             <span>📁 {{ section.group.name }}</span>
-            <span style="color:#555; font-size:11px;">{{ section.models.length }} {{ t('models.modelsCount') }}</span>
+            <span style="color:#555; font-size:11px; margin-left:auto;">{{ section.models.length }} {{ t('models.modelsCount') }}</span>
           </div>
           <div v-else-if="groupedModels.length > 1" class="group-header ungrouped" data-group-id="ungrouped">
+            <span class="group-collapse-icon" @click="toggleCollapse('ungrouped')">
+              {{ collapsedGroups['ungrouped'] ? '▶' : '▼' }}
+            </span>
             <span>{{ t('models.ungrouped') }}</span>
-            <span style="color:#555; font-size:11px;">{{ section.models.length }} {{ t('models.modelsCount') }}</span>
+            <span style="color:#555; font-size:11px; margin-left:auto;">{{ section.models.length }} {{ t('models.modelsCount') }}</span>
           </div>
 
-          <!-- Modelos -->
+          <!-- Modelos solo si no está colapsado -->
+          <template v-if="!collapsedGroups[section.group?.id ?? 'ungrouped']">
           <div
             v-for="model in section.models"
             :key="model.path"
@@ -67,6 +76,7 @@
             <div class="col-cell" :style="{ width: columns[6].width + 'px' }">-</div>
             <div class="col-cell" :style="{ width: columns[7].width + 'px' }">···</div>
           </div>
+          </template>
         </template>
       </div>
     </div>
@@ -138,7 +148,7 @@ import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { selectedModel, allModels } from '../stores/selectedModel'
 import { loadConfig } from '../stores/config'
-import { groups, modelMeta, modelDisplayNames, createGroup, deleteGroup, moveModelToGroup, togglePin, saveGroups } from '../stores/groups'
+import { groups, modelMeta, modelDisplayNames, createGroup, deleteGroup, moveModelToGroup, togglePin, saveGroups, collapsedGroups } from '../stores/groups'
 import type { ModelFile } from '../stores/selectedModel'
 import { t } from '../i18n'
 
@@ -284,6 +294,57 @@ const dropModelPath = ref<string | null>(null)
 const listVersion = ref(0)
 const renamingPath = ref<string | null>(null)
 const renameValue = ref('')
+const draggingGroup = ref<string | null>(null)
+const dropGroupTarget = ref<string | null>(null)
+
+function toggleCollapse(groupId: string) {
+  collapsedGroups[groupId] = !collapsedGroups[groupId]
+}
+
+function onGroupMouseDown(e: MouseEvent, groupId: string) {
+  if (e.button !== 0) return
+  const target = e.target as HTMLElement
+  if (target.classList.contains('group-collapse-icon')) return
+
+  const startX = e.clientX
+  const startY = e.clientY
+  let started = false
+
+  function onMove(e: MouseEvent) {
+    if (!started && Math.abs(e.clientX - startX) + Math.abs(e.clientY - startY) > 8) {
+      started = true
+      draggingGroup.value = groupId
+    }
+    if (started) {
+      const el = document.elementFromPoint(e.clientX, e.clientY)
+      const groupEl = el?.closest('[data-group-id]')
+      const targetId = groupEl?.getAttribute('data-group-id')
+      dropGroupTarget.value = targetId && targetId !== groupId ? targetId : null
+    }
+  }
+
+  function onUp() {
+    if (started && draggingGroup.value && dropGroupTarget.value) {
+      const from = groups.value.findIndex(g => g.id === draggingGroup.value)
+      const to = groups.value.findIndex(g => g.id === dropGroupTarget.value)
+      if (from !== -1 && to !== -1) {
+        const arr = [...groups.value]
+        const [moved] = arr.splice(from, 1)
+        arr.splice(to, 0, moved)
+        arr.forEach((g, i) => g.order = i)
+        groups.value = arr
+        saveGroups()
+      }
+    }
+    draggingGroup.value = null
+    dropGroupTarget.value = null
+    window.removeEventListener('mousemove', onMove)
+    window.removeEventListener('mouseup', onUp)
+  }
+
+  window.addEventListener('mousemove', onMove)
+  window.addEventListener('mouseup', onUp)
+}
 
 function startRename(modelPath: string) {
   closeCtxMenu()
@@ -415,5 +476,22 @@ function onModelMouseDown(e: MouseEvent, modelPath: string) {
   font-size: 12px;
   width: 100%;
   outline: none;
+}
+
+.group-collapse-icon {
+  cursor: pointer;
+  color: #555;
+  font-size: 10px;
+  margin-right: 6px;
+  user-select: none;
+}
+
+.group-collapse-icon:hover {
+  color: #aaa;
+}
+
+.drop-group-target {
+  background: #1a2a3a !important;
+  border: 1px dashed #5a8af5;
 }
 </style>

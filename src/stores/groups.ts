@@ -18,6 +18,7 @@ const STORE_FILE = 'groups.json'
 export const groups = ref<Group[]>([])
 export const modelMeta = reactive<Record<string, ModelMeta>>({})
 export const modelDisplayNames = reactive<Record<string, string>>({})
+export const collapsedGroups = reactive<Record<string, boolean>>({})
 
 export async function loadGroups() {
   const store = await load(STORE_FILE, { autoSave: true })

@@ -164,6 +164,7 @@ body {
   color: #aaa;
   font-weight: 600;
   user-select: none;
+  gap: 8px;
 }
 
 .group-header.ungrouped {
