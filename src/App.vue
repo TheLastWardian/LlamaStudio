@@ -13,7 +13,7 @@
       <SettingsView v-if="currentView === 'settings'" />
     </div>
     <div v-if="currentView !== 'developer' || loadedModel" class="resize-handle" @mousedown="startResize"></div>
-    <RightPanel v-if="currentView !== 'developer' || loadedModel" :style="{ width: rightPanelWidth + 'px' }" />
+    <RightPanel v-if="currentView !== 'developer' || loadedModel" :style="{ width: rightPanelWidth + 'px' }" :currentView="currentView" />
     <div v-else-if="currentView === 'developer'" style="width: 0px"></div>
   </div>
 </template>
@@ -23,7 +23,7 @@ import { ref, onMounted, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { listen } from '@tauri-apps/api/event'
-import { serverLogs, modelLoading, selectedModel, loadedModel } from './stores/selectedModel'
+import { serverLogs, modelLoading, selectedModel, loadedModel, loadingModel } from './stores/selectedModel'
 import { loadConfig } from './stores/config'
 import { loadGroups } from './stores/groups'
 import Sidebar from './components/Sidebar.vue'
@@ -79,7 +79,8 @@ onMounted(async () => {
     
     if (clean.includes('model loaded')) {
       modelLoading.value = false
-      loadedModel.value = selectedModel.value
+      loadedModel.value = loadingModel.value ?? selectedModel.value
+      loadingModel.value = null
     }
     if (clean.includes('loading model')) {
       modelLoading.value = true

@@ -185,7 +185,7 @@
       <div class="panel-footer">
         <div v-if="error" style="color:#f55a5a; font-size:11px; margin-bottom:8px;">{{ error }}</div>
         <button class="btn-load" @click="loadModel" :disabled="loading">
-          {{ loading ? 'Loading...' : '⬆ Load Model' }}
+          {{ loading ? 'Loading...' : ((currentView === 'developer' && loadedModel) ? '⬆ Reload' : '⬆ Load Model') }}
         </button>
         <button class="btn-secondary" style="width:100%; margin-top:6px;" @click="stopModel">
           ⏹ Stop
@@ -342,8 +342,10 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
-import { selectedModel, allModels, modelLoading, loadedModel } from '../stores/selectedModel'
+import { selectedModel, allModels, modelLoading, loadedModel, loadingModel } from '../stores/selectedModel'
 import { loadConfig, loadModelConfig, saveModelConfig, type ModelConfig } from '../stores/config'
+
+defineProps<{ currentView?: string }>()
 
 const activeTab = ref('load')
 
@@ -409,6 +411,7 @@ const error = ref('')
 
 async function loadModel() {
   console.log('loadModel called', selectedModel.value)
+  loadingModel.value = selectedModel.value
   modelLoading.value = true
   loading.value = true
   error.value = ''

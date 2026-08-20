@@ -221,7 +221,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { allModels, loadedModel, selectedModel, modelLoading } from '../stores/selectedModel'
+import { allModels, loadedModel, selectedModel, modelLoading, loadingModel } from '../stores/selectedModel'
 import { modelDisplayNames, modelMeta, groups } from '../stores/groups'
 import { invoke } from '@tauri-apps/api/core'
 import { loadConfig, loadModelConfig, type ModelConfig } from '../stores/config'
@@ -280,6 +280,7 @@ async function onModelClick(e: MouseEvent, model: ModelFile) {
 
 async function loadWithConfig() {
   if (!configModel.value || !tempCfg.value) return
+  loadingModel.value = configModel.value
   selectedModel.value = configModel.value
   emit('close')
   modelLoading.value = true
@@ -322,6 +323,7 @@ async function loadWithConfig() {
 }
 
 async function selectModel(model: ModelFile) {
+  loadingModel.value = model
   selectedModel.value = model
   emit('close')
   
