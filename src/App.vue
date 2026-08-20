@@ -9,11 +9,12 @@
         </div>
       </div>
       <ModelsView v-if="currentView === 'models'" />
+      <ChatView v-if="currentView === 'chat'" />
       <DeveloperView v-if="currentView === 'developer'" />
       <SettingsView v-if="currentView === 'settings'" />
     </div>
-    <div v-if="currentView !== 'developer' || loadedModel" class="resize-handle" @mousedown="startResize"></div>
-    <RightPanel v-if="currentView !== 'developer' || loadedModel" :style="{ width: rightPanelWidth + 'px' }" :currentView="currentView" />
+    <div v-if="(currentView !== 'developer' && currentView !== 'chat') || loadedModel" class="resize-handle" @mousedown="startResize"></div>
+    <RightPanel v-if="(currentView !== 'developer' && currentView !== 'chat') || loadedModel" :style="{ width: rightPanelWidth + 'px' }" :currentView="currentView" />
     <div v-else-if="currentView === 'developer'" style="width: 0px"></div>
   </div>
 </template>
@@ -29,6 +30,7 @@ import { loadGroups } from './stores/groups'
 import { setLang } from './i18n'
 import Sidebar from './components/Sidebar.vue'
 import ModelsView from './views/ModelsView.vue'
+import ChatView from './views/ChatView.vue'
 import DeveloperView from './views/DeveloperView.vue'
 import SettingsView from './views/SettingsView.vue'
 import RightPanel from './components/RightPanel.vue'

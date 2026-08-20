@@ -94,6 +94,10 @@ export default {
     loading: 'Loading...',
     stop: '⏹ Stop',
   },
+  chat: {
+    noModel: 'No model loaded. Load a model first.',
+    loadModel: 'Go to Developer'
+  },
   info: {
     modelInfo: 'Model Information',
     model: 'Model',

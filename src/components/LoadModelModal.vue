@@ -47,7 +47,7 @@
       <!-- Vista: Config -->
       <template v-else-if="view === 'config' && configModel && tempCfg">
         <div class="modal-header">
-          <button class="btn-secondary" @click="view = 'list'">← {{ t('modal.back') }}</button>
+          <button class="btn-secondary" @click="view = 'list'">{{ t('modal.back') }}</button>
           <span style="color:#fff; font-size:13px; font-weight:600; flex:1; text-align:center;">
             {{ modelDisplayNames[configModel.path] || configModel.name }}
           </span>
@@ -239,7 +239,7 @@
         <div class="modal-config-footer">
           <button class="btn-secondary" @click="view = 'list'">{{ t('modal.back') }}</button>
           <button class="btn-load" style="width:auto; padding: 6px 24px;" @click="loadWithConfig">
-            ⬆ {{ t('modal.load') }}
+            {{ t('modal.load') }}
           </button>
         </div>
       </template>

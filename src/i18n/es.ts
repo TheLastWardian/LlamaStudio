@@ -94,6 +94,10 @@ export default {
     loading: 'Cargando...',
     stop: '⏹ Detener',
   },
+  chat: {
+    noModel: 'No hay modelo cargado. Cargá un modelo primero.',
+    loadModel: 'Ir a Developer'
+  },
   info: {
     modelInfo: 'Información del modelo',
     model: 'Modelo',
