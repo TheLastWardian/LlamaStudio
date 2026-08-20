@@ -16,6 +16,8 @@
     "core:window:allow-set-size",
     "core:window:allow-set-position",
     "core:window:allow-hide",
+    "core:window:allow-is-maximized",
+    "core:window:allow-maximize",
     "core:window:allow-show",
     "core:event:allow-listen"
   ]
