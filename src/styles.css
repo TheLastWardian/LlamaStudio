@@ -386,6 +386,17 @@ body {
 
 .btn-load:hover { background: #4a4a7a; color: #fff; }
 
+.btn-reload-changes {
+  background: #3a2a1a;
+  border-color: #f5a55a;
+  color: #f5a55a;
+}
+
+.btn-reload-changes:hover {
+  background: #4a3a2a;
+  color: #f5c55a;
+}
+
 .btn-secondary {
   background: #2a2a2a;
   border: 1px solid #444;

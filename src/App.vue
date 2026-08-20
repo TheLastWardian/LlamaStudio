@@ -23,8 +23,8 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { listen } from '@tauri-apps/api/event'
-import { serverLogs, modelLoading, selectedModel, loadedModel, loadingModel } from './stores/selectedModel'
-import { loadConfig } from './stores/config'
+import { serverLogs, modelLoading, selectedModel, loadedModel, loadingModel, loadedModelConfig } from './stores/selectedModel'
+import { loadConfig, loadModelConfig } from './stores/config'
 import { loadGroups } from './stores/groups'
 import Sidebar from './components/Sidebar.vue'
 import ModelsView from './views/ModelsView.vue'
@@ -85,6 +85,11 @@ onMounted(async () => {
       modelLoading.value = false
       loadedModel.value = loadingModel.value ?? selectedModel.value
       loadingModel.value = null
+      if (loadedModel.value) {
+        loadModelConfig(loadedModel.value.path).then(cfg => {
+          loadedModelConfig.value = { ...cfg }
+        })
+      }
     }
     if (clean.includes('loading model')) {
       modelLoading.value = true

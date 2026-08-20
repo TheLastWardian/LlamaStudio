@@ -202,8 +202,13 @@
 
       <div class="panel-footer">
         <div v-if="error" style="color:#f55a5a; font-size:11px; margin-bottom:8px;">{{ error }}</div>
-        <button class="btn-load" @click="loadModel" :disabled="loading">
-          {{ loading ? 'Loading...' : ((currentView === 'developer' && loadedModel) ? '⬆ Reload' : '⬆ Load Model') }}
+        <button 
+          class="btn-load" 
+          :class="{ 'btn-reload-changes': hasUnsavedChanges }"
+          @click="loadModel" 
+          :disabled="loading"
+        >
+          {{ loading ? 'Loading...' : hasUnsavedChanges ? '⚠ Reload to apply changes' : ((currentView === 'developer' && loadedModel) ? '⬆ Reload' : '⬆ Load Model') }}
         </button>
         <button class="btn-secondary" style="width:100%; margin-top:6px;" @click="stopModel">
           ⏹ Stop
@@ -360,12 +365,26 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
-import { selectedModel, allModels, modelLoading, loadedModel, loadingModel } from '../stores/selectedModel'
+import { selectedModel, allModels, modelLoading, loadedModel, loadingModel, loadedModelConfig } from '../stores/selectedModel'
 import { loadConfig, loadModelConfig, saveModelConfig, type ModelConfig } from '../stores/config'
 
 defineProps<{ currentView?: string }>()
 
 const activeTab = ref('load')
+
+const hasUnsavedChanges = computed(() => {
+  if (!loadedModelConfig.value || !loadedModel.value) return false
+  if (selectedModel.value?.path !== loadedModel.value.path) return false
+  
+  const keys: (keyof typeof modelCfg.value)[] = [
+    'contextLength', 'gpuOffload', 'cpuThreads', 'evalBatch', 'physicalBatch',
+    'flashAttention', 'specType', 'maxDraftTokens', 'kCacheQuant', 'vCacheQuant',
+    'reasoningBudget', 'reasoningEffort', 'parallel', 'mlock', 'nCpuMoe',
+    'host', 'noWarmup', 'sleepIdle', 'reasoningPreserve', 'fit', 'visionEnabled', 'mmprojPath'
+  ]
+  
+  return keys.some(k => String(modelCfg.value[k]) !== String(loadedModelConfig.value![k]))
+})
 
 const modelCfg = ref<ModelConfig>({
   contextLength: 100352,
