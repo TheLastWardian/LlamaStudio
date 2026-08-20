@@ -35,7 +35,7 @@ export interface ModelConfig {
 }
 
 const modelDefaults: ModelConfig = {
-  contextLength: 100352,
+  contextLength: 4096,
   gpuOffload: 65,
   cpuThreads: 0,
   evalBatch: 2048,
@@ -89,7 +89,7 @@ export interface AppConfig {
 }
 
 const defaults: AppConfig = {
-  modelsPath: 'F:\\Users\\Wardian\\.lmstudio\\models',
+  modelsPath: '',
   llamaPath: '',
   port: 8080,
   minimizeToTray: false,

@@ -37,7 +37,6 @@ import RightPanel from './components/RightPanel.vue'
 
 const currentView = ref('models')
 const previousView = ref('models')
-const selectedModel = ref({ name: 'Qwen3.8 27B', layers: 65 })
 const rightPanelWidth = ref(300)
 
 let unlistenLogs: (() => void) | null = null

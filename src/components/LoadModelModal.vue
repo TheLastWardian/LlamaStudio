@@ -64,7 +64,7 @@
             <input type="range" min="512" :max="configModel.max_context || 262144" step="512" v-model="tempCfg.contextLength" class="slider full-width" />
             <div class="field">
               <label>{{ t('load.gpuOffload') }}</label>
-              <input type="range" min="0" max="65" v-model="tempCfg.gpuOffload" class="slider" />
+              <input type="range" min="0" max="999" v-model="tempCfg.gpuOffload" class="slider" />
               <span class="slider-value">{{ tempCfg.gpuOffload }}</span>
             </div>
           </div>
@@ -73,7 +73,7 @@
             <div class="section-title">≋ {{ t('load.advanced') }}</div>
             <div class="field">
               <label>{{ t('load.cpuThreads') }}</label>
-              <input type="number" v-model="tempCfg.cpuThreads" class="field-input" min="1" max="24" />
+              <input type="number" v-model="tempCfg.cpuThreads" class="field-input" min="1" max="128" />
             </div>
             <div class="field">
               <label>{{ t('load.evalBatch') }}</label>
@@ -318,12 +318,14 @@ async function onModelClick(e: MouseEvent, model: ModelFile) {
 
 async function invokeLoad(modelPath: string, cfg: ModelConfig) {
   const config = await loadConfig()
+  const cpuThreads = cfg.cpuThreads ?? 0
+  const resolvedThreads = cpuThreads > 0 ? cpuThreads : await invoke<number>('get_cpu_threads')
   await invoke('load_model', {
     llamaPath: config.llamaPath,
     modelPath,
     gpuLayers: Number(cfg.gpuOffload ?? 65),
-    contextLength: Number(cfg.contextLength ?? 100352),
-    cpuThreads: Number(cfg.cpuThreads ?? 12),
+    contextLength: Number(cfg.contextLength ?? 4096),
+    cpuThreads: resolvedThreads,
     evalBatch: Number(cfg.evalBatch ?? 2048),
     physicalBatch: Number(cfg.physicalBatch ?? 512),
     flashAttention: cfg.flashAttention ?? true,

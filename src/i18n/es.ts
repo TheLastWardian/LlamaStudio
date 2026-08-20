@@ -43,7 +43,7 @@ export default {
     gpuOffload: 'Descarga GPU',
     advanced: 'Avanzado',
     cpuThreads: 'Tamaño pool hilos CPU',
-    cpuThreadsTooltip: 'Hilos de CPU para generación de tokens. Máximo útil = threads de tu CPU (24 para Ryzen 9 5900x)',
+    cpuThreadsTooltip: 'Hilos de CPU para generación de tokens. Máximo útil = threads de tu CPU.',
     evalBatch: 'Tamaño batch evaluación',
     physicalBatch: 'Tamaño batch físico',
     flashAttention: 'Flash Attention',

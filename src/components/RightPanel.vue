@@ -29,7 +29,7 @@
         />
         <div class="field">
           <label>{{ t('load.gpuOffload') }}</label>
-          <input type="range" min="0" max="65" v-model.number="modelCfg.gpuOffload" class="slider" />
+          <input type="range" min="0" max="999" v-model.number="modelCfg.gpuOffload" class="slider" />
           <span class="slider-value">{{ modelCfg.gpuOffload }}</span>
         </div>
       </div>
@@ -38,7 +38,7 @@
         <div class="section-title">≋ {{ t('load.advanced') }}</div>
         <div class="field" :title="t('load.cpuThreadsTooltip')">
           <label>{{ t('load.cpuThreads') }}</label>
-          <input type="number" v-model="modelCfg.cpuThreads" class="field-input" min="1" max="24" />
+          <input type="number" v-model="modelCfg.cpuThreads" class="field-input" min="1" max="128" />
         </div>
         <div class="field">
           <label>{{ t('load.evalBatch') }}</label>
@@ -312,9 +312,9 @@ const hasUnsavedChanges = computed(() => {
 })
 
 const modelCfg = ref<ModelConfig>({
-  contextLength: 100352,
+  contextLength: 4096,
   gpuOffload: 65,
-  cpuThreads: 12,
+  cpuThreads: 0,
   evalBatch: 2048,
   physicalBatch: 512,
   flashAttention: true,

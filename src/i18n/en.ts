@@ -43,7 +43,7 @@ export default {
     gpuOffload: 'GPU Offload',
     advanced: 'Advanced',
     cpuThreads: 'CPU Thread Pool Size',
-    cpuThreadsTooltip: 'CPU threads for token generation. Max useful = your CPU threads (24 for Ryzen 9 5900x)',
+    cpuThreadsTooltip: 'CPU threads for token generation. Max useful = your CPU thread count.',
     evalBatch: 'Evaluation Batch Size',
     physicalBatch: 'Physical Batch Size',
     flashAttention: 'Flash Attention',
