@@ -401,6 +401,13 @@ fn load_window_state<R: Runtime>(app: tauri::AppHandle<R>) -> Result<(), String>
     Ok(())
 }
 
+#[tauri::command]
+fn get_cpu_threads() -> usize {
+    std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -445,7 +452,7 @@ pub fn run() {
             Ok(())
         })
         .manage(ServerProcess(Mutex::new(None)))
-        .invoke_handler(tauri::generate_handler![scan_models, load_model, stop_model, save_window_state, load_window_state])
+        .invoke_handler(tauri::generate_handler![scan_models, load_model, stop_model, save_window_state, load_window_state, get_cpu_threads])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

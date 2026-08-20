@@ -82,6 +82,7 @@
         <div class="field">
           <label>{{ t('load.kCacheQuant') }}</label>
           <select class="field-select" v-model="modelCfg.kCacheQuant">
+            <option value="F32">F32</option>
             <option value="F16">F16</option>
             <option value="Q8_0">Q8_0</option>
             <option value="Q4_0">Q4_0</option>
@@ -90,6 +91,7 @@
         <div class="field">
           <label>{{ t('load.vCacheQuant') }}</label>
           <select class="field-select" v-model="modelCfg.vCacheQuant">
+            <option value="F32">F32</option>
             <option value="F16">F16</option>
             <option value="Q8_0">Q8_0</option>
             <option value="Q4_0">Q4_0</option>
@@ -352,7 +354,11 @@ const draftModels = computed(() => {
 // Cargar config cuando cambia el modelo seleccionado
 watch(selectedModel, async (model) => {
   if (model) {
-    modelCfg.value = await loadModelConfig(model.path)
+    const cfg = await loadModelConfig(model.path)
+    if (!cfg.cpuThreads || cfg.cpuThreads === 0) {
+      cfg.cpuThreads = await invoke<number>('get_cpu_threads')
+    }
+    modelCfg.value = cfg
   }
 }, { immediate: true })
 

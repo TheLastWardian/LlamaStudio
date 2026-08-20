@@ -37,7 +37,7 @@ export interface ModelConfig {
 const modelDefaults: ModelConfig = {
   contextLength: 100352,
   gpuOffload: 65,
-  cpuThreads: 12,
+  cpuThreads: 0,
   evalBatch: 2048,
   physicalBatch: 512,
   flashAttention: true,
