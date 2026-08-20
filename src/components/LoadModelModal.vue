@@ -102,6 +102,10 @@
               <input type="checkbox" v-model="tempCfg.mmap" class="toggle" />
             </div>
             <div class="field">
+              <label>kv-unified</label>
+              <input type="checkbox" v-model="tempCfg.kvUnified" class="toggle" />
+            </div>
+            <div class="field">
               <label>CPU MoE Layers</label>
               <input type="number" v-model="tempCfg.nCpuMoe" class="field-input" min="0" />
             </div>
@@ -309,6 +313,7 @@ async function loadWithConfig() {
       parallel: Number(tempCfg.value.parallel ?? 1),
       mlock: tempCfg.value.mlock ?? false,
       mmap: tempCfg.value.mmap ?? false,
+      kvUnified: tempCfg.value.kvUnified ?? false,
       nCpuMoe: Number(tempCfg.value.nCpuMoe ?? 0),
     })
   } catch (e) {
@@ -353,6 +358,7 @@ async function selectModel(model: ModelFile) {
       parallel: Number(modelCfg.parallel ?? 1),
       mlock: modelCfg.mlock ?? false,
       mmap: modelCfg.mmap ?? false,
+      kvUnified: modelCfg.kvUnified ?? false,
       nCpuMoe: Number(modelCfg.nCpuMoe ?? 0),
     })
   } catch (e) {

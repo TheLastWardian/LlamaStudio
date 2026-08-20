@@ -208,6 +208,7 @@ fn load_model(
     parallel: i32,
     mlock: bool,
     mmap: bool,
+    kv_unified: bool,
     n_cpu_moe: i32,
 ) -> Result<String, String> {
     let mut child_lock = state.0.lock().unwrap();
@@ -283,6 +284,12 @@ fn load_model(
 
     if mlock {
         cmd.arg("--mlock");
+    }
+
+    if kv_unified {
+        cmd.arg("--kv-unified");
+    } else {
+        cmd.arg("--no-kv-unified");
     }
 
     if n_cpu_moe > 0 {

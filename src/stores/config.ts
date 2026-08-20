@@ -27,6 +27,7 @@ export interface ModelConfig {
   parallel: number
   mlock: boolean
   mmap: boolean
+  kvUnified: boolean
   nCpuMoe: number
 }
 
@@ -55,6 +56,7 @@ const modelDefaults: ModelConfig = {
   parallel: 1,
   mlock: false,
   mmap: false,
+  kvUnified: false,
   nCpuMoe: 0,
 }
 

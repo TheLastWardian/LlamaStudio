@@ -107,6 +107,10 @@
           <label>mmap</label>
           <input type="checkbox" v-model="modelCfg.mmap" class="toggle" />
         </div>
+        <div class="field" title="Unified KV cache. Activa: --kv-unified, Desactiva: --no-kv-unified.">
+          <label>kv-unified</label>
+          <input type="checkbox" v-model="modelCfg.kvUnified" class="toggle" />
+        </div>
         <div class="field" title="Para modelos MoE (como Qwen3.6 35B): número de capas de expertos que van a CPU. Libera VRAM a costa de velocidad.">
           <label>CPU MoE Layers</label>
           <input type="number" v-model="modelCfg.nCpuMoe" class="field-input" min="0" />
@@ -368,6 +372,7 @@ const modelCfg = ref<ModelConfig>({
   parallel: 1,
   mlock: false,
   mmap: false,
+  kvUnified: false,
   nCpuMoe: 0,
 })
 
@@ -439,6 +444,7 @@ async function loadModel() {
       parallel: Number(modelCfg.value.parallel ?? 1),
       mlock: modelCfg.value.mlock ?? false,
       mmap: modelCfg.value.mmap ?? false,
+      kvUnified: modelCfg.value.kvUnified ?? false,
       nCpuMoe: Number(modelCfg.value.nCpuMoe ?? 0),
     })
     console.log('invoke result:', result)
