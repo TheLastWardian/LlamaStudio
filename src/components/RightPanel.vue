@@ -1,11 +1,11 @@
 <template>
   <div class="right-panel">
     <div class="panel-header">
-      <span class="model-title">{{ selectedModel?.name ?? 'No model selected' }}</span>
+      <span class="model-title">{{ selectedModel?.name ?? t('models.noModelSelected') }}</span>
       <div class="panel-tabs">
-        <button class="tab" :class="{ active: activeTab === 'info' }" @click="activeTab = 'info'">Info</button>
-        <button class="tab" :class="{ active: activeTab === 'load' }" @click="activeTab = 'load'">Load</button>
-        <button class="tab" :class="{ active: activeTab === 'inference' }" @click="activeTab = 'inference'">Inference</button>
+        <button class="tab" :class="{ active: activeTab === 'info' }" @click="activeTab = 'info'">{{ t('info.modelInfo') }}</button>
+        <button class="tab" :class="{ active: activeTab === 'load' }" @click="activeTab = 'load'">{{ t('load.title') }}</button>
+        <button class="tab" :class="{ active: activeTab === 'inference' }" @click="activeTab = 'inference'">{{ t('inference.settings') }}</button>
       </div>
     </div>
 
@@ -13,11 +13,11 @@
       <div class="panel-section">
         <div class="section-title">⚙ Context and Offload</div>
         <div class="field">
-          <label>Context Length</label>
+          <label>{{ t('load.contextLength') }}</label>
           <input type="number" v-model="modelCfg.contextLength" class="field-input" />
         </div>
         <div class="field">
-          <label style="color:#555; font-size:11px;">Model supports up to {{ maxContext }} tokens</label>
+          <label style="color:#555; font-size:11px;">{{ t('load.modelSupportsTokens', { max: maxContext }) }}</label>
         </div>
         <input 
           type="range" 
@@ -28,59 +28,59 @@
           class="slider full-width"
         />
         <div class="field">
-          <label>GPU Offload</label>
+          <label>{{ t('load.gpuOffload') }}</label>
           <input type="range" min="0" max="65" v-model.number="modelCfg.gpuOffload" class="slider" />
           <span class="slider-value">{{ modelCfg.gpuOffload }}</span>
         </div>
       </div>
 
       <div class="panel-section">
-        <div class="section-title">≋ Advanced</div>
+        <div class="section-title">≋ {{ t('load.advanced') }}</div>
         <div class="field" title="Hilos de CPU para generación de tokens. Máximo útil = threads de tu CPU (24 para Ryzen 9 5900x)">
-          <label>CPU Thread Pool Size</label>
+          <label>{{ t('load.cpuThreads') }}</label>
           <input type="number" v-model="modelCfg.cpuThreads" class="field-input" min="1" max="24" />
         </div>
         <div class="field">
-          <label>Evaluation Batch Size</label>
+          <label>{{ t('load.evalBatch') }}</label>
           <input type="number" v-model.number="modelCfg.evalBatch" class="field-input" />
         </div>
         <div class="field">
-          <label>Physical Batch Size</label>
+          <label>{{ t('load.physicalBatch') }}</label>
           <input type="number" v-model.number="modelCfg.physicalBatch" class="field-input" />
         </div>
         <div class="field">
-          <label>Flash Attention</label>
+          <label>{{ t('load.flashAttention') }}</label>
           <input type="checkbox" v-model="modelCfg.flashAttention" class="toggle" />
         </div>
         <div class="field">
-          <label>Speculative Decoding</label>
+          <label>{{ t('load.speculativeDecoding') }}</label>
           <select class="field-select" v-model="modelCfg.specType">
-            <option value="None">None</option>
-            <option value="MTP">MTP</option>
-            <option value="Draft">Draft Model</option>
+            <option value="None">{{ t('load.none') }}</option>
+            <option value="MTP">{{ t('load.mtp') }}</option>
+            <option value="Draft">{{ t('load.draftModel') }}</option>
           </select>
         </div>
         <template v-if="modelCfg.specType === 'Draft'">
           <div class="field">
-            <label>Draft Model</label>
+            <label>{{ t('load.draftModel') }}</label>
           </div>
           <select class="field-select" style="width:100%; margin-bottom:8px;" v-model="modelCfg.draftModelPath">
-            <option value="">Select draft model...</option>
+            <option value="">{{ t('load.selectDraft') }}</option>
 <option v-for="m in draftModels" :key="m.path" :value="m.path">
   {{ m.name }}
 </option>
           </select>
         </template>
         <div class="field">
-          <label>Max draft tokens</label>
+          <label>{{ t('load.maxDraftTokens') }}</label>
           <input type="number" v-model.number="modelCfg.maxDraftTokens" class="field-input" />
         </div>
         <div class="field">
-          <label>Draft probability</label>
+          <label>{{ t('load.draftProbability') }}</label>
           <input type="number" v-model.number="modelCfg.draftProbability" step="0.05" class="field-input" />
         </div>
         <div class="field">
-          <label>K Cache Quantization</label>
+          <label>{{ t('load.kCacheQuant') }}</label>
           <select class="field-select" v-model="modelCfg.kCacheQuant">
             <option value="F16">F16</option>
             <option value="Q8_0">Q8_0</option>
@@ -88,7 +88,7 @@
           </select>
         </div>
         <div class="field">
-          <label>V Cache Quantization</label>
+          <label>{{ t('load.vCacheQuant') }}</label>
           <select class="field-select" v-model="modelCfg.vCacheQuant">
             <option value="F16">F16</option>
             <option value="Q8_0">Q8_0</option>
@@ -96,36 +96,36 @@
           </select>
         </div>
         <div class="field" title="Número de slots de inferencia simultáneos. Más slots = más memoria. LM Studio usa 4 por defecto.">
-          <label>Parallel Slots</label>
+          <label>{{ t('load.parallelSlots') }}</label>
           <input type="number" v-model="modelCfg.parallel" class="field-input" min="1" max="16" />
         </div>
         <div class="field" title="Bloquea el modelo en RAM, evita que el sistema operativo lo mueva a swap.">
-          <label>mlock</label>
+          <label>{{ t('load.mlock') }}</label>
           <input type="checkbox" v-model="modelCfg.mlock" class="toggle" />
         </div>
         <div class="field" title="Memory-mapped loading: mantiene el archivo mapeado en memoria virtual. Desactivado, usa buffer directo.">
-          <label>mmap</label>
+          <label>{{ t('load.mmap') }}</label>
           <input type="checkbox" v-model="modelCfg.mmap" class="toggle" />
         </div>
         <div class="field" title="Unified KV cache. Activa: --kv-unified, Desactiva: --no-kv-unified.">
-          <label>kv-unified</label>
+          <label>{{ t('load.kvUnified') }}</label>
           <input type="checkbox" v-model="modelCfg.kvUnified" class="toggle" />
         </div>
         <div class="field" title="Para modelos MoE (como Qwen3.6 35B): número de capas de expertos que van a CPU. Libera VRAM a costa de velocidad.">
-          <label>CPU MoE Layers</label>
+          <label>{{ t('load.cpuMoE') }}</label>
           <input type="number" v-model="modelCfg.nCpuMoe" class="field-input" min="0" />
         </div>
       </div>
 
       <template v-if="selectedModel?.mmproj_paths?.length > 0">
         <div class="panel-section">
-          <div class="section-title">👁️ Vision</div>
+          <div class="section-title">👁️ {{ t('load.vision') }}</div>
           <div class="field" title="Activa el modelo de visión para procesar imágenes.">
-            <label>Vision (mmproj)</label>
+            <label>{{ t('load.visionLabel') }}</label>
             <input type="checkbox" v-model="modelCfg.visionEnabled" class="toggle" />
           </div>
           <div class="field" v-if="modelCfg.visionEnabled">
-            <label>mmproj Model</label>
+            <label>{{ t('load.mmprojModel') }}</label>
             <select class="field-select" v-model="modelCfg.mmprojPath" style="max-width:160px; font-size:10px;">
               <option v-for="p in selectedModel.mmproj_paths" :key="p" :value="p">
                 {{ p.split('\\').pop() }}
@@ -136,12 +136,12 @@
       </template>
 
       <div class="panel-section">
-        <div class="section-title">🧠 Reasoning</div>
+        <div class="section-title">🧠 {{ t('load.reasoning') }}</div>
         <div class="field">
-          <label>Reasoning Budget</label>
+          <label>{{ t('load.reasoningBudget') }}</label>
           <select class="field-select" v-model="modelCfg.reasoningBudget">
-            <option value="-1">Unrestricted (default)</option>
-            <option value="0">Off (disabled)</option>
+            <option value="-1">{{ t('load.unrestricted') }}</option>
+            <option value="0">{{ t('load.off') }}</option>
             <option value="1024">1024 tokens</option>
             <option value="4096">4096 tokens</option>
             <option value="8192">8192 tokens</option>
@@ -149,53 +149,53 @@
           </select>
         </div>
         <div class="field">
-          <label>Reasoning Effort</label>
+          <label>{{ t('load.reasoningEffort') }}</label>
           <select class="field-select" v-model="modelCfg.reasoningEffort">
-            <option value="default">Default</option>
-            <option value="minimal">Minimal</option>
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-            <option value="xhigh">XHigh</option>
-            <option value="max">Max</option>
+            <option value="default">{{ t('load.default') }}</option>
+            <option value="minimal">{{ t('load.minimal') }}</option>
+            <option value="low">{{ t('load.low') }}</option>
+            <option value="medium">{{ t('load.medium') }}</option>
+            <option value="high">{{ t('load.high') }}</option>
+            <option value="xhigh">{{ t('load.xhigh') }}</option>
+            <option value="max">{{ t('load.max') }}</option>
           </select>
         </div>
       </div>
 
       <div class="panel-section">
-        <div class="section-title">🌐 Server</div>
+        <div class="section-title">🌐 {{ t('load.server') }}</div>
         <div class="field">
-          <label>Host</label>
+          <label>{{ t('load.host') }}</label>
           <select class="field-select" v-model="modelCfg.host">
-            <option value="127.0.0.1">localhost (127.0.0.1)</option>
-            <option value="0.0.0.0">All interfaces (0.0.0.0)</option>
+            <option value="127.0.0.1">{{ t('load.localhost') }}</option>
+            <option value="0.0.0.0">{{ t('load.allInterfaces') }}</option>
           </select>
         </div>
         <div class="field" title="Nombre del modelo expuesto en la API. Útil para identificarlo desde clientes como Open WebUI.">
-          <label>Alias</label>
-          <input type="text" v-model="modelCfg.alias" class="field-input" placeholder="optional" />
+          <label>{{ t('load.alias') }}</label>
+          <input type="text" v-model="modelCfg.alias" class="field-input" :placeholder="t('load.optional')" />
         </div>
         <div class="field" title="Hilos para procesar requests HTTP. 2-4 es suficiente para uso personal.">
-          <label>HTTP Threads</label>
+          <label>{{ t('load.httpThreads') }}</label>
           <input type="number" v-model="modelCfg.threadsHttp" class="field-input" min="1" max="8" />
         </div>
         <div class="field" title="Desactiva el calentamiento inicial al cargar. Carga más rápido pero el primer request puede tardar más.">
-          <label>No Warmup</label>
+          <label>{{ t('load.noWarmup') }}</label>
           <input type="checkbox" v-model="modelCfg.noWarmup" class="toggle" />
         </div>
         <div class="field" title="Segundos de inactividad antes de liberar VRAM. -1 = nunca dormir.">
-          <label>Sleep Idle (seconds)</label>
+          <label>{{ t('load.sleepIdle') }}</label>
           <input type="number" v-model="modelCfg.sleepIdle" class="field-input" min="-1" />
         </div>
         <div class="field" title="Mantiene el historial completo de thinking en el contexto, no solo el del último mensaje.">
-          <label>Reasoning Preserve</label>
+          <label>{{ t('load.reasoningPreserve') }}</label>
           <input type="checkbox" v-model="modelCfg.reasoningPreserve" class="toggle" />
         </div>
         <div class="field" title="'On' ajusta parámetros automáticamente para que el modelo entre en VRAM. 'Off' = control manual total.">
-          <label>Fit</label>
+          <label>{{ t('load.fit') }}</label>
           <select class="field-select" v-model="modelCfg.fit">
-            <option value="on">On</option>
-            <option value="off">Off</option>
+            <option value="on">{{ t('load.fitOn') }}</option>
+            <option value="off">{{ t('load.fitOff') }}</option>
           </select>
         </div>
       </div>
@@ -208,10 +208,10 @@
           @click="loadModel" 
           :disabled="loading"
         >
-          {{ loading ? 'Loading...' : hasUnsavedChanges ? '⚠ Reload to apply changes' : ((currentView === 'developer' && loadedModel) ? '⬆ Reload' : '⬆ Load Model') }}
+          {{ loading ? t('load.loading') : hasUnsavedChanges ? t('load.reloadChanges') : ((currentView === 'developer' && loadedModel) ? t('load.reload') : t('load.loadModel')) }}
         </button>
         <button class="btn-secondary" style="width:100%; margin-top:6px;" @click="stopModel">
-          ⏹ Stop
+          {{ t('load.stop') }}
         </button>
       </div>
     </div>
@@ -219,87 +219,87 @@
     <div v-if="activeTab === 'inference'">
       <!-- Preset -->
       <div class="panel-section">
-        <div class="section-title">Preset</div>
+        <div class="section-title">{{ t('inference.preset') }}</div>
         <div class="field">
           <select class="field-select" style="flex:1">
-            <option>Select a Preset...</option>
+            <option>{{ t('inference.selectPreset') }}</option>
           </select>
         </div>
         <div class="field">
-          <button class="btn-secondary" style="flex:1">+ Save Preset As...</button>
+          <button class="btn-secondary" style="flex:1">{{ t('inference.savePreset') }}</button>
         </div>
       </div>
 
       <!-- System Prompt -->
       <div class="panel-section">
-        <div class="section-title">System Prompt</div>
+        <div class="section-title">{{ t('inference.systemPrompt') }}</div>
         <textarea
           class="system-prompt"
-          placeholder='Example, "Only answer in rhymes"'
+          :placeholder="t('inference.promptPlaceholder')"
           v-model="systemPrompt"
         ></textarea>
-        <div style="text-align:right; color:#555; font-size:11px; margin-top:4px;">Token count: N/A</div>
+        <div style="text-align:right; color:#555; font-size:11px; margin-top:4px;">{{ t('inference.tokenCount') }}</div>
       </div>
 
       <!-- Reasoning -->
       <div class="panel-section">
-        <div class="section-title">Reasoning</div>
+        <div class="section-title">{{ t('inference.enableThinking') }}</div>
         <div class="field">
-          <label>Enable Thinking</label>
+          <label>{{ t('inference.enableThinking') }}</label>
           <input type="checkbox" checked class="toggle" v-model="enableThinking" />
         </div>
         <div class="field" v-if="enableThinking">
-          <label>Reasoning Budget</label>
-          <span style="color:#555; font-size:12px;">Unrestricted</span>
+          <label>{{ t('load.reasoningBudget') }}</label>
+          <span style="color:#555; font-size:12px;">{{ t('load.unrestricted') }}</span>
         </div>
       </div>
 
       <!-- Settings -->
       <div class="panel-section">
-        <div class="section-title">Settings</div>
+        <div class="section-title">{{ t('inference.settings') }}</div>
         <div class="field">
-          <label>Temperature</label>
+          <label>{{ t('inference.temperature') }}</label>
           <input type="number" value="1" step="0.05" class="field-input" />
         </div>
         <div class="field">
-          <label>Limit Response Length</label>
+          <label>{{ t('inference.limitResponse') }}</label>
           <input type="checkbox" class="toggle" />
         </div>
         <div class="field">
-          <label>Context Overflow</label>
+          <label>{{ t('inference.contextOverflow') }}</label>
           <select class="field-select">
-            <option selected>Truncate Middle</option>
-            <option>Stop</option>
-            <option>Roll</option>
+            <option selected>{{ t('inference.truncateMiddle') }}</option>
+            <option>{{ t('inference.stop') }}</option>
+            <option>{{ t('inference.roll') }}</option>
           </select>
         </div>
         <div class="field">
-          <label>Stop Strings</label>
-          <input type="text" class="field-input" placeholder="Enter string..." style="width:120px" />
+          <label>{{ t('inference.stopStrings') }}</label>
+          <input type="text" class="field-input" :placeholder="t('inference.stopStringsPlaceholder')" style="width:120px" />
         </div>
       </div>
 
       <!-- Sampling -->
       <div class="panel-section">
-        <div class="section-title">Sampling</div>
+        <div class="section-title">{{ t('inference.sampling') }}</div>
         <div class="field">
-          <label>Top K Sampling</label>
+          <label>{{ t('inference.topK') }}</label>
           <input type="number" value="20" class="field-input" />
         </div>
         <div class="field">
-          <label>Repeat Penalty</label>
+          <label>{{ t('inference.repeatPenalty') }}</label>
           <input type="number" value="1" step="0.05" class="field-input" />
         </div>
         <div class="field">
-          <label>Presence Penalty</label>
+          <label>{{ t('inference.presencePenalty') }}</label>
           <input type="checkbox" class="toggle" />
         </div>
         <div class="field">
-          <label>Top P Sampling</label>
+          <label>{{ t('inference.topP') }}</label>
           <input type="number" value="0.95" step="0.05" class="field-input" />
         </div>
         <div class="field">
-          <label>Min P Sampling</label>
+          <label>{{ t('inference.minP') }}</label>
           <input type="number" value="0.05" step="0.05" class="field-input" />
         </div>
       </div>
@@ -307,48 +307,48 @@
 
     <div v-if="activeTab === 'info'">
       <div class="panel-section" v-if="selectedModel">
-        <div class="section-title">ⓘ Model Information</div>
+        <div class="section-title">ⓘ {{ t('info.modelInfo') }}</div>
         
         <div class="info-row">
-          <span class="info-label">Model</span>
+          <span class="info-label">{{ t('info.model') }}</span>
           <span class="info-value tag-pill">{{ selectedModel.publisher }}/{{ selectedModel.model_family }}</span>
         </div>
         <div class="info-row">
-          <span class="info-label">File</span>
+          <span class="info-label">{{ t('info.file') }}</span>
           <span class="info-value tag-pill">{{ selectedModel.name }}</span>
         </div>
         <div class="info-row">
-          <span class="info-label">Format</span>
+          <span class="info-label">{{ t('info.format') }}</span>
           <span class="info-value tag-pill">GGUF</span>
         </div>
         <div class="info-row">
-          <span class="info-label">Quantization</span>
+          <span class="info-label">{{ t('info.quantization') }}</span>
           <span class="info-value tag-pill">{{ selectedModel.name.split('-').pop()?.replace('.gguf','').replace('.GGUF','') }}</span>
         </div>
         <div class="info-row">
-          <span class="info-label">Arch</span>
+          <span class="info-label">{{ t('info.arch') }}</span>
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
             <span class="info-value tag-pill">{{ selectedModel.arch || '?' }}</span>
             <span class="info-value tag-pill" v-if="selectedModel.name.toLowerCase().includes('mtp')">MTP</span>
           </div>
         </div>
         <div class="info-row">
-          <span class="info-label">Params</span>
+          <span class="info-label">{{ t('info.params') }}</span>
           <span class="info-value tag-pill">{{ selectedModel.params || '?' }}</span>
         </div>
         <div class="info-row">
-          <span class="info-label">Max Context</span>
+          <span class="info-label">{{ t('info.maxContext') }}</span>
           <span class="info-value tag-pill">{{ selectedModel.max_context?.toLocaleString() || '?' }}</span>
         </div>
         <div class="info-row">
-          <span class="info-label">Size on disk</span>
+          <span class="info-label">{{ t('info.sizeOnDisk') }}</span>
           <span class="info-value tag-pill">{{ (selectedModel.size_bytes / 1024 / 1024 / 1024).toFixed(2) }} GB</span>
         </div>
       </div>
 
       <div class="panel-section" v-if="selectedModel">
-        <div class="section-title">🔗 API Usage</div>
-        <div class="info-label" style="margin-bottom:6px;">The local server is reachable at:</div>
+        <div class="section-title">🔗 {{ t('info.apiUsage') }}</div>
+        <div class="info-label" style="margin-bottom:6px;">{{ t('info.serverReachable') }}</div>
         <div class="copy-row">
           <span class="tag-pill copy-pill">http://127.0.0.1:8080</span>
           <button class="btn-copy" @click="copy('http://127.0.0.1:8080')">⧉</button>
@@ -356,7 +356,7 @@
       </div>
 
       <div v-if="!selectedModel" style="padding:16px; color:#555; font-size:12px;">
-        No model selected.
+        {{ t('models.noModelSelected') }}
       </div>
     </div>
   </div>
@@ -367,6 +367,7 @@ import { ref, watch, computed } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { selectedModel, allModels, modelLoading, loadedModel, loadingModel, loadedModelConfig } from '../stores/selectedModel'
 import { loadConfig, loadModelConfig, saveModelConfig, type ModelConfig } from '../stores/config'
+import { t } from '../i18n'
 
 defineProps<{ currentView?: string }>()
 

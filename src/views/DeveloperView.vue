@@ -4,14 +4,14 @@
     <div class="topbar">
       <div class="dev-status">
         <span class="status-dot running"></span>
-        <span class="status-text">Running</span>
+        <span class="status-text">{{ t('developer.running') }}</span>
       </div>
-      <button class="btn-secondary">Server Settings</button>
+      <button class="btn-secondary">{{ t('developer.serverSettings') }}</button>
       <button class="btn-secondary">mcp.json</button>
       <div style="flex:1"></div>
-      <span style="color:#555; font-size:12px;">Reachable at</span>
+      <span style="color:#555; font-size:12px;">{{ t('developer.reachableAt') }}</span>
       <span style="color:#5a8af5; font-size:12px; margin: 0 8px;">http://127.0.0.1:8080</span>
-      <button class="btn-load" style="width:auto; padding: 5px 12px;" @click="showModal = true">+ Load Model</button>
+      <button class="btn-load" style="width:auto; padding: 5px 12px;" @click="showModal = true">{{ t('developer.loadModel') }}</button>
     </div>
     <!-- resto existente -->
     
@@ -19,28 +19,28 @@
 
     <!-- Loaded models -->
     <div v-if="modelLoading" class="loading-banner">
-      ⏳ Loading model...
+      {{ t('developer.loading') }}
     </div>
     <div class="dev-loaded-section">
-      <div style="color:#666; font-size:11px; text-transform:uppercase; margin-bottom:8px;">Loaded Models</div>
+      <div style="color:#666; font-size:11px; text-transform:uppercase; margin-bottom:8px;">{{ t('developer.loadedModels') }}</div>
       
       <div v-if="loadedModel" class="dev-model-row">
-        <span class="badge-ready">READY</span>
+        <span class="badge-ready">{{ t('developer.ready') }}</span>
         <span class="tag qwen" style="font-size:10px;">{{ loadedModel.arch }} {{ loadedModel.name }}</span>
         <div style="flex:1"></div>
         <span style="color:#555; font-size:11px;">{{ (loadedModel.size_bytes / 1024 / 1024 / 1024).toFixed(2) }} GB</span>
-        <button class="btn-eject" @click="eject">⏏ Eject</button>
+        <button class="btn-eject" @click="eject">{{ t('developer.eject') }}</button>
       </div>
       
       <div v-else style="color:#444; font-size:12px; padding:8px 0;">
-        No model loaded.
+        {{ t('developer.noModelLoaded') }}
       </div>
     </div>
 
     <!-- Logs -->
     <div class="dev-logs-section">
       <div class="dev-logs-header">
-        <span style="color:#666; font-size:11px; text-transform:uppercase;">Developer Logs</span>
+        <span style="color:#666; font-size:11px; text-transform:uppercase;">{{ t('developer.developerLogs') }}</span>
       </div>
       <div class="dev-logs" ref="logsEl">
         <div v-for="(log, i) in logs" :key="i" class="log-line">
@@ -48,7 +48,7 @@
           <span :class="'log-level-' + log.level">{{ log.level.toUpperCase() }}</span>
           <span class="log-msg" v-html="highlightLog(log.msg, log.level)"></span>
         </div>
-        <div v-if="logs.length === 0" style="color:#444; padding:8px;">No logs yet.</div>
+        <div v-if="logs.length === 0" style="color:#444; padding:8px;">{{ t('developer.noLogs') }}</div>
       </div>
     </div>
   </div>
@@ -59,6 +59,7 @@ import { ref, watch, nextTick } from 'vue'
 import { serverLogs, loadedModel, modelLoading } from '../stores/selectedModel'
 import { invoke } from '@tauri-apps/api/core'
 import LoadModelModal from '../components/LoadModelModal.vue'
+import { t } from '../i18n'
 
 const logsEl = ref<HTMLElement>()
 const logs = serverLogs

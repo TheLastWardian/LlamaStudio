@@ -83,13 +83,15 @@ export interface AppConfig {
   llamaPath: string
   port: number
   minimizeToTray: boolean
+  language: 'en' | 'es'
 }
 
 const defaults: AppConfig = {
   modelsPath: 'F:\\Users\\Wardian\\.lmstudio\\models',
   llamaPath: '',
   port: 8080,
-  minimizeToTray: false
+  minimizeToTray: false,
+  language: 'en',
 }
 
 export async function loadConfig(): Promise<AppConfig> {
@@ -99,6 +101,7 @@ export async function loadConfig(): Promise<AppConfig> {
     llamaPath: await store.get<string>('llamaPath') ?? defaults.llamaPath,
     port: await store.get<number>('port') ?? defaults.port,
     minimizeToTray: await store.get<boolean>('minimizeToTray') ?? defaults.minimizeToTray,
+    language: await store.get<'en' | 'es'>('language') ?? defaults.language,
   }
 }
 
@@ -108,5 +111,6 @@ export async function saveConfig(config: AppConfig): Promise<void> {
   await store.set('llamaPath', config.llamaPath)
   await store.set('port', config.port)
   await store.set('minimizeToTray', config.minimizeToTray)
+  await store.set('language', config.language)
   await store.save()
 }

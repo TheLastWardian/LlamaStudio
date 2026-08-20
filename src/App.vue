@@ -26,6 +26,7 @@ import { listen } from '@tauri-apps/api/event'
 import { serverLogs, modelLoading, selectedModel, loadedModel, loadingModel, loadedModelConfig } from './stores/selectedModel'
 import { loadConfig, loadModelConfig } from './stores/config'
 import { loadGroups } from './stores/groups'
+import { setLang } from './i18n'
 import Sidebar from './components/Sidebar.vue'
 import ModelsView from './views/ModelsView.vue'
 import DeveloperView from './views/DeveloperView.vue'
@@ -65,6 +66,8 @@ function startResize(e: MouseEvent) {
 }
 
 onMounted(async () => {
+  const config = await loadConfig()
+  setLang(config.language)
   const win = getCurrentWindow()
   await loadGroups()
   await invoke('load_window_state').catch(() => {})

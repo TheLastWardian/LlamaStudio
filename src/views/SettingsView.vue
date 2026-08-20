@@ -1,49 +1,59 @@
 <template>
   <div class="settings-view">
     <div class="topbar">
-      <span class="topbar-title">Settings</span>
+      <span class="topbar-title">{{ t('topbar.settings') }}</span>
     </div>
 
     <div class="settings-content">
       <div class="settings-section">
-        <div class="section-title">Paths</div>
+        <div class="section-title">{{ t('settings.paths') }}</div>
 
         <div class="settings-field">
-          <label>Models Folder</label>
+          <label>{{ t('settings.modelsFolder') }}</label>
           <div class="path-row">
             <input type="text" v-model="config.modelsPath" class="field-input path-input" />
-            <button class="btn-secondary" @click="browsePath('models')">Browse</button>
+            <button class="btn-secondary" @click="browsePath('models')">{{ t('settings.browse') }}</button>
           </div>
         </div>
 
         <div class="settings-field">
-          <label>llama-server.exe Path</label>
+          <label>{{ t('settings.llamaServer') }}</label>
           <div class="path-row">
             <input type="text" v-model="config.llamaPath" class="field-input path-input" />
-            <button class="btn-secondary" @click="browsePath('llama')">Browse</button>
+            <button class="btn-secondary" @click="browsePath('llama')">{{ t('settings.browse') }}</button>
           </div>
         </div>
       </div>
 
       <div class="settings-section">
-        <div class="section-title">Server</div>
+        <div class="section-title">{{ t('settings.server') }}</div>
         <div class="settings-field">
-          <label>Default Port</label>
+          <label>{{ t('settings.defaultPort') }}</label>
           <input type="number" v-model="config.port" class="field-input" />
         </div>
       </div>
 
       <div class="settings-section">
-        <div class="section-title">Behavior</div>
+        <div class="section-title">{{ t('settings.behavior') }}</div>
         <div class="settings-field">
-          <label>Minimize to tray on close</label>
+          <label>{{ t('settings.minimizeToTray') }}</label>
           <input type="checkbox" v-model="config.minimizeToTray" class="toggle" />
         </div>
       </div>
 
+      <div class="settings-section">
+        <div class="section-title">{{ t('settings.language') }}</div>
+        <div class="settings-field">
+          <select class="field-select" v-model="config.language" @change="onLanguageChange">
+            <option value="en">English</option>
+            <option value="es">Español</option>
+          </select>
+        </div>
+      </div>
+
       <div class="settings-footer">
-        <button class="btn-load" style="width:auto; padding: 6px 24px;" @click="save">Save</button>
-        <span v-if="saved" style="color:#4af54a; font-size:12px;">Saved!</span>
+        <button class="btn-load" style="width:auto; padding: 6px 24px;" @click="save">{{ t('settings.save') }}</button>
+        <span v-if="saved" style="color:#4af54a; font-size:12px;">{{ t('settings.saved') }}</span>
       </div>
     </div>
   </div>
@@ -53,18 +63,26 @@
 import { ref, onMounted } from 'vue'
 import { open } from '@tauri-apps/plugin-dialog'
 import { loadConfig, saveConfig, type AppConfig } from '../stores/config'
+import { t, setLang } from '../i18n'
 
 const config = ref<AppConfig>({
   modelsPath: '',
   llamaPath: '',
-  port: 8080
+  port: 8080,
+  minimizeToTray: false,
+  language: 'en',
 })
 
 const saved = ref(false)
 
 onMounted(async () => {
   config.value = await loadConfig()
+  setLang(config.value.language)
 })
+
+function onLanguageChange() {
+  setLang(config.value.language)
+}
 
 async function browsePath(type: 'models' | 'llama') {
   if (type === 'models') {

@@ -2,15 +2,15 @@
   <div class="models-layout" @click="closeCtxMenu">
     <div class="models-main">
       <div class="topbar">
-        <span class="topbar-title">Models</span>
-        <input class="search-box" v-model="search" placeholder="Filter models... (Ctrl+F)" />
+        <span class="topbar-title">{{ t('topbar.models') }}</span>
+        <input class="search-box" v-model="search" :placeholder="t('models.filter')" />
       </div>
 
       <div class="content" @contextmenu="onRightClickEmpty">
         <!-- Header -->
         <div class="model-list-header">
           <div v-for="col in columns" :key="col.key" class="col-header" :style="{ width: col.width + 'px' }">
-            {{ col.label }}
+            {{ t(col.labelKey) }}
             <div class="col-resize-handle" @mousedown="startColResize($event, col)"></div>
           </div>
         </div>
@@ -25,11 +25,11 @@
             @contextmenu="onRightClickGroup($event, section.group.id)"
           >
             <span>📁 {{ section.group.name }}</span>
-            <span style="color:#555; font-size:11px;">{{ section.models.length }} models</span>
+            <span style="color:#555; font-size:11px;">{{ section.models.length }} {{ t('models.modelsCount') }}</span>
           </div>
           <div v-else-if="groupedModels.length > 1" class="group-header ungrouped" data-group-id="ungrouped">
-            <span>Ungrouped</span>
-            <span style="color:#555; font-size:11px;">{{ section.models.length }} models</span>
+            <span>{{ t('models.ungrouped') }}</span>
+            <span style="color:#555; font-size:11px;">{{ section.models.length }} {{ t('models.modelsCount') }}</span>
           </div>
 
           <!-- Modelos -->
@@ -82,13 +82,13 @@
       <template v-if="ctxMenu.type === 'empty'">
         <div class="ctx-item" @click="startCreateGroup">
           <template v-if="!showGroupInput">
-            ➕ Create Group
+            ➕ {{ t('modelList.createGroup') }}
           </template>
           <template v-else>
             <input 
               class="ctx-input" 
               v-model="newGroupName" 
-              placeholder="Group name..."
+              :placeholder="t('modelList.groupPlaceholder')"
               @keyup.enter="confirmCreateGroup"
               @keyup.escape="closeCtxMenu"
               autofocus
@@ -101,16 +101,16 @@
       <!-- Menú para modelo -->
       <template v-if="ctxMenu.type === 'model' && ctxMenu.modelPath">
         <div class="ctx-item" @click="handleTogglePin(ctxMenu.modelPath!)">
-          {{ modelMeta[ctxMenu.modelPath!]?.pinned ? '📌 Unpin' : '📌 Pin' }}
+          {{ modelMeta[ctxMenu.modelPath!]?.pinned ? t('modelList.unpin') : t('modelList.pin') }}
         </div>
-        <div class="ctx-item" @click="startRename(ctxMenu.modelPath!)">✏ Rename</div>
+        <div class="ctx-item" @click="startRename(ctxMenu.modelPath!)">{{ t('modelList.rename') }}</div>
         <div class="ctx-divider"></div>
         <div class="ctx-item" @click="moveToGroupMenu = !moveToGroupMenu">
-          📁 Move to group ▶
+          {{ t('modelList.moveToGroup') }}
         </div>
         <div v-if="moveToGroupMenu" class="ctx-submenu">
           <div class="ctx-item" @click="handleMoveToGroup(ctxMenu.modelPath!, null)">
-            — Ungrouped
+            — {{ t('contextMenu.ungrouped') }}
           </div>
           <div 
             v-for="g in groups" 
@@ -126,7 +126,7 @@
       <!-- Menú para grupo -->
       <template v-if="ctxMenu.type === 'group' && ctxMenu.groupId">
         <div class="ctx-item danger" @click="handleDeleteGroup(ctxMenu.groupId!)">
-          🗑 Delete Group
+          {{ t('modelList.deleteGroup') }}
         </div>
       </template>
     </div>
@@ -140,17 +140,18 @@ import { selectedModel, allModels } from '../stores/selectedModel'
 import { loadConfig } from '../stores/config'
 import { groups, modelMeta, modelDisplayNames, createGroup, deleteGroup, moveModelToGroup, togglePin, saveGroups } from '../stores/groups'
 import type { ModelFile } from '../stores/selectedModel'
+import { t } from '../i18n'
 
 const search = ref('')
 const columns = ref([
-  { key: 'arch', label: 'Arch', width: 100 },
-  { key: 'params', label: 'Params', width: 70 },
-  { key: 'publisher', label: 'Publisher', width: 110 },
-  { key: 'llm', label: 'LLM', width: 400 },
-  { key: 'quant', label: 'Quant', width: 90 },
-  { key: 'size', label: 'Size', width: 80 },
-  { key: 'modified', label: 'Modified', width: 100 },
-  { key: 'actions', label: 'Actions', width: 60 },
+  { key: 'arch', labelKey: 'models.arch', width: 100 },
+  { key: 'params', labelKey: 'models.params', width: 70 },
+  { key: 'publisher', labelKey: 'models.publisher', width: 110 },
+  { key: 'llm', labelKey: 'models.llm', width: 400 },
+  { key: 'quant', labelKey: 'models.quant', width: 90 },
+  { key: 'size', labelKey: 'models.size', width: 80 },
+  { key: 'modified', labelKey: 'models.modified', width: 100 },
+  { key: 'actions', labelKey: 'models.actions', width: 60 },
 ])
 
 // Context menu
