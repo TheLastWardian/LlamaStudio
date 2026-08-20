@@ -29,6 +29,8 @@ export interface ModelConfig {
   mmap: boolean
   kvUnified: boolean
   nCpuMoe: number
+  visionEnabled: boolean
+  mmprojPath: string
 }
 
 const modelDefaults: ModelConfig = {
@@ -58,6 +60,8 @@ const modelDefaults: ModelConfig = {
   mmap: false,
   kvUnified: false,
   nCpuMoe: 0,
+  visionEnabled: false,
+  mmprojPath: '',
 }
 
 export async function loadModelConfig(modelPath: string): Promise<ModelConfig> {

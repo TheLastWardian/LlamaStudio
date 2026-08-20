@@ -19,6 +19,7 @@ pub struct ModelFile {
     pub arch: String,
     pub params: String,
     pub max_context: u32,
+    pub mmproj_paths: Vec<String>,
 }
 
 fn read_gguf_metadata(path: &str) -> HashMap<String, String> {
@@ -138,15 +139,31 @@ fn scan_models(models_path: String) -> Vec<ModelFile> {
                 Err(_) => continue,
             };
 
+            let mut mmproj_files: Vec<String> = Vec::new();
+            let mut gguf_files: Vec<(String, u64)> = Vec::new();
+
             for file_entry in files.flatten() {
                 let file_path = file_entry.path();
                 let file_name = file_entry.file_name().to_string_lossy().to_string();
                 if !file_name.ends_with(".gguf") { continue; }
-                if file_name.contains("mmproj") { continue; }
 
                 let size_bytes = file_entry.metadata().map(|m| m.len()).unwrap_or(0);
 
-                let meta = read_gguf_metadata(&file_path.to_string_lossy());
+                if file_name.contains("mmproj") {
+                    mmproj_files.push(file_path.to_string_lossy().to_string());
+                } else {
+                    gguf_files.push((file_path.to_string_lossy().to_string(), size_bytes));
+                }
+            }
+
+            for (file_path, size_bytes) in gguf_files {
+                let file_name = std::path::Path::new(&file_path)
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
+
+                let meta = read_gguf_metadata(&file_path);
                 let arch = meta.get("general.architecture").cloned().unwrap_or_default();
                 let params = meta.get("general.parameter_count")
                     .and_then(|v| v.parse::<u64>().ok())
@@ -163,10 +180,11 @@ fn scan_models(models_path: String) -> Vec<ModelFile> {
                     publisher: publisher.clone(),
                     model_family: model_family.clone(),
                     size_bytes,
-                    path: file_path.to_string_lossy().to_string(),
+                    path: file_path,
                     arch,
                     params,
                     max_context,
+                    mmproj_paths: mmproj_files.clone(),
                 });
             }
         }
@@ -210,6 +228,8 @@ fn load_model(
     mmap: bool,
     kv_unified: bool,
     n_cpu_moe: i32,
+    vision_enabled: bool,
+    mmproj_path: String,
 ) -> Result<String, String> {
     let mut child_lock = state.0.lock().unwrap();
 
@@ -294,6 +314,10 @@ fn load_model(
 
     if n_cpu_moe > 0 {
         cmd.arg("--n-cpu-moe").arg(n_cpu_moe.to_string());
+    }
+
+    if vision_enabled && !mmproj_path.is_empty() {
+        cmd.arg("--mmproj").arg(&mmproj_path);
     }
 
     let mut child = cmd.spawn()

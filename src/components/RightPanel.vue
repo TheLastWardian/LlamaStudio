@@ -117,6 +117,24 @@
         </div>
       </div>
 
+      <template v-if="selectedModel?.mmproj_paths?.length > 0">
+        <div class="panel-section">
+          <div class="section-title">👁️ Vision</div>
+          <div class="field" title="Activa el modelo de visión para procesar imágenes.">
+            <label>Vision (mmproj)</label>
+            <input type="checkbox" v-model="modelCfg.visionEnabled" class="toggle" />
+          </div>
+          <div class="field" v-if="modelCfg.visionEnabled">
+            <label>mmproj Model</label>
+            <select class="field-select" v-model="modelCfg.mmprojPath" style="max-width:160px; font-size:10px;">
+              <option v-for="p in selectedModel.mmproj_paths" :key="p" :value="p">
+                {{ p.split('\\').pop() }}
+              </option>
+            </select>
+          </div>
+        </div>
+      </template>
+
       <div class="panel-section">
         <div class="section-title">🧠 Reasoning</div>
         <div class="field">
@@ -449,6 +467,8 @@ async function loadModel() {
       mmap: modelCfg.value.mmap ?? false,
       kvUnified: modelCfg.value.kvUnified ?? false,
       nCpuMoe: Number(modelCfg.value.nCpuMoe ?? 0),
+      visionEnabled: modelCfg.value.visionEnabled ?? false,
+      mmprojPath: modelCfg.value.mmprojPath ?? '',
     })
     console.log('invoke result:', result)
     loadedModel.value = selectedModel.value

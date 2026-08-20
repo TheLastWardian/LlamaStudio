@@ -9,6 +9,7 @@ export interface ModelFile {
   arch: string
   params: string
   max_context: number
+  mmproj_paths: string[]
 }
 
 export const selectedModel = ref<ModelFile | null>(null)
