@@ -36,7 +36,7 @@
 
       <div class="panel-section">
         <div class="section-title">≋ {{ t('load.advanced') }}</div>
-        <div class="field" title="Hilos de CPU para generación de tokens. Máximo útil = threads de tu CPU (24 para Ryzen 9 5900x)">
+        <div class="field" :title="t('load.cpuThreadsTooltip')">
           <label>{{ t('load.cpuThreads') }}</label>
           <input type="number" v-model="modelCfg.cpuThreads" class="field-input" min="1" max="24" />
         </div>
@@ -95,23 +95,23 @@
             <option value="Q4_0">Q4_0</option>
           </select>
         </div>
-        <div class="field" title="Número de slots de inferencia simultáneos. Más slots = más memoria. LM Studio usa 4 por defecto.">
+        <div class="field" :title="t('load.parallelTooltip')">
           <label>{{ t('load.parallelSlots') }}</label>
           <input type="number" v-model="modelCfg.parallel" class="field-input" min="1" max="16" />
         </div>
-        <div class="field" title="Bloquea el modelo en RAM, evita que el sistema operativo lo mueva a swap.">
+        <div class="field" :title="t('load.mlockTooltip')">
           <label>{{ t('load.mlock') }}</label>
           <input type="checkbox" v-model="modelCfg.mlock" class="toggle" />
         </div>
-        <div class="field" title="Memory-mapped loading: mantiene el archivo mapeado en memoria virtual. Desactivado, usa buffer directo.">
+        <div class="field" :title="t('load.mmapTooltip')">
           <label>{{ t('load.mmap') }}</label>
           <input type="checkbox" v-model="modelCfg.mmap" class="toggle" />
         </div>
-        <div class="field" title="Unified KV cache. Activa: --kv-unified, Desactiva: --no-kv-unified.">
+        <div class="field" :title="t('load.kvUnifiedTooltip')">
           <label>{{ t('load.kvUnified') }}</label>
           <input type="checkbox" v-model="modelCfg.kvUnified" class="toggle" />
         </div>
-        <div class="field" title="Para modelos MoE (como Qwen3.6 35B): número de capas de expertos que van a CPU. Libera VRAM a costa de velocidad.">
+        <div class="field" :title="t('load.cpuMoETooltip')">
           <label>{{ t('load.cpuMoE') }}</label>
           <input type="number" v-model="modelCfg.nCpuMoe" class="field-input" min="0" />
         </div>
@@ -120,7 +120,7 @@
       <template v-if="selectedModel?.mmproj_paths?.length > 0">
         <div class="panel-section">
           <div class="section-title">👁️ {{ t('load.vision') }}</div>
-          <div class="field" title="Activa el modelo de visión para procesar imágenes.">
+          <div class="field" :title="t('load.visionTooltip')">
             <label>{{ t('load.visionLabel') }}</label>
             <input type="checkbox" v-model="modelCfg.visionEnabled" class="toggle" />
           </div>
@@ -171,27 +171,27 @@
             <option value="0.0.0.0">{{ t('load.allInterfaces') }}</option>
           </select>
         </div>
-        <div class="field" title="Nombre del modelo expuesto en la API. Útil para identificarlo desde clientes como Open WebUI.">
+        <div class="field" :title="t('load.aliasTooltip')">
           <label>{{ t('load.alias') }}</label>
           <input type="text" v-model="modelCfg.alias" class="field-input" :placeholder="t('load.optional')" />
         </div>
-        <div class="field" title="Hilos para procesar requests HTTP. 2-4 es suficiente para uso personal.">
+        <div class="field" :title="t('load.httpThreadsTooltip')">
           <label>{{ t('load.httpThreads') }}</label>
           <input type="number" v-model="modelCfg.threadsHttp" class="field-input" min="1" max="8" />
         </div>
-        <div class="field" title="Desactiva el calentamiento inicial al cargar. Carga más rápido pero el primer request puede tardar más.">
+        <div class="field" :title="t('load.noWarmupTooltip')">
           <label>{{ t('load.noWarmup') }}</label>
           <input type="checkbox" v-model="modelCfg.noWarmup" class="toggle" />
         </div>
-        <div class="field" title="Segundos de inactividad antes de liberar VRAM. -1 = nunca dormir.">
+        <div class="field" :title="t('load.sleepIdleTooltip')">
           <label>{{ t('load.sleepIdle') }}</label>
           <input type="number" v-model="modelCfg.sleepIdle" class="field-input" min="-1" />
         </div>
-        <div class="field" title="Mantiene el historial completo de thinking en el contexto, no solo el del último mensaje.">
+        <div class="field" :title="t('load.reasoningPreserveTooltip')">
           <label>{{ t('load.reasoningPreserve') }}</label>
           <input type="checkbox" v-model="modelCfg.reasoningPreserve" class="toggle" />
         </div>
-        <div class="field" title="'On' ajusta parámetros automáticamente para que el modelo entre en VRAM. 'Off' = control manual total.">
+        <div class="field" :title="t('load.fitTooltip')">
           <label>{{ t('load.fit') }}</label>
           <select class="field-select" v-model="modelCfg.fit">
             <option value="on">{{ t('load.fitOn') }}</option>
