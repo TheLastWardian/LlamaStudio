@@ -26,6 +26,7 @@ export interface ModelConfig {
   fit: string
   parallel: number
   mlock: boolean
+  mmap: boolean
   nCpuMoe: number
 }
 
@@ -53,6 +54,7 @@ const modelDefaults: ModelConfig = {
   fit: 'on',
   parallel: 1,
   mlock: false,
+  mmap: false,
   nCpuMoe: 0,
 }
 

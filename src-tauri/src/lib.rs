@@ -207,6 +207,8 @@ fn load_model(
     reasoning_effort: String,
     parallel: i32,
     mlock: bool,
+    #[serde(default)]
+    mmap: bool,
     n_cpu_moe: i32,
 ) -> Result<String, String> {
     let mut child_lock = state.0.lock().unwrap();
@@ -231,7 +233,7 @@ fn load_model(
         .arg("-np").arg(parallel.to_string())
         .arg("-kvo")
        .arg("--fit").arg(&fit)
-       .arg("--load-mode").arg("mmap")
+        .arg("--load-mode").arg(if mmap { "mmap" } else { "none" })
        .stdout(Stdio::inherit())
        .stderr(Stdio::piped());
 

@@ -98,6 +98,10 @@
               <input type="checkbox" v-model="tempCfg.mlock" class="toggle" />
             </div>
             <div class="field">
+              <label>mmap</label>
+              <input type="checkbox" v-model="tempCfg.mmap" class="toggle" />
+            </div>
+            <div class="field">
               <label>CPU MoE Layers</label>
               <input type="number" v-model="tempCfg.nCpuMoe" class="field-input" min="0" />
             </div>
@@ -304,6 +308,7 @@ async function loadWithConfig() {
       reasoningEffort: tempCfg.value.reasoningEffort ?? 'default',
       parallel: Number(tempCfg.value.parallel ?? 1),
       mlock: tempCfg.value.mlock ?? false,
+      mmap: tempCfg.value.mmap ?? false,
       nCpuMoe: Number(tempCfg.value.nCpuMoe ?? 0),
     })
   } catch (e) {
@@ -347,6 +352,7 @@ async function selectModel(model: ModelFile) {
       reasoningEffort: modelCfg.reasoningEffort ?? 'default',
       parallel: Number(modelCfg.parallel ?? 1),
       mlock: modelCfg.mlock ?? false,
+      mmap: modelCfg.mmap ?? false,
       nCpuMoe: Number(modelCfg.nCpuMoe ?? 0),
     })
   } catch (e) {
