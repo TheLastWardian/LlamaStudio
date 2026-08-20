@@ -462,9 +462,10 @@ fn load_window_state<R: Runtime>(app: tauri::AppHandle<R>) -> Result<(), String>
 
 #[tauri::command]
 fn get_cpu_threads() -> usize {
-    std::thread::available_parallelism()
+    let logical = std::thread::available_parallelism()
         .map(|n| n.get())
-        .unwrap_or(4)
+        .unwrap_or(4);
+    (logical / 2).max(1)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
