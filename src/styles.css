@@ -621,7 +621,11 @@ body {
 }
 
 .dev-logs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 8px;
+  padding-right: 8px;
 }
 
 .dev-logs {
@@ -882,4 +886,19 @@ body {
   gap: 16px;
   color: #555;
   font-size: 14px;
+}
+
+.btn-clear-logs {
+  background: #2a1a1a;
+  border: 1px solid #5a2a2a;
+  border-radius: 4px;
+  color: #f55a5a;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.btn-clear-logs:hover {
+  background: #3a1a1a;
+  color: #f58a8a;
 }

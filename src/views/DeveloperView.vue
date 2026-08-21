@@ -37,9 +37,10 @@
 
     <!-- Logs -->
     <div class="dev-logs-section">
-      <div class="dev-logs-header">
-        <span style="color:#666; font-size:11px; text-transform:uppercase;">{{ t('developer.developerLogs') }}</span>
-      </div>
+    <div class="dev-logs-header">
+      <span style="color:#666; font-size:11px; text-transform:uppercase;">{{ t('developer.logs') }}</span>
+      <button class="btn-clear-logs" @click="clearLogs">🗑 {{ t('developer.clearLogs') }}</button>
+    </div>
       <div class="dev-logs" ref="logsEl">
         <div v-for="(log, i) in logs" :key="i" class="log-line">
           <span class="log-time">{{ log.time }}</span>
@@ -133,6 +134,21 @@ function highlightLog(msg: string, level: string): string {
     '<span style="color:#666">$1$2</span>'
   )
 
+  result = result.replace(
+    /\btg\s*=\s*(\d+\.?\d*)\s*(t\/s)/g,
+    'tg = <span style="color:#4af54a;font-weight:600">$1</span> <span style="color:#2a8a2a">$2</span>'
+  )
+
+  result = result.replace(
+    /\btg_3s\s*=\s*(\d+\.?\d*)\s*(t\/s)/g,
+    'tg_3s = <span style="color:#5af55a">$1</span> <span style="color:#2a8a2a">$2</span>'
+  )
+
+  result = result.replace(
+    /\bn_gen\s*=\s*(\d+)/g,
+    'n_gen = <span style="color:#9a7af5">$1</span>'
+  )
+
   return result
 }
 
@@ -140,6 +156,10 @@ async function eject() {
   await invoke('stop_model')
   loadedModel.value = null
   modelLoading.value = false
+}
+
+function clearLogs() {
+  serverLogs.value = []
 }
 
 watch(logs, () => {

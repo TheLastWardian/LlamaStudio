@@ -163,6 +163,8 @@ export default {
     noModelLoaded: 'No model loaded.',
     noModelSelected: 'No model selected.',
     noLogs: 'No logs yet.',
+    logs: 'Logs',
+    clearLogs: 'Clear logs',
     developerLogs: 'Developer Logs',
     eject: '⏏ Eject',
   },

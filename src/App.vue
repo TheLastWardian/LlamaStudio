@@ -9,7 +9,7 @@
         </div>
       </div>
       <ModelsView v-if="currentView === 'models'" />
-      <ChatView v-if="currentView === 'chat'" />
+      <ChatView v-show="currentView === 'chat'" />
       <DeveloperView v-if="currentView === 'developer'" />
       <SettingsView v-if="currentView === 'settings'" />
     </div>
@@ -86,6 +86,11 @@ onMounted(async () => {
         ? { time: match[1], level: levelMap[match[2]] ?? 'info', msg: match[3] }
         : { time: '', level: 'info', msg: clean }
     )
+
+    setTimeout(() => {
+      const logsEl = document.querySelector('.dev-logs') as HTMLElement
+      if (logsEl) logsEl.scrollTop = logsEl.scrollHeight
+    }, 10)
     
     if (clean.includes('model loaded')) {
       modelLoading.value = false
