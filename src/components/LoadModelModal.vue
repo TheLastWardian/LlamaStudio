@@ -104,6 +104,23 @@
               <input type="checkbox" v-model="tempCfg.kvUnified" class="toggle" />
             </div>
             <div class="field">
+              <label>{{ t('load.kvOffload') }}</label>
+              <input type="checkbox" v-model="tempCfg.kvOffload" class="toggle" />
+            </div>
+            <div class="field">
+              <label>{{ t('load.cacheRam') }}</label>
+              <input type="number" v-model="tempCfg.cacheRam" class="field-input" min="-1" />
+            </div>
+            <div v-if="cacheRamWarning === 'unlimited'" style="color:#f5a55a; font-size:11px; margin-bottom:8px;">
+              {{ t('load.cacheRamUnlimited') }}
+            </div>
+            <div v-else-if="cacheRamWarning === 'critical'" style="color:#f55a5a; font-size:11px; margin-bottom:8px;">
+              {{ t('load.cacheRamCritical', { pct: cacheRamPct }) }}
+            </div>
+            <div v-else-if="cacheRamWarning === 'warning'" style="color:#f5a55a; font-size:11px; margin-bottom:8px;">
+              {{ t('load.cacheRamWarning', { pct: cacheRamPct }) }}
+            </div>
+            <div class="field">
               <label>{{ t('load.cpuMoE') }}</label>
               <input type="number" v-model="tempCfg.nCpuMoe" class="field-input" min="0" />
             </div>
@@ -249,7 +266,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { allModels, loadedModel, selectedModel, modelLoading, loadingModel, loadedModelConfig } from '../stores/selectedModel'
 import { modelDisplayNames, modelMeta, groups } from '../stores/groups'
 import { invoke } from '@tauri-apps/api/core'
@@ -262,6 +279,38 @@ const view = ref<'list' | 'config'>('list')
 const configModel = ref<ModelFile | null>(null)
 const tempCfg = ref<ModelConfig | null>(null)
 const emit = defineEmits(['close'])
+
+const systemRamTotal = ref(0)
+const systemRamAvailable = ref(0)
+
+async function refreshSystemRam() {
+  const [total, available] = await invoke<[number, number]>('get_system_ram')
+  systemRamTotal.value = total
+  systemRamAvailable.value = available
+}
+
+onMounted(() => {
+  refreshSystemRam()
+  window.addEventListener('focus', refreshSystemRam)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('focus', refreshSystemRam)
+})
+
+const cacheRamPct = computed(() => {
+  if (!systemRamAvailable.value || !tempCfg.value || tempCfg.value.cacheRam <= 0) return 0
+  return Math.round((tempCfg.value.cacheRam / systemRamAvailable.value) * 100)
+})
+
+const cacheRamWarning = computed(() => {
+  const v = tempCfg.value?.cacheRam ?? 0
+  if (v === -1) return 'unlimited'
+  if (v <= 0 || !systemRamAvailable.value) return null
+  if (v > systemRamAvailable.value) return 'critical'
+  if (v > systemRamAvailable.value * 0.8) return 'warning'
+  return null
+})
 
 const groupedFilteredModels = computed(() => {
   const filtered = allModels.value.filter(m =>
@@ -354,6 +403,8 @@ async function invokeLoad(modelPath: string, cfg: ModelConfig) {
     mmprojPath: cfg.mmprojPath ?? '',
     mmap: cfg.mmap ?? false,
     kvUnified: cfg.kvUnified ?? false,
+    kvOffload: cfg.kvOffload ?? false,
+    cacheRam: Number(cfg.cacheRam ?? 0),
     systemPrompt: cfg.systemPrompt ?? '',
     seed: Number(cfg.seed ?? -1),
   })

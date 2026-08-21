@@ -113,6 +113,34 @@
           <label>{{ t('load.kvUnified') }}</label>
           <input type="checkbox" v-model="modelCfg.kvUnified" class="toggle" />
         </div>
+        <div class="field" :title="t('load.kvOffloadTooltip')">
+          <label>{{ t('load.kvOffload') }}</label>
+          <input type="checkbox" v-model="modelCfg.kvOffload" class="toggle" />
+        </div>
+        <div class="field" :title="t('load.cacheRamTooltip')">
+          <label>{{ t('load.cacheRam') }}</label>
+          <input type="number" v-model="modelCfg.cacheRam" class="field-input" min="-1" />
+        </div>
+        <input
+          type="range"
+          min="0"
+          :max="systemRamTotal"
+          step="256"
+          v-model="modelCfg.cacheRam"
+          class="slider full-width"
+        />
+        <div style="color:#555; font-size:11px; margin-bottom:4px;">
+          {{ systemRamTotal > 0 ? `System RAM: ${systemRamTotal} MiB / Free: ${systemRamAvailable} MiB` : '' }}
+        </div>
+        <div v-if="cacheRamWarning === 'unlimited'" style="color:#f5a55a; font-size:11px; margin-bottom:8px;">
+          {{ t('load.cacheRamUnlimited') }}
+        </div>
+        <div v-else-if="cacheRamWarning === 'critical'" style="color:#f55a5a; font-size:11px; margin-bottom:8px;">
+          {{ t('load.cacheRamCritical', { pct: cacheRamPct }) }}
+        </div>
+        <div v-else-if="cacheRamWarning === 'warning'" style="color:#f5a55a; font-size:11px; margin-bottom:8px;">
+          {{ t('load.cacheRamWarning', { pct: cacheRamPct }) }}
+        </div>
         <div class="field" :title="t('load.seedTooltip')">
           <label>{{ t('load.seed') }}</label>
           <input type="number" v-model="modelCfg.seed" class="field-input" />
@@ -291,7 +319,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { selectedModel, allModels, modelLoading, loadedModel, loadingModel, loadedModelConfig } from '../stores/selectedModel'
 import { loadConfig, loadModelConfig, saveModelConfig, type ModelConfig } from '../stores/config'
@@ -309,7 +337,8 @@ const hasUnsavedChanges = computed(() => {
     'contextLength', 'gpuOffload', 'cpuThreads', 'evalBatch', 'physicalBatch',
     'flashAttention', 'specType', 'maxDraftTokens', 'kCacheQuant', 'vCacheQuant',
     'reasoningBudget', 'reasoningEffort', 'parallel', 'mlock', 'nCpuMoe',
-    'host', 'noWarmup', 'sleepIdle', 'reasoningPreserve', 'fit', 'visionEnabled', 'mmprojPath', 'systemPrompt'
+    'host', 'noWarmup', 'sleepIdle', 'reasoningPreserve', 'fit', 'visionEnabled', 'mmprojPath', 'systemPrompt',
+    'kvOffload', 'cacheRam'
   ]
   
   return keys.some(k => String(modelCfg.value[k]) !== String(loadedModelConfig.value![k]))
@@ -341,12 +370,46 @@ const modelCfg = ref<ModelConfig>({
   mlock: false,
   mmap: false,
   kvUnified: false,
+  kvOffload: false,
+  cacheRam: 0,
   nCpuMoe: 0,
   systemPrompt: '',
   seed: -1,
 })
 
 const maxContext = computed(() => selectedModel.value?.max_context || 262144)
+
+const systemRamTotal = ref(0)
+const systemRamAvailable = ref(0)
+
+async function refreshSystemRam() {
+  const [total, available] = await invoke<[number, number]>('get_system_ram')
+  systemRamTotal.value = total
+  systemRamAvailable.value = available
+}
+
+onMounted(() => {
+  refreshSystemRam()
+  window.addEventListener('focus', refreshSystemRam)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('focus', refreshSystemRam)
+})
+
+const cacheRamPct = computed(() => {
+  if (!systemRamAvailable.value || modelCfg.value.cacheRam <= 0) return 0
+  return Math.round((modelCfg.value.cacheRam / systemRamAvailable.value) * 100)
+})
+
+const cacheRamWarning = computed(() => {
+  const v = modelCfg.value.cacheRam
+  if (v === -1) return 'unlimited'
+  if (v <= 0 || !systemRamAvailable.value) return null
+  if (v > systemRamAvailable.value) return 'critical'
+  if (v > systemRamAvailable.value * 0.8) return 'warning'
+  return null
+})
 
 const draftModels = computed(() => {
   if (!selectedModel.value) return []
@@ -391,6 +454,7 @@ async function loadModel() {
   try {
     const config = await loadConfig()
     console.log('config:', config)
+    console.log('gpuLayers:', Number(modelCfg.value.gpuOffload))
     const result = await invoke<string>('load_model', {
       llamaPath: config.llamaPath,
       modelPath: selectedModel.value.path,
@@ -420,6 +484,8 @@ async function loadModel() {
       mlock: modelCfg.value.mlock ?? false,
       mmap: modelCfg.value.mmap ?? false,
       kvUnified: modelCfg.value.kvUnified ?? false,
+      kvOffload: modelCfg.value.kvOffload ?? false,
+      cacheRam: Number(modelCfg.value.cacheRam ?? 0),
       nCpuMoe: Number(modelCfg.value.nCpuMoe ?? 0),
       visionEnabled: modelCfg.value.visionEnabled ?? false,
       mmprojPath: modelCfg.value.mmprojPath ?? '',

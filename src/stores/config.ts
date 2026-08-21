@@ -28,6 +28,8 @@ export interface ModelConfig {
   mlock: boolean
   mmap: boolean
   kvUnified: boolean
+  kvOffload: boolean
+  cacheRam: number
   nCpuMoe: number
   visionEnabled: boolean
   mmprojPath: string
@@ -61,6 +63,8 @@ const modelDefaults: ModelConfig = {
   mlock: false,
   mmap: false,
   kvUnified: false,
+  kvOffload: false,
+  cacheRam: 0,
   nCpuMoe: 0,
   visionEnabled: false,
   mmprojPath: '',

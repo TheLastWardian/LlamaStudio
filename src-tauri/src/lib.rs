@@ -287,6 +287,8 @@ fn load_model(
     mlock: bool,
     mmap: bool,
     kv_unified: bool,
+    kv_offload: bool,
+    cache_ram: i32,
     n_cpu_moe: i32,
     vision_enabled: bool,
     mmproj_path: String,
@@ -312,12 +314,13 @@ fn load_model(
        .arg("--cache-prompt")
        .arg("--props")
        .arg("--jinja")
-        .arg("-np").arg(parallel.to_string())
-        .arg("-kvo")
-       .arg("--fit").arg(&fit)
+         .arg("-np").arg(parallel.to_string())
+        .arg("--fit").arg(&fit)
         .arg("--load-mode").arg(if mmap { "mmap" } else { "none" })
-       .stdout(Stdio::inherit())
-       .stderr(Stdio::piped());
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::piped());
+
+    cmd.arg("--cache-ram").arg(cache_ram.to_string());
 
     if !alias.is_empty() {
         cmd.arg("--alias").arg(&alias);
@@ -374,6 +377,12 @@ fn load_model(
         cmd.arg("--no-kv-unified");
     }
 
+    if kv_offload {
+        cmd.arg("-kvo");
+    } else {
+        cmd.arg("--no-kv-offload");
+    }
+
     if n_cpu_moe > 0 {
         cmd.arg("--n-cpu-moe").arg(n_cpu_moe.to_string());
     }
@@ -389,6 +398,8 @@ fn load_model(
     if !system_prompt.is_empty() {
         cmd.arg("--system-prompt").arg(&system_prompt);
     }
+
+    println!("CMD: {:?}", cmd);
 
     let mut child = cmd
         .creation_flags(CREATE_NO_WINDOW)
@@ -468,6 +479,17 @@ fn get_cpu_threads() -> usize {
     (logical / 2).max(1)
 }
 
+#[tauri::command]
+fn get_system_ram() -> (u64, u64) { // (total, available) en MiB
+    use sysinfo::System;
+    let mut sys = System::new_all();
+    sys.refresh_memory();
+    (
+        sys.total_memory() / 1024 / 1024,
+        sys.available_memory() / 1024 / 1024,
+    )
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -512,7 +534,7 @@ pub fn run() {
             Ok(())
         })
         .manage(ServerProcess(Mutex::new(None)))
-        .invoke_handler(tauri::generate_handler![scan_models, load_model, stop_model, save_window_state, load_window_state, get_cpu_threads])
+        .invoke_handler(tauri::generate_handler![scan_models, load_model, stop_model, save_window_state, load_window_state, get_cpu_threads, get_system_ram])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
