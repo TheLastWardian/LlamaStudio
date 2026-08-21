@@ -393,6 +393,7 @@ fn load_model(
 
     if vision_enabled && !mmproj_path.is_empty() {
         cmd.arg("--mmproj").arg(&mmproj_path);
+        cmd.arg("--image-min-tokens").arg("1024");
     }
 
     if !system_prompt.is_empty() {
