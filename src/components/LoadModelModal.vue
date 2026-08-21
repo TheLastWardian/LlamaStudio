@@ -104,7 +104,7 @@
               <input type="checkbox" v-model="tempCfg.kvUnified" class="toggle" />
             </div>
             <div class="field">
-              <label>{{ t('load.cpuMoeLayers') }}</label>
+              <label>{{ t('load.cpuMoE') }}</label>
               <input type="number" v-model="tempCfg.nCpuMoe" class="field-input" min="0" />
             </div>
             <div class="field">
@@ -253,7 +253,7 @@ import { ref, computed } from 'vue'
 import { allModels, loadedModel, selectedModel, modelLoading, loadingModel, loadedModelConfig } from '../stores/selectedModel'
 import { modelDisplayNames, modelMeta, groups } from '../stores/groups'
 import { invoke } from '@tauri-apps/api/core'
-import { loadConfig, loadModelConfig, type ModelConfig } from '../stores/config'
+import { loadConfig, loadModelConfig, saveModelConfig, type ModelConfig } from '../stores/config'
 import { t } from '../i18n'
 import type { ModelFile } from '../stores/selectedModel'
 
@@ -375,6 +375,9 @@ async function selectModel(model: ModelFile) {
 
 async function loadWithConfig() {
   if (!configModel.value || !tempCfg.value) return
+
+  await saveModelConfig(configModel.value.path, tempCfg.value)
+  
   selectedModel.value = configModel.value
   loadingModel.value = configModel.value
   emit('close')
