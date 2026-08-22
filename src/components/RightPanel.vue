@@ -252,14 +252,6 @@
 
     <div v-if="activeTab === 'inference'">
       <div class="panel-section">
-        <div class="section-title">{{ t('inference.systemPrompt') }}</div>
-        <textarea 
-          class="system-prompt" 
-          :placeholder="t('inference.systemPromptPlaceholder')"
-          v-model="modelCfg.systemPrompt"
-        ></textarea>
-      </div>
-      <div class="panel-section">
         <div class="section-title">{{ t('inference.sampling') }}</div>
         <div class="field">
           <label>{{ t('inference.temperature') }}</label>
@@ -361,7 +353,7 @@ const hasUnsavedChanges = computed(() => {
     'flashAttention', 'specType', 'maxDraftTokens', 'kCacheQuant', 'vCacheQuant',
     'reasoningBudget', 'reasoningEffort', 'parallel', 'mlock', 'nCpuMoe',
     'mmap', 'kvUnified', 'seed', 'draftModelPath', 'threadsHttp', 'alias',
-    'host', 'noWarmup', 'sleepIdle', 'reasoningPreserve', 'fit', 'visionEnabled', 'mmprojPath', 'systemPrompt',
+    'host', 'noWarmup', 'sleepIdle', 'reasoningPreserve', 'fit', 'visionEnabled', 'mmprojPath',
     'kvOffload', 'cacheRam', 'temp', 'topP', 'topK', 'minP', 'repeatPenalty'
   ]
   
@@ -397,7 +389,6 @@ const modelCfg = ref<ModelConfig>({
   kvOffload: false,
   cacheRam: 0,
   nCpuMoe: 0,
-  systemPrompt: '',
   seed: -1,
   temp: 0.8,
   topP: 0.95,
@@ -518,7 +509,6 @@ async function loadModel() {
       nCpuMoe: Number(modelCfg.value.nCpuMoe ?? 0),
       visionEnabled: modelCfg.value.visionEnabled ?? false,
       mmprojPath: modelCfg.value.mmprojPath ?? '',
-      systemPrompt: modelCfg.value.systemPrompt ?? '',
       seed: Number(modelCfg.value.seed ?? -1),
       temp: Number(modelCfg.value.temp ?? 0.8),
       topP: Number(modelCfg.value.topP ?? 0.95),

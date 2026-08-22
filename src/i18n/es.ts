@@ -134,11 +134,6 @@ export default {
     serverReachable: 'El servidor local es accesible en:',
   },
   inference: {
-    preset: 'Preset',
-    selectPreset: 'Seleccionar preset...',
-    savePreset: '+ Guardar preset como...',
-    systemPrompt: 'Prompt de Sistema',
-    systemPromptPlaceholder: 'Ejemplo, "Solo responde en rimas"',
     tokenCount: 'Conteo tokens: N/A',
     enableThinking: 'Activar pensamiento',
     settings: 'Ajustes',

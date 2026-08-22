@@ -405,7 +405,6 @@ async function invokeLoad(modelPath: string, cfg: ModelConfig) {
     kvUnified: cfg.kvUnified ?? false,
     kvOffload: cfg.kvOffload ?? false,
     cacheRam: Number(cfg.cacheRam ?? 0),
-    systemPrompt: cfg.systemPrompt ?? '',
     seed: Number(cfg.seed ?? -1),
     temp: Number(cfg.temp ?? 0.8),
     topP: Number(cfg.topP ?? 0.95),

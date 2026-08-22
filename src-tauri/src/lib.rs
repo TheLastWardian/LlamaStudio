@@ -292,7 +292,6 @@ fn load_model(
     n_cpu_moe: i32,
     vision_enabled: bool,
     mmproj_path: String,
-    system_prompt: String,
     seed: i32,
     temp: f64,
     top_p: f64,
@@ -306,24 +305,31 @@ fn load_model(
         let _ = child.kill();
     }
 
+    let load_mode = match (mmap, mlock) {
+        (true, true) => "mmap+mlock",
+        (true, false) => "mmap",
+        (false, true) => "mlock",
+        (false, false) => "none",
+    };
+
     let mut cmd = Command::new(&llama_path);
     cmd.arg("-m").arg(&model_path)
-       .arg("-ngl").arg(gpu_layers.to_string())
-       .arg("-c").arg(context_length.to_string())
-       .arg("-t").arg(cpu_threads.to_string())
-       .arg("-b").arg(eval_batch.to_string())
-       .arg("-ub").arg(physical_batch.to_string())
-       .arg("--port").arg(port.to_string())
-       .arg("--host").arg(&host)
-       .arg("--threads-http").arg(threads_http.to_string())
-       .arg("--cache-prompt")
-       .arg("--props")
-       .arg("--jinja")
-         .arg("-np").arg(parallel.to_string())
-        .arg("--fit").arg(&fit)
-        .arg("--load-mode").arg(if mmap { "mmap" } else { "none" })
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::piped());
+        .arg("-ngl").arg(gpu_layers.to_string())
+        .arg("-c").arg(context_length.to_string())
+        .arg("-t").arg(cpu_threads.to_string())
+        .arg("-b").arg(eval_batch.to_string())
+        .arg("-ub").arg(physical_batch.to_string())
+        .arg("--port").arg(port.to_string())
+        .arg("--host").arg(&host)
+        .arg("--threads-http").arg(threads_http.to_string())
+        .arg("--cache-prompt")
+        .arg("--props")
+        .arg("--jinja")
+          .arg("-np").arg(parallel.to_string())
+         .arg("--fit").arg(&fit)
+         .arg("--load-mode").arg(load_mode)
+         .stdout(Stdio::inherit())
+         .stderr(Stdio::piped());
 
     cmd.arg("--cache-ram").arg(cache_ram.to_string());
     cmd.arg("--temp").arg(temp.to_string())
@@ -359,9 +365,13 @@ fn load_model(
 
     if spec_type == "Draft" && !draft_model_path.is_empty() {
         cmd.arg("--spec-type").arg("draft-simple")
-           .arg("-md").arg(&draft_model_path)
-           .arg("--spec-draft-n-max").arg(max_draft_tokens.to_string())
-           .arg("--spec-draft-ngl").arg("99");
+            .arg("-md").arg(&draft_model_path)
+            .arg("--spec-draft-n-max").arg(max_draft_tokens.to_string())
+            .arg("--spec-draft-ngl").arg("99");
+    }
+
+    if spec_type != "None" {
+        cmd.arg("--spec-draft-p-split").arg(draft_probability.to_string());
     }
 
     if k_cache_quant != "F16" {
@@ -375,10 +385,6 @@ fn load_model(
 
     if reasoning_effort != "default" {
         cmd.arg("--reasoning-effort").arg(&reasoning_effort);
-    }
-
-    if mlock {
-        cmd.arg("--mlock");
     }
 
     if kv_unified {
@@ -403,10 +409,6 @@ fn load_model(
 
     if vision_enabled && !mmproj_path.is_empty() {
         cmd.arg("--mmproj").arg(&mmproj_path);
-    }
-
-    if !system_prompt.is_empty() {
-        cmd.arg("--system-prompt").arg(&system_prompt);
     }
 
     let program = cmd.get_program().to_string_lossy().to_string();

@@ -134,11 +134,6 @@ export default {
     serverReachable: 'The local server is reachable at:',
   },
   inference: {
-    preset: 'Preset',
-    selectPreset: 'Select a Preset...',
-    savePreset: '+ Save Preset As...',
-    systemPrompt: 'System Prompt',
-    systemPromptPlaceholder: 'Example, "Only answer in rhymes"',
     tokenCount: 'Token count: N/A',
     enableThinking: 'Enable Thinking',
     settings: 'Settings',

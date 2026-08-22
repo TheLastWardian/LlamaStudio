@@ -42,7 +42,6 @@ export interface ModelConfig {
   nCpuMoe: number
   visionEnabled: boolean
   mmprojPath: string
-  systemPrompt: string
   seed: number
   temp: number
   topP: number
@@ -82,7 +81,6 @@ const modelDefaults: ModelConfig = {
   nCpuMoe: 0,
   visionEnabled: false,
   mmprojPath: '',
-  systemPrompt: '',
   seed: -1,
   temp: 0.8,
   topP: 0.95,
