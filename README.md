@@ -4,6 +4,8 @@
 
 A desktop app for managing and running local LLMs (GGUF) with a built-in `llama-server` (llama.cpp) backend.
 
+Entirely inspired by [LM Studio](https://lmstudio.ai/) — with modifications that fit my workflow better and weren't possible to make in LM Studio.
+
 <!-- screenshot -->
 
 ## Features
