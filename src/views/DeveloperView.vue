@@ -24,6 +24,10 @@
       
       <div v-if="loadedModel" class="dev-model-row">
         <span class="badge-ready">{{ t('developer.ready') }}</span>
+        <div v-if="prefillProgress !== null" class="prefill-progress">
+          <div class="prefill-bar"><div class="prefill-fill" :style="{ width: prefillProgress + '%' }"></div></div>
+          <span class="prefill-pct">{{ prefillProgress }}%</span>
+        </div>
         <span class="tag qwen" style="font-size:10px;">{{ loadedModel.arch }} {{ loadedModel.name }}</span>
         <div style="flex:1"></div>
         <span style="color:#555; font-size:11px;">{{ (loadedModel.size_bytes / 1024 / 1024 / 1024).toFixed(2) }} GB</span>
@@ -55,7 +59,7 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick, onMounted } from 'vue'
-import { serverLogs, loadedModel, modelLoading } from '../stores/selectedModel'
+import { serverLogs, loadedModel, modelLoading, prefillProgress } from '../stores/selectedModel'
 import { invoke } from '@tauri-apps/api/core'
 import { loadConfig } from '../stores/config'
 import LoadModelModal from '../components/LoadModelModal.vue'
@@ -156,10 +160,12 @@ async function eject() {
   await invoke('stop_model')
   loadedModel.value = null
   modelLoading.value = false
+  prefillProgress.value = null
 }
 
 function clearLogs() {
   serverLogs.value = []
+  prefillProgress.value = null
 }
 
 watch(logs, () => {

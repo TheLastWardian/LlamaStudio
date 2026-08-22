@@ -24,7 +24,7 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { listen } from '@tauri-apps/api/event'
-import { serverLogs, modelLoading, selectedModel, loadedModel, loadingModel, loadedModelConfig } from './stores/selectedModel'
+import { serverLogs, modelLoading, selectedModel, loadedModel, loadingModel, loadedModelConfig, prefillProgress } from './stores/selectedModel'
 import { loadConfig, loadModelConfig } from './stores/config'
 import { loadGroups } from './stores/groups'
 import { setLang } from './i18n'
@@ -87,6 +87,18 @@ onMounted(async () => {
         : { time: '', level: 'info', msg: clean }
     )
 
+    if (clean.includes('print_timing')) {
+      if (clean.includes('prompt processing')) {
+        const m = clean.match(/progress = ([\d.]+)/)
+        if (m) prefillProgress.value = Math.round(parseFloat(m[1]) * 100)
+      } else {
+        prefillProgress.value = null
+      }
+    }
+    if (clean.includes('slot release')) {
+      prefillProgress.value = null
+    }
+
     setTimeout(() => {
       const logsEl = document.querySelector('.dev-logs') as HTMLElement
       if (logsEl) logsEl.scrollTop = logsEl.scrollHeight
@@ -94,6 +106,7 @@ onMounted(async () => {
     
     if (clean.includes('model loaded')) {
       modelLoading.value = false
+      prefillProgress.value = null
       loadedModel.value = loadingModel.value ?? selectedModel.value
       loadingModel.value = null
       if (loadedModel.value) {

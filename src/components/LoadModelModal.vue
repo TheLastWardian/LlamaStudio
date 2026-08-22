@@ -407,6 +407,11 @@ async function invokeLoad(modelPath: string, cfg: ModelConfig) {
     cacheRam: Number(cfg.cacheRam ?? 0),
     systemPrompt: cfg.systemPrompt ?? '',
     seed: Number(cfg.seed ?? -1),
+    temp: Number(cfg.temp ?? 0.8),
+    topP: Number(cfg.topP ?? 0.95),
+    topK: Number(cfg.topK ?? 40),
+    minP: Number(cfg.minP ?? 0.05),
+    repeatPenalty: Number(cfg.repeatPenalty ?? 1.0),
   })
 }
 

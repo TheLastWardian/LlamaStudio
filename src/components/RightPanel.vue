@@ -259,6 +259,29 @@
           v-model="modelCfg.systemPrompt"
         ></textarea>
       </div>
+      <div class="panel-section">
+        <div class="section-title">{{ t('inference.sampling') }}</div>
+        <div class="field">
+          <label>{{ t('inference.temperature') }}</label>
+          <input type="number" v-model="modelCfg.temp" class="field-input" step="0.05" min="0" max="2" />
+        </div>
+        <div class="field">
+          <label>{{ t('inference.topP') }}</label>
+          <input type="number" v-model="modelCfg.topP" class="field-input" step="0.01" min="0" max="1" />
+        </div>
+        <div class="field">
+          <label>{{ t('inference.topK') }}</label>
+          <input type="number" v-model="modelCfg.topK" class="field-input" step="1" min="0" />
+        </div>
+        <div class="field">
+          <label>{{ t('inference.minP') }}</label>
+          <input type="number" v-model="modelCfg.minP" class="field-input" step="0.01" min="0" max="1" />
+        </div>
+        <div class="field">
+          <label>{{ t('inference.repeatPenalty') }}</label>
+          <input type="number" v-model="modelCfg.repeatPenalty" class="field-input" step="0.01" min="0" />
+        </div>
+      </div>
     </div>
 
     <div v-if="activeTab === 'info'">
@@ -337,8 +360,9 @@ const hasUnsavedChanges = computed(() => {
     'contextLength', 'gpuOffload', 'cpuThreads', 'evalBatch', 'physicalBatch',
     'flashAttention', 'specType', 'maxDraftTokens', 'kCacheQuant', 'vCacheQuant',
     'reasoningBudget', 'reasoningEffort', 'parallel', 'mlock', 'nCpuMoe',
+    'mmap', 'kvUnified', 'seed', 'draftModelPath', 'threadsHttp', 'alias',
     'host', 'noWarmup', 'sleepIdle', 'reasoningPreserve', 'fit', 'visionEnabled', 'mmprojPath', 'systemPrompt',
-    'kvOffload', 'cacheRam'
+    'kvOffload', 'cacheRam', 'temp', 'topP', 'topK', 'minP', 'repeatPenalty'
   ]
   
   return keys.some(k => String(modelCfg.value[k]) !== String(loadedModelConfig.value![k]))
@@ -375,6 +399,11 @@ const modelCfg = ref<ModelConfig>({
   nCpuMoe: 0,
   systemPrompt: '',
   seed: -1,
+  temp: 0.8,
+  topP: 0.95,
+  topK: 40,
+  minP: 0.05,
+  repeatPenalty: 1.0,
 })
 
 const maxContext = computed(() => selectedModel.value?.max_context || 262144)
@@ -491,6 +520,11 @@ async function loadModel() {
       mmprojPath: modelCfg.value.mmprojPath ?? '',
       systemPrompt: modelCfg.value.systemPrompt ?? '',
       seed: Number(modelCfg.value.seed ?? -1),
+      temp: Number(modelCfg.value.temp ?? 0.8),
+      topP: Number(modelCfg.value.topP ?? 0.95),
+      topK: Number(modelCfg.value.topK ?? 40),
+      minP: Number(modelCfg.value.minP ?? 0.05),
+      repeatPenalty: Number(modelCfg.value.repeatPenalty ?? 1.0),
     })
     console.log('invoke result:', result)
     loadedModel.value = selectedModel.value

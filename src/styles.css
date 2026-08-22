@@ -600,6 +600,33 @@ body {
   font-weight: 600;
 }
 
+.prefill-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.prefill-bar {
+  width: 90px;
+  height: 5px;
+  background: #333;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.prefill-fill {
+  height: 100%;
+  background: #5a8af5;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.prefill-pct {
+  font-size: 10px;
+  color: #5a8af5;
+  min-width: 28px;
+}
+
 .btn-eject {
   background: #2a2a2a;
   border: 1px solid #444;

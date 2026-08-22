@@ -27,3 +27,5 @@ export const serverLogs = ref<{time: string, level: string, msg: string}[]>([])
 export const loadedModel = ref<ModelFile | null>(null)
 
 export const loadedModelConfig = ref<Record<string, any> | null>(null)
+
+export const prefillProgress = ref<number | null>(null)

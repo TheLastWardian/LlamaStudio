@@ -1,6 +1,15 @@
-import { load } from '@tauri-apps/plugin-store'
+import { load, type Store } from '@tauri-apps/plugin-store'
 
 const STORE_FILE = 'config.json'
+
+let storePromise: Promise<Store> | null = null
+
+function getStore(): Promise<Store> {
+  if (!storePromise) {
+    storePromise = load(STORE_FILE, { autoSave: true })
+  }
+  return storePromise
+}
 
 export interface ModelConfig {
   contextLength: number
@@ -35,6 +44,11 @@ export interface ModelConfig {
   mmprojPath: string
   systemPrompt: string
   seed: number
+  temp: number
+  topP: number
+  topK: number
+  minP: number
+  repeatPenalty: number
 }
 
 const modelDefaults: ModelConfig = {
@@ -70,17 +84,22 @@ const modelDefaults: ModelConfig = {
   mmprojPath: '',
   systemPrompt: '',
   seed: -1,
+  temp: 0.8,
+  topP: 0.95,
+  topK: 40,
+  minP: 0.05,
+  repeatPenalty: 1.0,
 }
 
 export async function loadModelConfig(modelPath: string): Promise<ModelConfig> {
-  const store = await load(STORE_FILE, { autoSave: true })
+  const store = await getStore()
   const key = 'model:' + modelPath.replace(/[\\/]/g, '_')
   const saved = await store.get<Partial<ModelConfig>>(key)
   return { ...modelDefaults, ...saved }
 }
 
 export async function saveModelConfig(modelPath: string, config: ModelConfig): Promise<void> {
-  const store = await load(STORE_FILE, { autoSave: true })
+  const store = await getStore()
   const key = 'model:' + modelPath.replace(/[\\/]/g, '_')
   await store.set(key, config)
   await store.save()
@@ -103,7 +122,7 @@ const defaults: AppConfig = {
 }
 
 export async function loadConfig(): Promise<AppConfig> {
-  const store = await load(STORE_FILE, { autoSave: true })
+  const store = await getStore()
   return {
     modelsPath: await store.get<string>('modelsPath') ?? defaults.modelsPath,
     llamaPath: await store.get<string>('llamaPath') ?? defaults.llamaPath,
@@ -114,7 +133,7 @@ export async function loadConfig(): Promise<AppConfig> {
 }
 
 export async function saveConfig(config: AppConfig): Promise<void> {
-  const store = await load(STORE_FILE, { autoSave: true })
+  const store = await getStore()
   await store.set('modelsPath', config.modelsPath)
   await store.set('llamaPath', config.llamaPath)
   await store.set('port', config.port)

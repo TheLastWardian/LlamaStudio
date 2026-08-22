@@ -294,6 +294,11 @@ fn load_model(
     mmproj_path: String,
     system_prompt: String,
     seed: i32,
+    temp: f64,
+    top_p: f64,
+    top_k: i32,
+    min_p: f64,
+    repeat_penalty: f64,
 ) -> Result<String, String> {
     let mut child_lock = state.0.lock().unwrap();
 
@@ -321,6 +326,11 @@ fn load_model(
         .stderr(Stdio::piped());
 
     cmd.arg("--cache-ram").arg(cache_ram.to_string());
+    cmd.arg("--temp").arg(temp.to_string())
+        .arg("--top-p").arg(top_p.to_string())
+        .arg("--top-k").arg(top_k.to_string())
+        .arg("--min-p").arg(min_p.to_string())
+        .arg("--repeat-penalty").arg(repeat_penalty.to_string());
 
     if !alias.is_empty() {
         cmd.arg("--alias").arg(&alias);
@@ -393,14 +403,17 @@ fn load_model(
 
     if vision_enabled && !mmproj_path.is_empty() {
         cmd.arg("--mmproj").arg(&mmproj_path);
-        cmd.arg("--image-min-tokens").arg("1024");
     }
 
     if !system_prompt.is_empty() {
         cmd.arg("--system-prompt").arg(&system_prompt);
     }
 
-    println!("CMD: {:?}", cmd);
+    let program = cmd.get_program().to_string_lossy().to_string();
+    let args: Vec<String> = cmd.get_args().map(|a| a.to_string_lossy().to_string()).collect();
+    let cmd_str = format!("CMD: {} {}", program, args.join(" "));
+    println!("{}", cmd_str);
+    let _ = app.emit("llama-log", cmd_str);
 
     let mut child = cmd
         .creation_flags(CREATE_NO_WINDOW)
