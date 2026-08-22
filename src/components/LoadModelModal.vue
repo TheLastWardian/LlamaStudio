@@ -120,6 +120,10 @@
             <div v-else-if="cacheRamWarning === 'warning'" style="color:#f5a55a; font-size:11px; margin-bottom:8px;">
               {{ t('load.cacheRamWarning', { pct: cacheRamPct }) }}
             </div>
+            <div class="field" v-if="configModel?.is_moe" :title="t('load.numExpertsTooltip')">
+              <label>{{ t('load.numExperts') }}</label>
+              <input type="number" v-model="tempCfg.expertsPerToken" class="field-input" min="0" :max="configModel?.expert_count || undefined" :placeholder="configModel?.expert_used_count > 0 ? String(configModel?.expert_used_count) : ''" />
+            </div>
             <div class="field">
               <label>{{ t('load.cpuMoE') }}</label>
               <input type="number" v-model="tempCfg.nCpuMoe" class="field-input" min="0" />
@@ -166,6 +170,10 @@
                 <option>Q8_0</option>
                 <option>Q4_0</option>
               </select>
+            </div>
+            <div class="field" :title="t('load.cacheReuseTooltip')">
+              <label>{{ t('load.cacheReuse') }}</label>
+              <input type="number" v-model="tempCfg.cacheReuse" class="field-input" min="0" />
             </div>
           </div>
 
@@ -386,6 +394,7 @@ async function invokeLoad(modelPath: string, cfg: ModelConfig) {
     draftProbability: Number(cfg.draftProbability ?? 0.75),
     kCacheQuant: cfg.kCacheQuant ?? 'Q8_0',
     vCacheQuant: cfg.vCacheQuant ?? 'Q8_0',
+    cacheReuse: Number(cfg.cacheReuse ?? 0),
     port: Number(config.port ?? 8080),
     host: cfg.host ?? '127.0.0.1',
     alias: cfg.alias ?? '',
@@ -399,6 +408,7 @@ async function invokeLoad(modelPath: string, cfg: ModelConfig) {
     parallel: Number(cfg.parallel ?? 1),
     mlock: cfg.mlock ?? false,
     nCpuMoe: Number(cfg.nCpuMoe ?? 0),
+    expertsPerToken: Number(cfg.expertsPerToken ?? 0),
     visionEnabled: cfg.visionEnabled ?? false,
     mmprojPath: cfg.mmprojPath ?? '',
     mmap: cfg.mmap ?? false,

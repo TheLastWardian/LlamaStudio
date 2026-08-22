@@ -25,6 +25,8 @@ pub struct ModelFile {
     pub max_context: u32,
     pub layer_count: u32,
     pub is_moe: bool,
+    pub expert_count: u32,
+    pub expert_used_count: u32,
     pub mmproj_paths: Vec<String>,
 }
 
@@ -232,6 +234,11 @@ fn scan_models(models_path: String) -> Vec<ModelFile> {
                     .and_then(|v| v.parse::<u32>().ok())
                     .unwrap_or(0);
                 let is_moe = expert_count > 0 || arch.contains("moe");
+                let expert_used_key = format!("{}.expert_used_count", arch);
+                let expert_used_count = meta.get(&expert_used_key)
+                    .or_else(|| meta.get("llama.expert_used_count"))
+                    .and_then(|v| v.parse::<u32>().ok())
+                    .unwrap_or(0);
 
                 models.push(ModelFile {
                     name: file_name,
@@ -244,6 +251,8 @@ fn scan_models(models_path: String) -> Vec<ModelFile> {
                     max_context,
                     layer_count,
                     is_moe,
+                    expert_count,
+                    expert_used_count,
                     mmproj_paths: mmproj_files.clone(),
                 });
             }
@@ -273,6 +282,7 @@ fn load_model(
     draft_probability: f32,
     k_cache_quant: String,
     v_cache_quant: String,
+    cache_reuse: i32,
     port: i32,
     host: String,
     alias: String,
@@ -290,6 +300,7 @@ fn load_model(
     kv_offload: bool,
     cache_ram: i32,
     n_cpu_moe: i32,
+    experts_per_token: i32,
     vision_enabled: bool,
     mmproj_path: String,
     seed: i32,
@@ -381,6 +392,10 @@ fn load_model(
         cmd.arg("--cache-type-v").arg(v_cache_quant.to_lowercase());
     }
 
+    if cache_reuse > 0 {
+        cmd.arg("--cache-reuse").arg(cache_reuse.to_string());
+    }
+
     cmd.arg("--reasoning-budget").arg(reasoning_budget.to_string());
 
     if reasoning_effort != "default" {
@@ -401,6 +416,15 @@ fn load_model(
 
     if n_cpu_moe > 0 {
         cmd.arg("--n-cpu-moe").arg(n_cpu_moe.to_string());
+    }
+
+    if experts_per_token > 0 {
+        let meta = read_gguf_metadata(&model_path);
+        let arch = meta.get("general.architecture").cloned().unwrap_or_default();
+        if !arch.is_empty() {
+            let key = format!("{}.expert_used_count", arch);
+            cmd.arg("--override-kv").arg(format!("{}=int:{}", key, experts_per_token));
+        }
     }
 
     if seed != -1 {

@@ -11,6 +11,8 @@ export interface ModelFile {
   max_context: number
   layer_count: number
   is_moe: boolean
+  expert_count: number
+  expert_used_count: number
   mmproj_paths: string[]
 }
 

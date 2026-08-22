@@ -23,6 +23,7 @@ export interface ModelConfig {
   draftProbability: number
   kCacheQuant: string
   vCacheQuant: string
+  cacheReuse: number
   reasoningBudget: string
   reasoningEffort: string
   draftModelPath: string
@@ -40,6 +41,7 @@ export interface ModelConfig {
   kvOffload: boolean
   cacheRam: number
   nCpuMoe: number
+  expertsPerToken: number
   visionEnabled: boolean
   mmprojPath: string
   seed: number
@@ -62,6 +64,7 @@ const modelDefaults: ModelConfig = {
   draftProbability: 0.75,
   kCacheQuant: 'Q8_0',
   vCacheQuant: 'Q8_0',
+  cacheReuse: 0,
   reasoningBudget: '-1',
   reasoningEffort: 'default',
   draftModelPath: '',
@@ -79,6 +82,7 @@ const modelDefaults: ModelConfig = {
   kvOffload: false,
   cacheRam: 0,
   nCpuMoe: 0,
+  expertsPerToken: 0,
   visionEnabled: false,
   mmprojPath: '',
   seed: -1,

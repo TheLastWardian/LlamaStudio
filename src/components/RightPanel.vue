@@ -97,6 +97,10 @@
             <option value="Q4_0">Q4_0</option>
           </select>
         </div>
+        <div class="field" :title="t('load.cacheReuseTooltip')">
+          <label>{{ t('load.cacheReuse') }}</label>
+          <input type="number" v-model="modelCfg.cacheReuse" class="field-input" min="0" />
+        </div>
         <div class="field" :title="t('load.parallelTooltip')">
           <label>{{ t('load.parallelSlots') }}</label>
           <input type="number" v-model="modelCfg.parallel" class="field-input" min="1" max="16" />
@@ -148,6 +152,10 @@
         <div class="field" v-if="selectedModel?.is_moe" :title="t('load.cpuMoETooltip')">
           <label>{{ t('load.cpuMoE') }}</label>
           <input type="number" v-model="modelCfg.nCpuMoe" class="field-input" min="0" />
+        </div>
+        <div class="field" v-if="selectedModel?.is_moe" :title="t('load.numExpertsTooltip')">
+          <label>{{ t('load.numExperts') }}</label>
+          <input type="number" v-model="modelCfg.expertsPerToken" class="field-input" min="0" :max="selectedModel?.expert_count || undefined" :placeholder="selectedModel?.expert_used_count > 0 ? String(selectedModel?.expert_used_count) : ''" />
         </div>
       </div>
 
@@ -350,8 +358,8 @@ const hasUnsavedChanges = computed(() => {
   
   const keys: (keyof typeof modelCfg.value)[] = [
     'contextLength', 'gpuOffload', 'cpuThreads', 'evalBatch', 'physicalBatch',
-    'flashAttention', 'specType', 'maxDraftTokens', 'kCacheQuant', 'vCacheQuant',
-    'reasoningBudget', 'reasoningEffort', 'parallel', 'mlock', 'nCpuMoe',
+    'flashAttention', 'specType', 'maxDraftTokens', 'kCacheQuant', 'vCacheQuant', 'cacheReuse',
+    'reasoningBudget', 'reasoningEffort', 'parallel', 'mlock', 'nCpuMoe', 'expertsPerToken',
     'mmap', 'kvUnified', 'seed', 'draftModelPath', 'threadsHttp', 'alias',
     'host', 'noWarmup', 'sleepIdle', 'reasoningPreserve', 'fit', 'visionEnabled', 'mmprojPath',
     'kvOffload', 'cacheRam', 'temp', 'topP', 'topK', 'minP', 'repeatPenalty'
@@ -372,6 +380,7 @@ const modelCfg = ref<ModelConfig>({
   draftProbability: 0.75,
   kCacheQuant: 'Q8_0',
   vCacheQuant: 'Q8_0',
+  cacheReuse: 0,
   reasoningBudget: '-1',
   reasoningEffort: 'default',
   draftModelPath: '',
@@ -389,6 +398,7 @@ const modelCfg = ref<ModelConfig>({
   kvOffload: false,
   cacheRam: 0,
   nCpuMoe: 0,
+  expertsPerToken: 0,
   seed: -1,
   temp: 0.8,
   topP: 0.95,
@@ -490,6 +500,7 @@ async function loadModel() {
       draftProbability: modelCfg.value.draftProbability,
       kCacheQuant: modelCfg.value.kCacheQuant,
       vCacheQuant: modelCfg.value.vCacheQuant,
+      cacheReuse: Number(modelCfg.value.cacheReuse ?? 0),
       port: config.port,
       host: modelCfg.value.host ?? '127.0.0.1',
       alias: modelCfg.value.alias ?? '',
@@ -507,6 +518,7 @@ async function loadModel() {
       kvOffload: modelCfg.value.kvOffload ?? false,
       cacheRam: Number(modelCfg.value.cacheRam ?? 0),
       nCpuMoe: Number(modelCfg.value.nCpuMoe ?? 0),
+      expertsPerToken: Number(modelCfg.value.expertsPerToken ?? 0),
       visionEnabled: modelCfg.value.visionEnabled ?? false,
       mmprojPath: modelCfg.value.mmprojPath ?? '',
       seed: Number(modelCfg.value.seed ?? -1),
