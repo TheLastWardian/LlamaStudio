@@ -24,7 +24,7 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { listen } from '@tauri-apps/api/event'
-import { serverLogs, modelLoading, selectedModel, loadedModel, loadingModel, loadedModelConfig, prefillProgress } from './stores/selectedModel'
+import { serverLogs, modelLoading, selectedModel, loadedModel, loadingModel, loadedModelConfig, prefillProgress, type ModelFile } from './stores/selectedModel'
 import { loadConfig, loadModelConfig } from './stores/config'
 import { loadGroups } from './stores/groups'
 import { setLang } from './i18n'
@@ -66,6 +66,42 @@ function startResize(e: MouseEvent) {
   window.addEventListener('mouseup', onUp)
 }
 
+async function restoreLoadedModel(port: number, modelsPath: string) {
+  try {
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), 2000)
+    const res = await fetch(`http://127.0.0.1:${port}/v1/models`, { signal: ctrl.signal })
+    clearTimeout(timer)
+    if (!res.ok) return
+    const json: any = await res.json()
+    const id: string | undefined = json?.data?.[0]?.id
+    if (!id) return
+
+    const models: ModelFile[] = await invoke('scan_models', { modelsPath })
+    let model = models.find(m => m.path === id)
+      ?? models.find(m => m.path.replace(/\\/g, '/') === id.replace(/\\/g, '/'))
+      ?? null
+    if (!model) {
+      for (const m of models) {
+        const cfg = await loadModelConfig(m.path)
+        if (cfg.alias && cfg.alias === id) { model = m; break }
+      }
+    }
+    if (!model) {
+      const name = id.split(/[\\/]/).pop() || id
+      model = { name, publisher: '', model_family: '', size_bytes: 0, path: id, arch: '', params: '', max_context: 0, layer_count: 0, is_moe: false, expert_count: 0, expert_used_count: 0, mmproj_paths: [] }
+    }
+
+    selectedModel.value = model
+    loadedModel.value = model
+    modelLoading.value = false
+    loadingModel.value = null
+    loadedModelConfig.value = { ...(await loadModelConfig(model.path)) }
+  } catch {
+    // server no corriendo o aún cargando — nada que restaurar
+  }
+}
+
 onMounted(async () => {
   const config = await loadConfig()
   setLang(config.language)
@@ -73,6 +109,8 @@ onMounted(async () => {
   await loadGroups()
   await invoke('load_window_state').catch(() => {})
   await win.show()
+
+  restoreLoadedModel(config.port, config.modelsPath)
 
   if (unlistenLogs) unlistenLogs()
   
@@ -107,12 +145,15 @@ onMounted(async () => {
     if (clean.includes('model loaded')) {
       modelLoading.value = false
       prefillProgress.value = null
-      loadedModel.value = loadingModel.value ?? selectedModel.value
-      loadingModel.value = null
-      if (loadedModel.value) {
-        loadModelConfig(loadedModel.value.path).then(cfg => {
+      const target = loadingModel.value ?? selectedModel.value
+      if (target) {
+        loadedModel.value = target
+        loadingModel.value = null
+        loadModelConfig(target.path).then(cfg => {
           loadedModelConfig.value = { ...cfg }
         })
+      } else {
+        restoreLoadedModel(config.port, config.modelsPath)
       }
     }
     if (clean.includes('loading model')) {
