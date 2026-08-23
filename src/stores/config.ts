@@ -24,6 +24,8 @@ export interface ModelConfig {
   kCacheQuant: string
   vCacheQuant: string
   cacheReuse: number
+  ctxCheckpoints: number
+  checkpointMinStep: number
   reasoningBudget: string
   reasoningEffort: string
   draftModelPath: string
@@ -65,6 +67,8 @@ const modelDefaults: ModelConfig = {
   kCacheQuant: 'Q8_0',
   vCacheQuant: 'Q8_0',
   cacheReuse: 0,
+  ctxCheckpoints: 32,
+  checkpointMinStep: 8192,
   reasoningBudget: '-1',
   reasoningEffort: 'default',
   draftModelPath: '',

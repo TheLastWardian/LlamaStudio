@@ -101,6 +101,14 @@
           <label>{{ t('load.cacheReuse') }}</label>
           <input type="number" v-model="modelCfg.cacheReuse" class="field-input" min="0" />
         </div>
+        <div class="field" :title="t('load.ctxCheckpointsTooltip')">
+          <label>{{ t('load.ctxCheckpoints') }}</label>
+          <input type="number" v-model="modelCfg.ctxCheckpoints" class="field-input" min="0" />
+        </div>
+        <div class="field" :title="t('load.checkpointMinStepTooltip')">
+          <label>{{ t('load.checkpointMinStep') }}</label>
+          <input type="number" v-model="modelCfg.checkpointMinStep" class="field-input" min="0" />
+        </div>
         <div class="field" :title="t('load.parallelTooltip')">
           <label>{{ t('load.parallelSlots') }}</label>
           <input type="number" v-model="modelCfg.parallel" class="field-input" min="1" max="16" />
@@ -359,6 +367,7 @@ const hasUnsavedChanges = computed(() => {
   const keys: (keyof typeof modelCfg.value)[] = [
     'contextLength', 'gpuOffload', 'cpuThreads', 'evalBatch', 'physicalBatch',
     'flashAttention', 'specType', 'maxDraftTokens', 'kCacheQuant', 'vCacheQuant', 'cacheReuse',
+    'ctxCheckpoints', 'checkpointMinStep',
     'reasoningBudget', 'reasoningEffort', 'parallel', 'mlock', 'nCpuMoe', 'expertsPerToken',
     'mmap', 'kvUnified', 'seed', 'draftModelPath', 'threadsHttp', 'alias',
     'host', 'noWarmup', 'sleepIdle', 'reasoningPreserve', 'fit', 'visionEnabled', 'mmprojPath',
@@ -381,6 +390,8 @@ const modelCfg = ref<ModelConfig>({
   kCacheQuant: 'Q8_0',
   vCacheQuant: 'Q8_0',
   cacheReuse: 0,
+  ctxCheckpoints: 32,
+  checkpointMinStep: 8192,
   reasoningBudget: '-1',
   reasoningEffort: 'default',
   draftModelPath: '',
@@ -501,6 +512,8 @@ async function loadModel() {
       kCacheQuant: modelCfg.value.kCacheQuant,
       vCacheQuant: modelCfg.value.vCacheQuant,
       cacheReuse: Number(modelCfg.value.cacheReuse ?? 0),
+      ctxCheckpoints: Number(modelCfg.value.ctxCheckpoints ?? 32),
+      checkpointMinStep: Number(modelCfg.value.checkpointMinStep ?? 8192),
       port: config.port,
       host: modelCfg.value.host ?? '127.0.0.1',
       alias: modelCfg.value.alias ?? '',

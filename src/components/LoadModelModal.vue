@@ -176,6 +176,14 @@
               <label>{{ t('load.cacheReuse') }}</label>
               <input type="number" v-model="tempCfg.cacheReuse" class="field-input" min="0" />
             </div>
+            <div class="field" :title="t('load.ctxCheckpointsTooltip')">
+              <label>{{ t('load.ctxCheckpoints') }}</label>
+              <input type="number" v-model="tempCfg.ctxCheckpoints" class="field-input" min="0" />
+            </div>
+            <div class="field" :title="t('load.checkpointMinStepTooltip')">
+              <label>{{ t('load.checkpointMinStep') }}</label>
+              <input type="number" v-model="tempCfg.checkpointMinStep" class="field-input" min="0" />
+            </div>
           </div>
 
           <template v-if="configModel?.mmproj_paths?.length > 0">
@@ -397,6 +405,8 @@ async function invokeLoad(modelPath: string, cfg: ModelConfig) {
     kCacheQuant: cfg.kCacheQuant ?? 'Q8_0',
     vCacheQuant: cfg.vCacheQuant ?? 'Q8_0',
     cacheReuse: Number(cfg.cacheReuse ?? 0),
+    ctxCheckpoints: Number(cfg.ctxCheckpoints ?? 32),
+    checkpointMinStep: Number(cfg.checkpointMinStep ?? 8192),
     port: Number(config.port ?? 8080),
     host: cfg.host ?? '127.0.0.1',
     alias: cfg.alias ?? '',

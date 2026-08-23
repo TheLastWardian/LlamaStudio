@@ -283,6 +283,8 @@ fn load_model(
     k_cache_quant: String,
     v_cache_quant: String,
     cache_reuse: i32,
+    ctx_checkpoints: i32,
+    checkpoint_min_step: i32,
     port: i32,
     host: String,
     alias: String,
@@ -395,6 +397,9 @@ fn load_model(
     if cache_reuse > 0 {
         cmd.arg("--cache-reuse").arg(cache_reuse.to_string());
     }
+
+    cmd.arg("--ctx-checkpoints").arg(ctx_checkpoints.to_string());
+    cmd.arg("--checkpoint-min-step").arg(checkpoint_min_step.to_string());
 
     cmd.arg("--reasoning-budget").arg(reasoning_budget.to_string());
 
