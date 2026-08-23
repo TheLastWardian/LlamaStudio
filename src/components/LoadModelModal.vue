@@ -206,6 +206,14 @@
 
           <div class="panel-section">
             <div class="section-title">🧠 {{ t('load.reasoning') }}</div>
+            <div class="field" v-if="configModel?.supports_thinking" :title="t('load.thinkingModeTooltip')">
+              <label>{{ t('load.thinkingMode') }}</label>
+              <select class="field-select" v-model="tempCfg.reasoning">
+                <option value="auto">Auto</option>
+                <option value="on">On</option>
+                <option value="off">Off (disabled)</option>
+              </select>
+            </div>
             <div class="field">
               <label>{{ t('load.reasoningBudget') }}</label>
               <select class="field-select" v-model="tempCfg.reasoningBudget">
@@ -217,16 +225,10 @@
                 <option value="16384">16384 tokens</option>
               </select>
             </div>
-            <div class="field">
+            <div class="field" v-if="configModel?.supports_effort">
               <label>{{ t('load.reasoningEffort') }}</label>
               <select class="field-select" v-model="tempCfg.reasoningEffort">
-                <option value="default">Default</option>
-                <option value="minimal">Minimal</option>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="xhigh">XHigh</option>
-                <option value="max">Max</option>
+                <option v-for="lvl in effortOptions" :key="lvl" :value="lvl">{{ lvl }}</option>
               </select>
             </div>
           </div>
@@ -295,6 +297,12 @@ import type { ModelFile } from '../stores/selectedModel'
 const search = ref('')
 const view = ref<'list' | 'config'>('list')
 const configModel = ref<ModelFile | null>(null)
+
+const effortOptions = computed(() => {
+  const levels = configModel.value?.supported_effort_levels
+  if (levels && levels.length > 0) return ['default', ...levels]
+  return ['default', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']
+})
 const tempCfg = ref<ModelConfig | null>(null)
 const emit = defineEmits(['close'])
 
@@ -376,7 +384,11 @@ const draftModels = computed(() => {
 async function onModelClick(e: MouseEvent, model: ModelFile) {
   if (e.altKey) {
     configModel.value = model
-    tempCfg.value = { ...await loadModelConfig(model.path) }
+    const cfg = { ...await loadModelConfig(model.path) }
+    if (cfg.reasoningEffort !== 'default' && model.supported_effort_levels?.length && !model.supported_effort_levels.includes(cfg.reasoningEffort)) {
+      cfg.reasoningEffort = 'default'
+    }
+    tempCfg.value = cfg
     view.value = 'config'
   } else {
     selectModel(model)
@@ -415,6 +427,7 @@ async function invokeLoad(modelPath: string, cfg: ModelConfig) {
     sleepIdle: Number(cfg.sleepIdle ?? -1),
     reasoningPreserve: cfg.reasoningPreserve ?? false,
     fit: cfg.fit ?? 'on',
+    reasoning: cfg.reasoning ?? 'auto',
     reasoningBudget: Number(cfg.reasoningBudget ?? -1),
     reasoningEffort: cfg.reasoningEffort ?? 'default',
     parallel: Number(cfg.parallel ?? 1),
@@ -442,6 +455,9 @@ async function selectModel(model: ModelFile) {
   emit('close')
   modelLoading.value = true
   const cfg = await loadModelConfig(model.path)
+  if (cfg.reasoningEffort !== 'default' && model.supported_effort_levels?.length && !model.supported_effort_levels.includes(cfg.reasoningEffort)) {
+    cfg.reasoningEffort = 'default'
+  }
   try {
     await invokeLoad(model.path, cfg)
   } catch (e) {

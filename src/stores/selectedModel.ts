@@ -13,6 +13,9 @@ export interface ModelFile {
   is_moe: boolean
   expert_count: number
   expert_used_count: number
+  supports_thinking: boolean
+  supports_effort: boolean
+  supported_effort_levels: string[]
   mmproj_paths: string[]
 }
 

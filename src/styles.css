@@ -425,9 +425,8 @@ body {
   left: 16px;
 }
 
-.panel-footer {
+.panel-actions {
   padding: 12px;
-  margin-top: auto;
 }
 
 .btn-load {

@@ -27,6 +27,9 @@ pub struct ModelFile {
     pub is_moe: bool,
     pub expert_count: u32,
     pub expert_used_count: u32,
+    pub supports_thinking: bool,
+    pub supports_effort: bool,
+    pub supported_effort_levels: Vec<String>,
     pub mmproj_paths: Vec<String>,
 }
 
@@ -89,7 +92,7 @@ fn read_gguf_metadata(path: &str) -> HashMap<String, String> {
                 let mut slen_buf = [0u8; 8];
                 if std::io::Read::read_exact(&mut reader, &mut slen_buf).is_err() { break; }
                 let slen = u64::from_le_bytes(slen_buf) as usize;
-                if slen > 4096 { break; }
+                if slen > 131072 { break; }
                 let mut sbuf = vec![0u8; slen];
                 if std::io::Read::read_exact(&mut reader, &mut sbuf).is_err() { break; }
                 meta.insert(key, String::from_utf8_lossy(&sbuf).to_string());
@@ -155,6 +158,41 @@ fn read_gguf_metadata(path: &str) -> HashMap<String, String> {
     }
     
     meta
+}
+
+fn analyze_chat_template(tmpl: &str) -> (bool, bool, Vec<String>) {
+    let supports_thinking = tmpl.contains("enable_thinking") || tmpl.contains("if think %}");
+    let supports_effort = tmpl.contains("reasoning_effort");
+    let mut levels: Vec<String> = Vec::new();
+    if supports_effort {
+        if let Some(pos) = tmpl.find("reasoning_effort") {
+            let end = (pos + 500).min(tmpl.len());
+            let window = &tmpl[pos..end];
+            if let Some(lp) = window.find("in (").or_else(|| window.find("in [")) {
+                let after = &window[lp + 3..];
+                let close_char = if after.starts_with('[') { ']' } else { ')' };
+                if let Some(close) = after.find(close_char) {
+                    let bytes = after[..close].as_bytes();
+                    let mut i = 0;
+                    while i < bytes.len() {
+                        if bytes[i] == b'\'' || bytes[i] == b'"' {
+                            let q = bytes[i];
+                            if let Some(e) = bytes[i + 1..].iter().position(|&c| c == q) {
+                                let val = String::from_utf8_lossy(&bytes[i + 1..i + 1 + e]).to_string();
+                                if !val.is_empty() && !levels.contains(&val) {
+                                    levels.push(val);
+                                }
+                                i += e + 2;
+                                continue;
+                            }
+                        }
+                        i += 1;
+                    }
+                }
+            }
+        }
+    }
+    (supports_thinking, supports_effort, levels)
 }
 
 #[tauri::command]
@@ -239,6 +277,12 @@ fn scan_models(models_path: String) -> Vec<ModelFile> {
                     .or_else(|| meta.get("llama.expert_used_count"))
                     .and_then(|v| v.parse::<u32>().ok())
                     .unwrap_or(0);
+                let chat_template = meta.get("general.chat_template")
+                    .filter(|s| !s.is_empty())
+                    .or_else(|| meta.get("tokenizer.chat_template"))
+                    .cloned()
+                    .unwrap_or_default();
+                let (supports_thinking, supports_effort, supported_effort_levels) = analyze_chat_template(&chat_template);
 
                 models.push(ModelFile {
                     name: file_name,
@@ -253,6 +297,9 @@ fn scan_models(models_path: String) -> Vec<ModelFile> {
                     is_moe,
                     expert_count,
                     expert_used_count,
+                    supports_thinking,
+                    supports_effort,
+                    supported_effort_levels,
                     mmproj_paths: mmproj_files.clone(),
                 });
             }
@@ -293,6 +340,7 @@ fn load_model(
     sleep_idle: i32,
     reasoning_preserve: bool,
     fit: String,
+    reasoning: String,
     reasoning_budget: i32,
     reasoning_effort: String,
     parallel: i32,
@@ -400,6 +448,16 @@ fn load_model(
 
     cmd.arg("--ctx-checkpoints").arg(ctx_checkpoints.to_string());
     cmd.arg("--checkpoint-min-step").arg(checkpoint_min_step.to_string());
+
+    cmd.arg("--reasoning").arg(&reasoning);
+    if reasoning != "auto" {
+        let kwargs = if reasoning == "on" {
+            r#"{"enable_thinking":true}"#
+        } else {
+            r#"{"enable_thinking":false}"#
+        };
+        cmd.arg("--chat-template-kwargs").arg(kwargs);
+    }
 
     cmd.arg("--reasoning-budget").arg(reasoning_budget.to_string());
 
@@ -582,4 +640,35 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![scan_models, load_model, stop_model, save_window_state, load_window_state, get_cpu_threads, get_system_ram])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::analyze_chat_template;
+
+    #[test]
+    fn analyze_qwen38_style_template() {
+        let tmpl = "{%- if reasoning_effort is defined %}\n\
+            {%- set resolved_reasoning_effort = reasoning_effort|default('xhigh') %}\n\
+            {%- if resolved_reasoning_effort not in ('xhigh', 'medium', 'low') %}\n\
+                {{- raise_exception('Unexpected reasoning effort') }}\n\
+            {%- endif %}\n\
+            {%- endif %}\n\
+            {%- if enable_thinking is not defined or enable_thinking %}\n\
+                {{- 'think' }}\n\
+            {%- endif %}\n";
+        let (thinking, effort, levels) = analyze_chat_template(tmpl);
+        assert!(thinking);
+        assert!(effort);
+        assert_eq!(levels, vec!["xhigh".to_string(), "medium".to_string(), "low".to_string()]);
+    }
+
+    #[test]
+    fn analyze_plain_template() {
+        let tmpl = "{%- for message in messages %}{{ message.content }}{%- endfor %}";
+        let (thinking, effort, levels) = analyze_chat_template(tmpl);
+        assert!(!thinking);
+        assert!(!effort);
+        assert!(levels.is_empty());
+    }
 }

@@ -37,7 +37,7 @@ export default {
   },
   load: {
     contextAndOffload: '⚙ Longitud de contexto y descarga GPU',
-    title: 'Cargar',
+    title: 'Ajustes',
     contextLength: 'Longitud de contexto',
     modelSupportsTokens: 'El modelo soporta hasta {max} tokens',
     gpuOffload: 'Descarga GPU',
@@ -88,6 +88,10 @@ export default {
     visionLabel: 'Visión (mmproj)',
     mmprojModel: 'Modelo mmproj',
     reasoning: 'Razonamiento',
+    thinkingMode: 'Modo de razonamiento',
+    thinkingModeTooltip: 'Interruptor de thinking: auto = default del template, on = forzar thinking, off = sin thinking (Qwen3: /no_think). Se envía como --reasoning y como la variable enable_thinking del template.',
+    auto: 'Auto',
+    on: 'On',
     reasoningBudget: 'Presupuesto razonamiento',
     unrestricted: 'Ilimitado (por defecto)',
     off: 'Off (desactivado)',
@@ -144,7 +148,7 @@ export default {
   inference: {
     tokenCount: 'Conteo tokens: N/A',
     enableThinking: 'Activar pensamiento',
-    settings: 'Ajustes',
+    settings: 'Muestreo',
     temperature: 'Temperatura',
     limitResponse: 'Limitar longitud respuesta',
     contextOverflow: 'Desbordamiento contexto',

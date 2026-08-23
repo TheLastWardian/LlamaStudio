@@ -10,6 +10,20 @@
     </div>
 
     <div v-if="activeTab === 'load'">
+      <div class="panel-actions">
+        <div v-if="error" style="color:#f55a5a; font-size:11px; margin-bottom:8px;">{{ error }}</div>
+        <button 
+          class="btn-load" 
+          :class="{ 'btn-reload-changes': hasUnsavedChanges }"
+          @click="loadModel" 
+          :disabled="loading"
+        >
+          {{ loading ? t('load.loading') : hasUnsavedChanges ? t('load.reloadChanges') : ((currentView === 'developer' && loadedModel) ? t('load.reload') : t('load.loadModel')) }}
+        </button>
+        <button class="btn-secondary" style="width:100%; margin-top:6px;" @click="stopModel">
+          {{ t('load.stop') }}
+        </button>
+      </div>
       <div class="panel-section">
         <div class="section-title">⚙ Context and Offload</div>
         <div class="field">
@@ -187,6 +201,14 @@
 
       <div class="panel-section">
         <div class="section-title">🧠 {{ t('load.reasoning') }}</div>
+        <div class="field" v-if="selectedModel?.supports_thinking" :title="t('load.thinkingModeTooltip')">
+          <label>{{ t('load.thinkingMode') }}</label>
+          <select class="field-select" v-model="modelCfg.reasoning">
+            <option value="auto">{{ t('load.auto') }}</option>
+            <option value="on">{{ t('load.on') }}</option>
+            <option value="off">{{ t('load.off') }}</option>
+          </select>
+        </div>
         <div class="field">
           <label>{{ t('load.reasoningBudget') }}</label>
           <select class="field-select" v-model="modelCfg.reasoningBudget">
@@ -198,16 +220,10 @@
             <option value="16384">16384 tokens</option>
           </select>
         </div>
-        <div class="field">
+        <div class="field" v-if="selectedModel?.supports_effort">
           <label>{{ t('load.reasoningEffort') }}</label>
           <select class="field-select" v-model="modelCfg.reasoningEffort">
-            <option value="default">{{ t('load.default') }}</option>
-            <option value="minimal">{{ t('load.minimal') }}</option>
-            <option value="low">{{ t('load.low') }}</option>
-            <option value="medium">{{ t('load.medium') }}</option>
-            <option value="high">{{ t('load.high') }}</option>
-            <option value="xhigh">{{ t('load.xhigh') }}</option>
-            <option value="max">{{ t('load.max') }}</option>
+            <option v-for="lvl in effortOptions" :key="lvl" :value="lvl">{{ effortLabel(lvl) }}</option>
           </select>
         </div>
       </div>
@@ -250,25 +266,10 @@
         </div>
       </div>
 
-      <div class="panel-footer">
-        <div v-if="error" style="color:#f55a5a; font-size:11px; margin-bottom:8px;">{{ error }}</div>
-        <button 
-          class="btn-load" 
-          :class="{ 'btn-reload-changes': hasUnsavedChanges }"
-          @click="loadModel" 
-          :disabled="loading"
-        >
-          {{ loading ? t('load.loading') : hasUnsavedChanges ? t('load.reloadChanges') : ((currentView === 'developer' && loadedModel) ? t('load.reload') : t('load.loadModel')) }}
-        </button>
-        <button class="btn-secondary" style="width:100%; margin-top:6px;" @click="stopModel">
-          {{ t('load.stop') }}
-        </button>
-      </div>
     </div>
 
     <div v-if="activeTab === 'inference'">
       <div class="panel-section">
-        <div class="section-title">{{ t('inference.sampling') }}</div>
         <div class="field">
           <label>{{ t('inference.temperature') }}</label>
           <input type="number" v-model="modelCfg.temp" class="field-input" step="0.05" min="0" max="2" />
@@ -368,7 +369,7 @@ const hasUnsavedChanges = computed(() => {
     'contextLength', 'gpuOffload', 'cpuThreads', 'evalBatch', 'physicalBatch',
     'flashAttention', 'specType', 'maxDraftTokens', 'kCacheQuant', 'vCacheQuant', 'cacheReuse',
     'ctxCheckpoints', 'checkpointMinStep',
-    'reasoningBudget', 'reasoningEffort', 'parallel', 'mlock', 'nCpuMoe', 'expertsPerToken',
+    'reasoning', 'reasoningBudget', 'reasoningEffort', 'parallel', 'mlock', 'nCpuMoe', 'expertsPerToken',
     'mmap', 'kvUnified', 'seed', 'draftModelPath', 'threadsHttp', 'alias',
     'host', 'noWarmup', 'sleepIdle', 'reasoningPreserve', 'fit', 'visionEnabled', 'mmprojPath',
     'kvOffload', 'cacheRam', 'temp', 'topP', 'topK', 'minP', 'repeatPenalty'
@@ -376,6 +377,17 @@ const hasUnsavedChanges = computed(() => {
   
   return keys.some(k => String(modelCfg.value[k]) !== String(loadedModelConfig.value![k]))
 })
+
+const effortOptions = computed(() => {
+  const levels = selectedModel.value?.supported_effort_levels
+  if (levels && levels.length > 0) return ['default', ...levels]
+  return ['default', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']
+})
+
+const effortLabel = (v: string) => {
+  const k = t('load.' + v)
+  return k.startsWith('load.') ? v : k
+}
 
 const modelCfg = ref<ModelConfig>({
   contextLength: 4096,
@@ -392,6 +404,7 @@ const modelCfg = ref<ModelConfig>({
   cacheReuse: 0,
   ctxCheckpoints: 32,
   checkpointMinStep: 8192,
+  reasoning: 'auto',
   reasoningBudget: '-1',
   reasoningEffort: 'default',
   draftModelPath: '',
@@ -464,6 +477,9 @@ const draftModels = computed(() => {
 watch(selectedModel, async (model) => {
   if (model) {
     const cfg = await loadModelConfig(model.path)
+    if (cfg.reasoningEffort !== 'default' && model.supported_effort_levels?.length && !model.supported_effort_levels.includes(cfg.reasoningEffort)) {
+      cfg.reasoningEffort = 'default'
+    }
     if (!cfg.cpuThreads || cfg.cpuThreads === 0) {
       cfg.cpuThreads = await invoke<number>('get_cpu_threads')
     }
@@ -522,6 +538,7 @@ async function loadModel() {
       sleepIdle: Number(modelCfg.value.sleepIdle ?? -1),
       reasoningPreserve: modelCfg.value.reasoningPreserve ?? false,
       fit: modelCfg.value.fit ?? 'on',
+      reasoning: modelCfg.value.reasoning ?? 'auto',
       reasoningBudget: Number(modelCfg.value.reasoningBudget),
       reasoningEffort: modelCfg.value.reasoningEffort,
       parallel: Number(modelCfg.value.parallel ?? 1),

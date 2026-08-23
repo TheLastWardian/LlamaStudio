@@ -26,6 +26,7 @@ export interface ModelConfig {
   cacheReuse: number
   ctxCheckpoints: number
   checkpointMinStep: number
+  reasoning: string
   reasoningBudget: string
   reasoningEffort: string
   draftModelPath: string
@@ -69,6 +70,7 @@ const modelDefaults: ModelConfig = {
   cacheReuse: 0,
   ctxCheckpoints: 32,
   checkpointMinStep: 8192,
+  reasoning: 'auto',
   reasoningBudget: '-1',
   reasoningEffort: 'default',
   draftModelPath: '',
