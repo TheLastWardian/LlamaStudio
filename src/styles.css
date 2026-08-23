@@ -283,16 +283,19 @@ body {
   border-left: 1px solid #2a2a2a;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-scroll {
+  flex: 1;
   overflow-y: auto;
+  min-height: 0;
 }
 
 .panel-header {
   padding: 12px;
   border-bottom: 1px solid #2a2a2a;
-  position: sticky;
-  top: 0;
   background: #1e1e1e;
-  z-index: 10;
 }
 
 .model-title {
@@ -427,6 +430,7 @@ body {
 
 .panel-actions {
   padding: 12px;
+  border-bottom: 1px solid #2a2a2a;
 }
 
 .btn-load {

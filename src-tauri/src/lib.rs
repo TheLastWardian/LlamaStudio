@@ -324,6 +324,7 @@ fn load_model(
     physical_batch: i32,
     flash_attention: bool,
     spec_type: String,
+    draft_spec_type: String,
     draft_model_path: String,
     max_draft_tokens: i32,
     draft_probability: f32,
@@ -425,7 +426,8 @@ fn load_model(
     }
 
     if spec_type == "Draft" && !draft_model_path.is_empty() {
-        cmd.arg("--spec-type").arg("draft-simple")
+        let spec = if draft_spec_type == "mtp" { "draft-mtp" } else { "draft-simple" };
+        cmd.arg("--spec-type").arg(spec)
             .arg("-md").arg(&draft_model_path)
             .arg("--spec-draft-n-max").arg(max_draft_tokens.to_string())
             .arg("--spec-draft-ngl").arg("99");

@@ -147,6 +147,13 @@
                   {{ m.name }}
                 </option>
               </select>
+              <div class="field">
+                <label>{{ t('load.draftType') }}</label>
+                <select class="field-select" v-model="tempCfg.draftSpecType">
+                  <option value="simple">Simple</option>
+                  <option value="mtp">MTP</option>
+                </select>
+              </div>
             </template>
             <div class="field">
               <label>{{ t('load.maxDraftTokens') }}</label>
@@ -411,6 +418,7 @@ async function invokeLoad(modelPath: string, cfg: ModelConfig) {
     physicalBatch: Number(cfg.physicalBatch ?? 512),
     flashAttention: cfg.flashAttention ?? true,
     specType: cfg.specType ?? 'None',
+    draftSpecType: cfg.draftSpecType ?? 'simple',
     draftModelPath: cfg.draftModelPath ?? '',
     maxDraftTokens: Number(cfg.maxDraftTokens ?? 2),
     draftProbability: Number(cfg.draftProbability ?? 0.75),

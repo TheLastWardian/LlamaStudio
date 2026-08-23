@@ -9,21 +9,23 @@
       </div>
     </div>
 
+    <div v-if="activeTab === 'load'" class="panel-actions">
+      <div v-if="error" style="color:#f55a5a; font-size:11px; margin-bottom:8px;">{{ error }}</div>
+      <button 
+        class="btn-load" 
+        :class="{ 'btn-reload-changes': hasUnsavedChanges }"
+        @click="loadModel" 
+        :disabled="loading"
+      >
+        {{ loading ? t('load.loading') : hasUnsavedChanges ? t('load.reloadChanges') : ((currentView === 'developer' && loadedModel) ? t('load.reload') : t('load.loadModel')) }}
+      </button>
+      <button class="btn-secondary" style="width:100%; margin-top:6px;" @click="stopModel">
+        {{ t('load.stop') }}
+      </button>
+    </div>
+
+    <div class="panel-scroll">
     <div v-if="activeTab === 'load'">
-      <div class="panel-actions">
-        <div v-if="error" style="color:#f55a5a; font-size:11px; margin-bottom:8px;">{{ error }}</div>
-        <button 
-          class="btn-load" 
-          :class="{ 'btn-reload-changes': hasUnsavedChanges }"
-          @click="loadModel" 
-          :disabled="loading"
-        >
-          {{ loading ? t('load.loading') : hasUnsavedChanges ? t('load.reloadChanges') : ((currentView === 'developer' && loadedModel) ? t('load.reload') : t('load.loadModel')) }}
-        </button>
-        <button class="btn-secondary" style="width:100%; margin-top:6px;" @click="stopModel">
-          {{ t('load.stop') }}
-        </button>
-      </div>
       <div class="panel-section">
         <div class="section-title">⚙ Context and Offload</div>
         <div class="field">
@@ -84,6 +86,13 @@
   {{ m.name }}
 </option>
           </select>
+          <div class="field">
+            <label>{{ t('load.draftType') }}</label>
+            <select class="field-select" v-model="modelCfg.draftSpecType">
+              <option value="simple">Simple</option>
+              <option value="mtp">MTP</option>
+            </select>
+          </div>
         </template>
         <div class="field">
           <label>{{ t('load.maxDraftTokens') }}</label>
@@ -347,6 +356,7 @@
         {{ t('models.noModelSelected') }}
       </div>
     </div>
+    </div>
   </div>
 </template>
 
@@ -367,7 +377,7 @@ const hasUnsavedChanges = computed(() => {
   
   const keys: (keyof typeof modelCfg.value)[] = [
     'contextLength', 'gpuOffload', 'cpuThreads', 'evalBatch', 'physicalBatch',
-    'flashAttention', 'specType', 'maxDraftTokens', 'kCacheQuant', 'vCacheQuant', 'cacheReuse',
+    'flashAttention', 'specType', 'draftSpecType', 'maxDraftTokens', 'kCacheQuant', 'vCacheQuant', 'cacheReuse',
     'ctxCheckpoints', 'checkpointMinStep',
     'reasoning', 'reasoningBudget', 'reasoningEffort', 'parallel', 'mlock', 'nCpuMoe', 'expertsPerToken',
     'mmap', 'kvUnified', 'seed', 'draftModelPath', 'threadsHttp', 'alias',
@@ -397,6 +407,7 @@ const modelCfg = ref<ModelConfig>({
   physicalBatch: 512,
   flashAttention: true,
   specType: 'MTP',
+  draftSpecType: 'simple',
   maxDraftTokens: 2,
   draftProbability: 0.75,
   kCacheQuant: 'Q8_0',
@@ -522,6 +533,7 @@ async function loadModel() {
       physicalBatch: Number(modelCfg.value.physicalBatch),
       flashAttention: modelCfg.value.flashAttention,
       specType: modelCfg.value.specType,
+      draftSpecType: modelCfg.value.draftSpecType ?? 'simple',
       draftModelPath: modelCfg.value.draftModelPath,
       maxDraftTokens: Number(modelCfg.value.maxDraftTokens),
       draftProbability: modelCfg.value.draftProbability,

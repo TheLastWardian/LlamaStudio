@@ -52,6 +52,7 @@ export default {
     mtp: 'MTP',
     draftModel: 'Modelo borrador',
     selectDraft: 'Seleccionar modelo borrador...',
+    draftType: 'Tipo de draft',
     maxDraftTokens: 'Máx tokens borrador',
     draftProbability: 'Probabilidad borrador',
     kCacheQuant: 'Cuantización K Cache',

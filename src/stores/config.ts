@@ -19,6 +19,7 @@ export interface ModelConfig {
   physicalBatch: number
   flashAttention: boolean
   specType: string
+  draftSpecType: string
   maxDraftTokens: number
   draftProbability: number
   kCacheQuant: string
@@ -63,6 +64,7 @@ const modelDefaults: ModelConfig = {
   physicalBatch: 512,
   flashAttention: true,
   specType: 'MTP',
+  draftSpecType: 'simple',
   maxDraftTokens: 2,
   draftProbability: 0.75,
   kCacheQuant: 'Q8_0',

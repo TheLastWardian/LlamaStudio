@@ -52,6 +52,7 @@ export default {
     mtp: 'MTP',
     draftModel: 'Draft Model',
     selectDraft: 'Select draft model...',
+    draftType: 'Draft type',
     maxDraftTokens: 'Max draft tokens',
     draftProbability: 'Draft probability',
     kCacheQuant: 'K Cache Quantization',
