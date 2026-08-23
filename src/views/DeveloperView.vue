@@ -28,6 +28,9 @@
           <div class="prefill-bar"><div class="prefill-fill" :style="{ width: prefillProgress + '%' }"></div></div>
           <span class="prefill-pct">{{ prefillProgress }}%</span>
         </div>
+        <div v-if="generationTokens !== null && prefillProgress === null" class="gen-tokens">
+          <span style="color:#4af54a; font-size:11px;">{{ generationTokens }} tokens</span>
+        </div>
         <span class="tag qwen" style="font-size:10px;">{{ loadedModel.arch }} {{ loadedModel.name }}</span>
         <div style="flex:1"></div>
         <span style="color:#555; font-size:11px;">{{ (loadedModel.size_bytes / 1024 / 1024 / 1024).toFixed(2) }} GB</span>
@@ -59,7 +62,7 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick, onMounted } from 'vue'
-import { serverLogs, loadedModel, modelLoading, prefillProgress } from '../stores/selectedModel'
+import { serverLogs, loadedModel, modelLoading, prefillProgress, generationTokens } from '../stores/selectedModel'
 import { invoke } from '@tauri-apps/api/core'
 import { loadConfig } from '../stores/config'
 import LoadModelModal from '../components/LoadModelModal.vue'
@@ -161,11 +164,13 @@ async function eject() {
   loadedModel.value = null
   modelLoading.value = false
   prefillProgress.value = null
+  generationTokens.value = null
 }
 
 function clearLogs() {
   serverLogs.value = []
   prefillProgress.value = null
+  generationTokens.value = null
 }
 
 watch(logs, () => {

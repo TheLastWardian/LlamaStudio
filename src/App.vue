@@ -24,7 +24,7 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { listen } from '@tauri-apps/api/event'
-import { serverLogs, modelLoading, selectedModel, loadedModel, loadingModel, loadedModelConfig, prefillProgress, type ModelFile } from './stores/selectedModel'
+import { serverLogs, modelLoading, selectedModel, loadedModel, loadingModel, loadedModelConfig, prefillProgress, generationTokens, type ModelFile } from './stores/selectedModel'
 import { loadConfig, loadModelConfig } from './stores/config'
 import { loadGroups } from './stores/groups'
 import { setLang } from './i18n'
@@ -132,9 +132,14 @@ onMounted(async () => {
       } else {
         prefillProgress.value = null
       }
+      if (clean.includes('n_gen')) {
+        const m = clean.match(/n_gen\s*=\s*(\d+)/)
+        if (m) generationTokens.value = parseInt(m[1])
+      }
     }
     if (clean.includes('slot release')) {
       prefillProgress.value = null
+      generationTokens.value = null
     }
 
     setTimeout(() => {
@@ -145,6 +150,7 @@ onMounted(async () => {
     if (clean.includes('model loaded')) {
       modelLoading.value = false
       prefillProgress.value = null
+      generationTokens.value = null
       const target = loadingModel.value ?? selectedModel.value
       if (target) {
         loadedModel.value = target
