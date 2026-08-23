@@ -1,5 +1,6 @@
 <template>
   <div class="modal-overlay" @click.self="$emit('close')">
+    <div class="modal-safe" @click.stop>
     <div class="modal" :class="{ 'modal-wide': view === 'config' }">
       
       <!-- Vista: Lista -->
@@ -269,6 +270,7 @@
         </div>
       </template>
 
+    </div>
     </div>
   </div>
 </template>

@@ -773,7 +773,10 @@ body {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding-top: 60px;
+}
+
+.modal-safe {
+  padding: 60px 200px;
 }
 
 .modal {
@@ -781,7 +784,7 @@ body {
   border: 1px solid #333;
   border-radius: 8px;
   width: 700px;
-  max-height: 85vh;
+  max-height: calc(85vh - 60px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
