@@ -6,7 +6,9 @@ A desktop app for managing and running local LLMs (GGUF) with a built-in `llama-
 
 Entirely inspired by [LM Studio](https://lmstudio.ai/) — with modifications that fit my workflow better and weren't possible to make in LM Studio.
 
-<!-- screenshot -->
+| Models | Developer | Chat |
+| --- | --- | --- |
+| ![Models view](docs/ModelsPanel.png) | ![Developer view](docs/DeveloperPanel.png) | ![Chat view](docs/ChatPanel.png) |
 
 ## Features
 
