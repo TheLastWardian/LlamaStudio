@@ -137,32 +137,36 @@
                 <option value="Draft">Draft Model</option>
               </select>
             </div>
-            <template v-if="tempCfg.specType === 'Draft'">
-              <div class="field">
-                <label>{{ t('load.draftModel') }}</label>
-              </div>
-              <select class="field-select" style="width:100%; margin-bottom:8px;" v-model="tempCfg.draftModelPath">
-                <option value="">{{ t('load.selectDraft') }}</option>
-                <option v-for="m in draftModels" :key="m.path" :value="m.path">
-                  {{ m.name }}
-                </option>
-              </select>
-              <div class="field">
-                <label>{{ t('load.draftType') }}</label>
-                <select class="field-select" v-model="tempCfg.draftSpecType">
-                  <option value="simple">Simple</option>
-                  <option value="mtp">MTP</option>
-                </select>
+            <template v-if="tempCfg.specType !== 'None'">
+              <div class="subpanel">
+                <template v-if="tempCfg.specType === 'Draft'">
+                  <div class="field">
+                    <label>{{ t('load.draftModel') }}</label>
+                  </div>
+                  <select class="field-select" style="width:100%; margin-bottom:8px;" v-model="tempCfg.draftModelPath">
+                    <option value="">{{ t('load.selectDraft') }}</option>
+                    <option v-for="m in draftModels" :key="m.path" :value="m.path">
+                      {{ m.name }}
+                    </option>
+                  </select>
+                  <div class="field">
+                    <label>{{ t('load.draftType') }}</label>
+                    <select class="field-select" v-model="tempCfg.draftSpecType">
+                      <option value="simple">Simple</option>
+                      <option value="mtp">MTP</option>
+                    </select>
+                  </div>
+                </template>
+                <div class="field">
+                  <label>{{ t('load.maxDraftTokens') }}</label>
+                  <input type="number" v-model="tempCfg.maxDraftTokens" class="field-input" min="1" />
+                </div>
+                <div class="field">
+                  <label>{{ t('load.draftProbability') }}</label>
+                  <input type="number" v-model="tempCfg.draftProbability" step="0.05" class="field-input" />
+                </div>
               </div>
             </template>
-            <div class="field">
-              <label>{{ t('load.maxDraftTokens') }}</label>
-              <input type="number" v-model="tempCfg.maxDraftTokens" class="field-input" min="1" />
-            </div>
-            <div class="field">
-              <label>{{ t('load.draftProbability') }}</label>
-              <input type="number" v-model="tempCfg.draftProbability" step="0.05" class="field-input" />
-            </div>
             <div class="field">
               <label>{{ t('load.kCacheQuant') }}</label>
               <select class="field-select" v-model="tempCfg.kCacheQuant">

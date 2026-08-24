@@ -433,6 +433,14 @@ body {
   border-bottom: 1px solid #2a2a2a;
 }
 
+.subpanel {
+  margin: 8px 0;
+  padding: 8px 10px;
+  background: #232323;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+}
+
 .btn-load {
   width: 100%;
   padding: 8px;
