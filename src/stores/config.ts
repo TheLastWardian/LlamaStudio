@@ -22,6 +22,8 @@ export interface ModelConfig {
   draftSpecType: string
   maxDraftTokens: number
   draftProbability: number
+  draftSplitProbability: number
+  minDraftTokens: number
   kCacheQuant: string
   vCacheQuant: string
   cacheReuse: number
@@ -67,6 +69,8 @@ const modelDefaults: ModelConfig = {
   draftSpecType: 'simple',
   maxDraftTokens: 2,
   draftProbability: 0.75,
+  draftSplitProbability: 0.10,
+  minDraftTokens: 0,
   kCacheQuant: 'Q8_0',
   vCacheQuant: 'Q8_0',
   cacheReuse: 0,

@@ -328,6 +328,8 @@ fn load_model(
     draft_model_path: String,
     max_draft_tokens: i32,
     draft_probability: f32,
+    draft_split_probability: f32,
+    min_draft_tokens: i32,
     k_cache_quant: String,
     v_cache_quant: String,
     cache_reuse: i32,
@@ -434,7 +436,11 @@ fn load_model(
     }
 
     if spec_type != "None" {
-        cmd.arg("--spec-draft-p-split").arg(draft_probability.to_string());
+        cmd.arg("--spec-draft-p-min").arg(draft_probability.to_string());
+        cmd.arg("--spec-draft-p-split").arg(draft_split_probability.to_string());
+        if min_draft_tokens > 0 {
+            cmd.arg("--spec-draft-n-min").arg(min_draft_tokens.to_string());
+        }
     }
 
     if k_cache_quant != "F16" {

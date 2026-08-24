@@ -101,8 +101,16 @@
               <input type="number" v-model.number="modelCfg.maxDraftTokens" class="field-input" />
             </div>
             <div class="field">
+              <label>{{ t('load.minDraftTokens') }}</label>
+              <input type="number" v-model.number="modelCfg.minDraftTokens" min="0" step="1" class="field-input" />
+            </div>
+            <div class="field">
               <label>{{ t('load.draftProbability') }}</label>
               <input type="number" v-model.number="modelCfg.draftProbability" step="0.05" class="field-input" />
+            </div>
+            <div class="field">
+              <label>{{ t('load.draftSplitProbability') }}</label>
+              <input type="number" v-model.number="modelCfg.draftSplitProbability" min="0" max="1" step="0.05" class="field-input" />
             </div>
           </div>
         </template>
@@ -385,7 +393,7 @@ const hasUnsavedChanges = computed(() => {
   
   const keys: (keyof typeof modelCfg.value)[] = [
     'contextLength', 'gpuOffload', 'cpuThreads', 'evalBatch', 'physicalBatch',
-    'flashAttention', 'specType', 'draftSpecType', 'maxDraftTokens', 'kCacheQuant', 'vCacheQuant', 'cacheReuse',
+    'flashAttention', 'specType', 'draftSpecType', 'maxDraftTokens', 'minDraftTokens', 'draftSplitProbability', 'kCacheQuant', 'vCacheQuant', 'cacheReuse',
     'ctxCheckpoints', 'checkpointMinStep',
     'reasoning', 'reasoningBudget', 'reasoningEffort', 'parallel', 'mlock', 'nCpuMoe', 'expertsPerToken',
     'mmap', 'kvUnified', 'seed', 'draftModelPath', 'threadsHttp', 'alias',
@@ -417,7 +425,9 @@ const modelCfg = ref<ModelConfig>({
   specType: 'MTP',
   draftSpecType: 'simple',
   maxDraftTokens: 2,
+  minDraftTokens: 0,
   draftProbability: 0.75,
+  draftSplitProbability: 0.10,
   kCacheQuant: 'Q8_0',
   vCacheQuant: 'Q8_0',
   cacheReuse: 0,
@@ -544,7 +554,9 @@ async function loadModel() {
       draftSpecType: modelCfg.value.draftSpecType ?? 'simple',
       draftModelPath: modelCfg.value.draftModelPath,
       maxDraftTokens: Number(modelCfg.value.maxDraftTokens),
+      minDraftTokens: Number(modelCfg.value.minDraftTokens ?? 0),
       draftProbability: modelCfg.value.draftProbability,
+      draftSplitProbability: Number(modelCfg.value.draftSplitProbability ?? 0.10),
       kCacheQuant: modelCfg.value.kCacheQuant,
       vCacheQuant: modelCfg.value.vCacheQuant,
       cacheReuse: Number(modelCfg.value.cacheReuse ?? 0),

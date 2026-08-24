@@ -162,8 +162,16 @@
                   <input type="number" v-model="tempCfg.maxDraftTokens" class="field-input" min="1" />
                 </div>
                 <div class="field">
+                  <label>{{ t('load.minDraftTokens') }}</label>
+                  <input type="number" v-model="tempCfg.minDraftTokens" min="0" step="1" class="field-input" />
+                </div>
+                <div class="field">
                   <label>{{ t('load.draftProbability') }}</label>
                   <input type="number" v-model="tempCfg.draftProbability" step="0.05" class="field-input" />
+                </div>
+                <div class="field">
+                  <label>{{ t('load.draftSplitProbability') }}</label>
+                  <input type="number" v-model="tempCfg.draftSplitProbability" min="0" max="1" step="0.05" class="field-input" />
                 </div>
               </div>
             </template>
@@ -425,7 +433,9 @@ async function invokeLoad(modelPath: string, cfg: ModelConfig) {
     draftSpecType: cfg.draftSpecType ?? 'simple',
     draftModelPath: cfg.draftModelPath ?? '',
     maxDraftTokens: Number(cfg.maxDraftTokens ?? 2),
+    minDraftTokens: Number(cfg.minDraftTokens ?? 0),
     draftProbability: Number(cfg.draftProbability ?? 0.75),
+    draftSplitProbability: Number(cfg.draftSplitProbability ?? 0.10),
     kCacheQuant: cfg.kCacheQuant ?? 'Q8_0',
     vCacheQuant: cfg.vCacheQuant ?? 'Q8_0',
     cacheReuse: Number(cfg.cacheReuse ?? 0),
