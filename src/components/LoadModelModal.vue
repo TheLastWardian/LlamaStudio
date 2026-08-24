@@ -157,19 +157,19 @@
                     </select>
                   </div>
                 </template>
-                <div class="field">
+                <div class="field" :title="t('load.maxDraftTokensTooltip')">
                   <label>{{ t('load.maxDraftTokens') }}</label>
                   <input type="number" v-model="tempCfg.maxDraftTokens" class="field-input" min="1" />
                 </div>
-                <div class="field">
+                <div class="field" :title="t('load.minDraftTokensTooltip')">
                   <label>{{ t('load.minDraftTokens') }}</label>
                   <input type="number" v-model="tempCfg.minDraftTokens" min="0" step="1" class="field-input" />
                 </div>
-                <div class="field">
+                <div class="field" :title="t('load.draftProbabilityTooltip')">
                   <label>{{ t('load.draftProbability') }}</label>
                   <input type="number" v-model="tempCfg.draftProbability" step="0.05" class="field-input" />
                 </div>
-                <div class="field">
+                <div class="field" :title="t('load.draftSplitProbabilityTooltip')">
                   <label>{{ t('load.draftSplitProbability') }}</label>
                   <input type="number" v-model="tempCfg.draftSplitProbability" min="0" max="1" step="0.05" class="field-input" />
                 </div>
