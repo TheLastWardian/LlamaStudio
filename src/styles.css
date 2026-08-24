@@ -103,6 +103,26 @@ body {
   outline: none;
 }
 
+.btn-refresh {
+  background: #2a2a2a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #aaa;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.btn-refresh:hover {
+  background: #333;
+  color: #fff;
+}
+
+.btn-refresh:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* MODEL LIST */
 .content {
   flex: 1;

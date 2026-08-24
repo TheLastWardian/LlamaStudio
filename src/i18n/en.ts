@@ -11,6 +11,7 @@ export default {
   },
   models: {
     filter: 'Filter models... (Ctrl+F)',
+    refresh: 'Reload model list',
     arch: 'Arch',
     params: 'Params',
     publisher: 'Publisher',

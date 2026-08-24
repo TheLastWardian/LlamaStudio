@@ -4,6 +4,7 @@
       <div class="topbar">
         <span class="topbar-title">{{ t('topbar.models') }}</span>
         <input class="search-box" v-model="search" :placeholder="t('models.filter')" />
+        <button class="btn-refresh" :disabled="scanning" :title="t('models.refresh')" @click="rescanModels">⟳</button>
       </div>
 
       <div class="content" @contextmenu="onRightClickEmpty">
@@ -176,14 +177,25 @@ function formatSize(bytes: number): string {
   return (bytes / 1024 / 1024 / 1024).toFixed(1) + ' GB'
 }
 
-onMounted(async () => {
-  const config = await loadConfig()
-  models.value = await invoke('scan_models', { modelsPath: config.modelsPath })
-  allModels.value = models.value
-  if (models.value.length > 0 && !selectedModel.value) {
-    selectedModel.value = models.value[0]
+const scanning = ref(false)
+
+async function rescanModels() {
+  if (scanning.value) return
+  scanning.value = true
+  try {
+    const config = await loadConfig()
+    models.value = await invoke('scan_models', { modelsPath: config.modelsPath })
+    allModels.value = models.value
+    if (models.value.length > 0 && !selectedModel.value) {
+      selectedModel.value = models.value[0]
+    }
+    listVersion.value++
+  } finally {
+    scanning.value = false
   }
-})
+}
+
+onMounted(() => { rescanModels() })
 
 // Modelos agrupados y ordenados
 const groupedModels = computed(() => {

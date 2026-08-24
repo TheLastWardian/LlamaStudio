@@ -11,6 +11,7 @@ export default {
   },
   models: {
     filter: 'Filtrar modelos... (Ctrl+F)',
+    refresh: 'Recargar lista de modelos',
     arch: 'Arqu',
     params: 'Parám',
     publisher: 'Editor',
