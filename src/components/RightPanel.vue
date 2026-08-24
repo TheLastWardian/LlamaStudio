@@ -1,7 +1,7 @@
 <template>
   <div class="right-panel">
     <div class="panel-header">
-      <span class="model-title">{{ selectedModel?.name ?? t('models.noModelSelected') }}</span>
+      <span class="model-title">{{ activeModel?.name ?? t('models.noModelSelected') }}</span>
       <div class="panel-tabs">
         <button class="tab" :class="{ active: activeTab === 'info' }" @click="activeTab = 'info'">{{ t('info.modelInfo') }}</button>
         <button class="tab" :class="{ active: activeTab === 'load' }" @click="activeTab = 'load'">{{ t('load.title') }}</button>
@@ -45,7 +45,7 @@
         />
         <div class="field">
           <label>{{ t('load.gpuOffload') }}</label>
-          <input type="range" min="0" :max="selectedModel?.layer_count ?? 999" v-model.number="modelCfg.gpuOffload" class="slider" />
+          <input type="range" min="0" :max="activeModel?.layer_count ?? 999" v-model.number="modelCfg.gpuOffload" class="slider" />
           <span class="slider-value">{{ modelCfg.gpuOffload }}</span>
         </div>
       </div>
@@ -184,17 +184,17 @@
           <label>{{ t('load.seed') }}</label>
           <input type="number" v-model="modelCfg.seed" class="field-input" />
         </div>
-        <div class="field" v-if="selectedModel?.is_moe" :title="t('load.cpuMoETooltip')">
+        <div class="field" v-if="activeModel?.is_moe" :title="t('load.cpuMoETooltip')">
           <label>{{ t('load.cpuMoE') }}</label>
           <input type="number" v-model="modelCfg.nCpuMoe" class="field-input" min="0" />
         </div>
-        <div class="field" v-if="selectedModel?.is_moe" :title="t('load.numExpertsTooltip')">
+        <div class="field" v-if="activeModel?.is_moe" :title="t('load.numExpertsTooltip')">
           <label>{{ t('load.numExperts') }}</label>
-          <input type="number" v-model="modelCfg.expertsPerToken" class="field-input" min="0" :max="selectedModel?.expert_count || undefined" :placeholder="selectedModel?.expert_used_count > 0 ? String(selectedModel?.expert_used_count) : ''" />
+          <input type="number" v-model="modelCfg.expertsPerToken" class="field-input" min="0" :max="activeModel?.expert_count || undefined" :placeholder="activeModel?.expert_used_count > 0 ? String(activeModel?.expert_used_count) : ''" />
         </div>
       </div>
 
-      <template v-if="selectedModel?.mmproj_paths?.length > 0">
+      <template v-if="activeModel?.mmproj_paths?.length > 0">
         <div class="panel-section">
           <div class="section-title">👁️ {{ t('load.vision') }}</div>
           <div class="field" :title="t('load.visionTooltip')">
@@ -204,7 +204,7 @@
           <div class="field" v-if="modelCfg.visionEnabled">
             <label>{{ t('load.mmprojModel') }}</label>
             <select class="field-select" v-model="modelCfg.mmprojPath" style="max-width:160px; font-size:10px;">
-              <option v-for="p in selectedModel.mmproj_paths" :key="p" :value="p">
+              <option v-for="p in activeModel.mmproj_paths" :key="p" :value="p">
                 {{ p.split('\\').pop() }}
               </option>
             </select>
@@ -214,7 +214,7 @@
 
       <div class="panel-section">
         <div class="section-title">🧠 {{ t('load.reasoning') }}</div>
-        <div class="field" v-if="selectedModel?.supports_thinking" :title="t('load.thinkingModeTooltip')">
+        <div class="field" v-if="activeModel?.supports_thinking" :title="t('load.thinkingModeTooltip')">
           <label>{{ t('load.thinkingMode') }}</label>
           <select class="field-select" v-model="modelCfg.reasoning">
             <option value="auto">{{ t('load.auto') }}</option>
@@ -233,7 +233,7 @@
             <option value="16384">16384 tokens</option>
           </select>
         </div>
-        <div class="field" v-if="selectedModel?.supports_effort">
+        <div class="field" v-if="activeModel?.supports_effort">
           <label>{{ t('load.reasoningEffort') }}</label>
           <select class="field-select" v-model="modelCfg.reasoningEffort">
             <option v-for="lvl in effortOptions" :key="lvl" :value="lvl">{{ effortLabel(lvl) }}</option>
@@ -307,16 +307,16 @@
     </div>
 
     <div v-if="activeTab === 'info'">
-      <div class="panel-section" v-if="selectedModel">
+      <div class="panel-section" v-if="activeModel">
         <div class="section-title">ⓘ {{ t('info.modelInfo') }}</div>
         
         <div class="info-row">
           <span class="info-label">{{ t('info.model') }}</span>
-          <span class="info-value tag-pill">{{ selectedModel.publisher }}/{{ selectedModel.model_family }}</span>
+          <span class="info-value tag-pill">{{ activeModel.publisher }}/{{ activeModel.model_family }}</span>
         </div>
         <div class="info-row">
           <span class="info-label">{{ t('info.file') }}</span>
-          <span class="info-value tag-pill">{{ selectedModel.name }}</span>
+          <span class="info-value tag-pill">{{ activeModel.name }}</span>
         </div>
         <div class="info-row">
           <span class="info-label">{{ t('info.format') }}</span>
@@ -324,30 +324,30 @@
         </div>
         <div class="info-row">
           <span class="info-label">{{ t('info.quantization') }}</span>
-          <span class="info-value tag-pill">{{ selectedModel.name.split('-').pop()?.replace('.gguf','').replace('.GGUF','') }}</span>
+          <span class="info-value tag-pill">{{ activeModel.name.split('-').pop()?.replace('.gguf','').replace('.GGUF','') }}</span>
         </div>
         <div class="info-row">
           <span class="info-label">{{ t('info.arch') }}</span>
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
-            <span class="info-value tag-pill">{{ selectedModel.arch || '?' }}</span>
-            <span class="info-value tag-pill" v-if="selectedModel.name.toLowerCase().includes('mtp')">MTP</span>
+            <span class="info-value tag-pill">{{ activeModel.arch || '?' }}</span>
+            <span class="info-value tag-pill" v-if="activeModel.name.toLowerCase().includes('mtp')">MTP</span>
           </div>
         </div>
         <div class="info-row">
           <span class="info-label">{{ t('info.params') }}</span>
-          <span class="info-value tag-pill">{{ selectedModel.params || '?' }}</span>
+          <span class="info-value tag-pill">{{ activeModel.params || '?' }}</span>
         </div>
         <div class="info-row">
           <span class="info-label">{{ t('info.maxContext') }}</span>
-          <span class="info-value tag-pill">{{ selectedModel.max_context?.toLocaleString() || '?' }}</span>
+          <span class="info-value tag-pill">{{ activeModel.max_context?.toLocaleString() || '?' }}</span>
         </div>
         <div class="info-row">
           <span class="info-label">{{ t('info.sizeOnDisk') }}</span>
-          <span class="info-value tag-pill">{{ (selectedModel.size_bytes / 1024 / 1024 / 1024).toFixed(2) }} GB</span>
+          <span class="info-value tag-pill">{{ (activeModel.size_bytes / 1024 / 1024 / 1024).toFixed(2) }} GB</span>
         </div>
       </div>
 
-      <div class="panel-section" v-if="selectedModel">
+      <div class="panel-section" v-if="activeModel">
         <div class="section-title">🔗 {{ t('info.apiUsage') }}</div>
         <div class="info-label" style="margin-bottom:6px;">{{ t('info.serverReachable') }}</div>
         <div class="copy-row">
@@ -356,7 +356,7 @@
         </div>
       </div>
 
-      <div v-if="!selectedModel" style="padding:16px; color:#555; font-size:12px;">
+      <div v-if="!activeModel" style="padding:16px; color:#555; font-size:12px;">
         {{ t('models.noModelSelected') }}
       </div>
     </div>
@@ -371,13 +371,17 @@ import { selectedModel, allModels, modelLoading, loadedModel, loadingModel, load
 import { loadConfig, loadModelConfig, saveModelConfig, type ModelConfig } from '../stores/config'
 import { t } from '../i18n'
 
-defineProps<{ currentView?: string }>()
+const props = defineProps<{ currentView?: string }>()
 
 const activeTab = ref('load')
 
+const activeModel = computed(() =>
+  ((props.currentView === 'developer' || props.currentView === 'chat') && loadedModel.value) ? loadedModel.value : selectedModel.value
+)
+
 const hasUnsavedChanges = computed(() => {
   if (!loadedModelConfig.value || !loadedModel.value) return false
-  if (selectedModel.value?.path !== loadedModel.value.path) return false
+  if (activeModel.value?.path !== loadedModel.value.path) return false
   
   const keys: (keyof typeof modelCfg.value)[] = [
     'contextLength', 'gpuOffload', 'cpuThreads', 'evalBatch', 'physicalBatch',
@@ -393,7 +397,7 @@ const hasUnsavedChanges = computed(() => {
 })
 
 const effortOptions = computed(() => {
-  const levels = selectedModel.value?.supported_effort_levels
+  const levels = activeModel.value?.supported_effort_levels
   if (levels && levels.length > 0) return ['default', ...levels]
   return ['default', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']
 })
@@ -446,7 +450,7 @@ const modelCfg = ref<ModelConfig>({
   repeatPenalty: 1.0,
 })
 
-const maxContext = computed(() => selectedModel.value?.max_context || 262144)
+const maxContext = computed(() => activeModel.value?.max_context || 262144)
 
 const systemRamTotal = ref(0)
 const systemRamAvailable = ref(0)
@@ -481,15 +485,15 @@ const cacheRamWarning = computed(() => {
 })
 
 const draftModels = computed(() => {
-  if (!selectedModel.value) return []
+  if (!activeModel.value) return []
   return allModels.value.filter(m => 
-    m.model_family === selectedModel.value!.model_family &&
-    m.path !== selectedModel.value!.path
+    m.model_family === activeModel.value!.model_family &&
+    m.path !== activeModel.value!.path
   )
 })
 
 // Cargar config cuando cambia el modelo seleccionado
-watch(selectedModel, async (model) => {
+watch(activeModel, async (model) => {
   if (model) {
     const cfg = await loadModelConfig(model.path)
     if (cfg.reasoningEffort !== 'default' && model.supported_effort_levels?.length && !model.supported_effort_levels.includes(cfg.reasoningEffort)) {
@@ -508,8 +512,8 @@ watch(selectedModel, async (model) => {
 
 // Guardar config cuando cambia cualquier valor
 watch(modelCfg, async (cfg) => {
-  if (selectedModel.value) {
-    await saveModelConfig(selectedModel.value.path, cfg)
+  if (activeModel.value) {
+    await saveModelConfig(activeModel.value.path, cfg)
   }
 }, { deep: true })
 
@@ -517,8 +521,8 @@ const loading = ref(false)
 const error = ref('')
 
 async function loadModel() {
-  console.log('loadModel called', selectedModel.value)
-  loadingModel.value = selectedModel.value
+  console.log('loadModel called', activeModel.value)
+  loadingModel.value = activeModel.value
   modelLoading.value = true
   loading.value = true
   error.value = ''
@@ -529,7 +533,7 @@ async function loadModel() {
     console.log('gpuLayers:', Number(modelCfg.value.gpuOffload))
     const result = await invoke<string>('load_model', {
       llamaPath: config.llamaPath,
-      modelPath: selectedModel.value.path,
+      modelPath: activeModel.value.path,
       gpuLayers: Number(modelCfg.value.gpuOffload),
       contextLength: Number(modelCfg.value.contextLength),
       cpuThreads: Number(modelCfg.value.cpuThreads),
@@ -575,7 +579,7 @@ async function loadModel() {
       repeatPenalty: Number(modelCfg.value.repeatPenalty ?? 1.0),
     })
     console.log('invoke result:', result)
-    loadedModel.value = selectedModel.value
+    loadedModel.value = activeModel.value
   } catch (e) {
     console.error('invoke error:', e)
     error.value = String(e)
