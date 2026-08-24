@@ -34,7 +34,7 @@ Entirely inspired by [LM Studio](https://lmstudio.ai/) — with modifications th
 - Node.js 20+ (LTS)
 - [pnpm](https://pnpm.io/) 9+
 - WebView2 Runtime (Windows; preinstalled on Windows 10/11)
-- A `llama-server` build from [llama.cpp](https://github.com/ggml-org/llama.cpp) — not included in the repo, path configurable in Settings. **Tested with build `b10545` (win-cuda-12.4-x64)** — other versions use different CLI flags and may not work correctly
+- A `llama-server` build from [llama.cpp](https://github.com/ggml-org/llama.cpp) — not included in the repo, path configurable in Settings. **Tested with build `b10612` (win-cuda-12.4-x64)** — other versions use different CLI flags and may not work correctly
 
 ### Setup
 
