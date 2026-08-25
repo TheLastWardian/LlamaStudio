@@ -33,6 +33,8 @@ export const loadedModel = ref<ModelFile | null>(null)
 
 export const loadedModelConfig = ref<Record<string, any> | null>(null)
 
+export const loadedServerPort = ref<number | null>(null)
+
 export const prefillProgress = ref<number | null>(null)
 
 export const generationTokens = ref<number | null>(null)

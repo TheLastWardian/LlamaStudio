@@ -1,3 +1,4 @@
+import { ref } from 'vue'
 import { load, type Store } from '@tauri-apps/plugin-store'
 
 const STORE_FILE = 'config.json'
@@ -141,15 +142,18 @@ const defaults: AppConfig = {
   language: 'en',
 }
 
+export const appConfig = ref<AppConfig>({ ...defaults })
+
 export async function loadConfig(): Promise<AppConfig> {
   const store = await getStore()
-  return {
+  appConfig.value = {
     modelsPath: await store.get<string>('modelsPath') ?? defaults.modelsPath,
     llamaPath: await store.get<string>('llamaPath') ?? defaults.llamaPath,
     port: await store.get<number>('port') ?? defaults.port,
     minimizeToTray: await store.get<boolean>('minimizeToTray') ?? defaults.minimizeToTray,
     language: await store.get<'en' | 'es'>('language') ?? defaults.language,
   }
+  return appConfig.value
 }
 
 export async function saveConfig(config: AppConfig): Promise<void> {
@@ -160,4 +164,5 @@ export async function saveConfig(config: AppConfig): Promise<void> {
   await store.set('minimizeToTray', config.minimizeToTray)
   await store.set('language', config.language)
   await store.save()
+  appConfig.value = { ...config }
 }

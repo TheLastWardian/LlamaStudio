@@ -24,8 +24,8 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { listen } from '@tauri-apps/api/event'
-import { serverLogs, modelLoading, selectedModel, loadedModel, loadingModel, loadedModelConfig, prefillProgress, generationTokens, type ModelFile } from './stores/selectedModel'
-import { loadConfig, loadModelConfig } from './stores/config'
+import { serverLogs, modelLoading, selectedModel, loadedModel, loadingModel, loadedModelConfig, loadedServerPort, prefillProgress, generationTokens, type ModelFile } from './stores/selectedModel'
+import { appConfig, loadConfig, loadModelConfig } from './stores/config'
 import { loadGroups } from './stores/groups'
 import { setLang } from './i18n'
 import Sidebar from './components/Sidebar.vue'
@@ -94,6 +94,7 @@ async function restoreLoadedModel(port: number, modelsPath: string) {
 
     selectedModel.value = model
     loadedModel.value = model
+    loadedServerPort.value = port
     modelLoading.value = false
     loadingModel.value = null
     loadedModelConfig.value = { ...(await loadModelConfig(model.path)) }
@@ -159,7 +160,7 @@ onMounted(async () => {
           loadedModelConfig.value = { ...cfg }
         })
       } else {
-        restoreLoadedModel(config.port, config.modelsPath)
+        restoreLoadedModel(appConfig.value.port, config.modelsPath)
       }
     }
     if (clean.includes('loading model')) {

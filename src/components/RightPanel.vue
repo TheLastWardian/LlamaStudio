@@ -410,7 +410,7 @@
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
-import { selectedModel, allModels, modelLoading, loadedModel, loadingModel, loadedModelConfig } from '../stores/selectedModel'
+import { selectedModel, allModels, modelLoading, loadedModel, loadingModel, loadedModelConfig, loadedServerPort } from '../stores/selectedModel'
 import { loadConfig, loadModelConfig, saveModelConfig, type ModelConfig } from '../stores/config'
 import { t } from '../i18n'
 
@@ -631,6 +631,7 @@ async function loadModel() {
       repeatPenalty: Number(modelCfg.value.repeatPenalty ?? 1.0),
     })
     console.log('invoke result:', result)
+    loadedServerPort.value = config.port
     loadedModel.value = activeModel.value
   } catch (e) {
     console.error('invoke error:', e)
@@ -645,6 +646,7 @@ async function stopModel() {
   await invoke('stop_model')
   modelLoading.value = false
   loadedModel.value = null
+  loadedServerPort.value = null
 }
 
 function copy(text: string) {

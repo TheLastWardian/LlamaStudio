@@ -30,27 +30,25 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
-import { loadedModel, modelLoading } from '../stores/selectedModel'
+import { computed, ref } from 'vue'
+import { loadedModel, modelLoading, loadedServerPort } from '../stores/selectedModel'
 import { modelDisplayNames } from '../stores/groups'
-import { loadConfig } from '../stores/config'
+import { appConfig } from '../stores/config'
 import { invoke } from '@tauri-apps/api/core'
 import { t } from '../i18n'
 import LoadModelModal from '../components/LoadModelModal.vue'
 
-const port = ref(8080)
 const showModal = ref(false)
 
-onMounted(async () => {
-  const config = await loadConfig()
-  port.value = config.port
+const chatUrl = computed(() => {
+  const p = loadedServerPort.value ?? appConfig.value.port
+  return `http://127.0.0.1:${p}/`
 })
-
-const chatUrl = computed(() => `http://127.0.0.1:${port.value}/`)
 
 async function eject() {
   await invoke('stop_model')
   loadedModel.value = null
+  loadedServerPort.value = null
   modelLoading.value = false
 }
 </script>

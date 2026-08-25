@@ -62,7 +62,7 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick, onMounted } from 'vue'
-import { serverLogs, loadedModel, modelLoading, prefillProgress, generationTokens } from '../stores/selectedModel'
+import { serverLogs, loadedModel, modelLoading, loadedServerPort, prefillProgress, generationTokens } from '../stores/selectedModel'
 import { invoke } from '@tauri-apps/api/core'
 import { loadConfig } from '../stores/config'
 import LoadModelModal from '../components/LoadModelModal.vue'
@@ -162,6 +162,7 @@ function highlightLog(msg: string, level: string): string {
 async function eject() {
   await invoke('stop_model')
   loadedModel.value = null
+  loadedServerPort.value = null
   modelLoading.value = false
   prefillProgress.value = null
   generationTokens.value = null
