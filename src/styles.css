@@ -708,6 +708,8 @@ body {
   font-size: 11px;
 }
 
+.dev-logs:focus { outline: none; }
+
 .log-line {
   display: flex;
   gap: 8px;

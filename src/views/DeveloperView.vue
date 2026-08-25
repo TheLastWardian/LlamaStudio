@@ -48,7 +48,7 @@
       <span style="color:#666; font-size:11px; text-transform:uppercase;">{{ t('developer.logs') }}</span>
       <button class="btn-clear-logs" @click="clearLogs">🗑 {{ t('developer.clearLogs') }}</button>
     </div>
-      <div class="dev-logs" ref="logsEl">
+      <div class="dev-logs" ref="logsEl" tabindex="-1" @keydown.ctrl.a.prevent="selectAllLogs" @keydown.meta.a.prevent="selectAllLogs">
         <div v-for="(log, i) in logs" :key="i" class="log-line">
           <span class="log-time">{{ log.time }}</span>
           <span :class="'log-level-' + log.level">{{ log.level.toUpperCase() }}</span>
@@ -166,6 +166,16 @@ async function eject() {
   modelLoading.value = false
   prefillProgress.value = null
   generationTokens.value = null
+}
+
+function selectAllLogs() {
+  const el = logsEl.value
+  if (!el) return
+  const range = document.createRange()
+  range.selectNodeContents(el)
+  const sel = window.getSelection()
+  sel?.removeAllRanges()
+  sel?.addRange(range)
 }
 
 function clearLogs() {
