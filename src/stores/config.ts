@@ -33,6 +33,7 @@ export interface ModelConfig {
   checkpointMinStep: number
   reasoning: string
   reasoningBudget: string
+  reasoningBudgetCustom: number
   reasoningEffort: string
   draftModelPath: string
   host: string
@@ -82,6 +83,7 @@ const modelDefaults: ModelConfig = {
   checkpointMinStep: 8192,
   reasoning: 'auto',
   reasoningBudget: '-1',
+  reasoningBudgetCustom: 2048,
   reasoningEffort: 'default',
   draftModelPath: '',
   host: '127.0.0.1',

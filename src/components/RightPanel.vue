@@ -270,7 +270,11 @@
             <option value="4096">4096 tokens</option>
             <option value="8192">8192 tokens</option>
             <option value="16384">16384 tokens</option>
+            <option value="custom">{{ t('load.customBudget') }}</option>
           </select>
+        </div>
+        <div class="field-extra" v-if="modelCfg.reasoningBudget === 'custom'" :title="t('load.customBudgetTooltip')">
+          <input type="number" v-model.number="modelCfg.reasoningBudgetCustom" min="1" step="256" class="field-input" />
         </div>
         <div class="field" v-if="activeModel?.supports_effort">
           <label>{{ t('load.reasoningEffort') }}</label>
@@ -426,7 +430,7 @@ const hasUnsavedChanges = computed(() => {
     'contextLength', 'gpuOffload', 'cpuThreads', 'evalBatch', 'physicalBatch',
     'flashAttention', 'specType', 'draftSpecType', 'maxDraftTokens', 'minDraftTokens', 'draftSplitProbability', 'kCacheQuant', 'vCacheQuant', 'draftKCacheQuant', 'draftVCacheQuant', 'cacheReuse',
     'ctxCheckpoints', 'checkpointMinStep',
-    'reasoning', 'reasoningBudget', 'reasoningEffort', 'parallel', 'mlock', 'nCpuMoe', 'expertsPerToken',
+    'reasoning', 'reasoningBudget', 'reasoningBudgetCustom', 'reasoningEffort', 'parallel', 'mlock', 'nCpuMoe', 'expertsPerToken',
     'mmap', 'kvUnified', 'seed', 'draftModelPath', 'threadsHttp', 'alias',
     'host', 'noWarmup', 'sleepIdle', 'reasoningPreserve', 'fit', 'visionEnabled', 'mmprojPath',
     'kvOffload', 'cacheRam', 'temp', 'topP', 'topK', 'minP', 'repeatPenalty'
@@ -468,6 +472,7 @@ const modelCfg = ref<ModelConfig>({
   checkpointMinStep: 8192,
   reasoning: 'auto',
   reasoningBudget: '-1',
+  reasoningBudgetCustom: 2048,
   reasoningEffort: 'default',
   draftModelPath: '',
   host: '127.0.0.1',
@@ -606,7 +611,7 @@ async function loadModel() {
       reasoningPreserve: modelCfg.value.reasoningPreserve ?? false,
       fit: modelCfg.value.fit ?? 'on',
       reasoning: modelCfg.value.reasoning ?? 'auto',
-      reasoningBudget: Number(modelCfg.value.reasoningBudget),
+      reasoningBudget: modelCfg.value.reasoningBudget === 'custom' ? Number(modelCfg.value.reasoningBudgetCustom ?? 2048) : Number(modelCfg.value.reasoningBudget),
       reasoningEffort: modelCfg.value.reasoningEffort,
       parallel: Number(modelCfg.value.parallel ?? 1),
       mlock: modelCfg.value.mlock ?? false,

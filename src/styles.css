@@ -403,6 +403,12 @@ body {
   text-align: left;
 }
 
+.field-extra {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
 .slider {
   flex: 1;
   accent-color: #5a8af5;

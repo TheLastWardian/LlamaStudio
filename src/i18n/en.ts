@@ -107,6 +107,8 @@ export default {
     on: 'On',
     reasoningBudget: 'Reasoning Budget',
     unrestricted: 'Unrestricted (default)',
+    customBudget: 'Custom',
+    customBudgetTooltip: 'Custom maximum number of reasoning tokens per response (--reasoning-budget). 1 or more.',
     off: 'Off (disabled)',
     reasoningEffort: 'Reasoning Effort',
     default: 'Default',

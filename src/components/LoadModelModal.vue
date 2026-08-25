@@ -273,7 +273,11 @@
                 <option value="4096">4096 tokens</option>
                 <option value="8192">8192 tokens</option>
                 <option value="16384">16384 tokens</option>
+                <option value="custom">{{ t('load.customBudget') }}</option>
               </select>
+            </div>
+            <div class="field-extra" v-if="tempCfg.reasoningBudget === 'custom'" :title="t('load.customBudgetTooltip')">
+              <input type="number" v-model.number="tempCfg.reasoningBudgetCustom" min="1" step="256" class="field-input" />
             </div>
             <div class="field" v-if="configModel?.supports_effort">
               <label>{{ t('load.reasoningEffort') }}</label>
@@ -483,7 +487,7 @@ async function invokeLoad(modelPath: string, cfg: ModelConfig) {
     reasoningPreserve: cfg.reasoningPreserve ?? false,
     fit: cfg.fit ?? 'on',
     reasoning: cfg.reasoning ?? 'auto',
-    reasoningBudget: Number(cfg.reasoningBudget ?? -1),
+    reasoningBudget: cfg.reasoningBudget === 'custom' ? Number(cfg.reasoningBudgetCustom ?? 2048) : Number(cfg.reasoningBudget ?? -1),
     reasoningEffort: cfg.reasoningEffort ?? 'default',
     parallel: Number(cfg.parallel ?? 1),
     mlock: cfg.mlock ?? false,
