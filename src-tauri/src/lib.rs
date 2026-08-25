@@ -332,6 +332,8 @@ fn load_model(
     min_draft_tokens: i32,
     k_cache_quant: String,
     v_cache_quant: String,
+    draft_k_cache_quant: String,
+    draft_v_cache_quant: String,
     cache_reuse: i32,
     ctx_checkpoints: i32,
     checkpoint_min_step: i32,
@@ -436,10 +438,16 @@ fn load_model(
     }
 
     if spec_type != "None" {
-        cmd.arg("--spec-draft-p-min").arg(draft_probability.to_string());
-        cmd.arg("--spec-draft-p-split").arg(draft_split_probability.to_string());
+        cmd.arg("--spec-draft-p-min").arg(draft_probability.to_string())
+            .arg("--spec-draft-p-split").arg(draft_split_probability.to_string());
         if min_draft_tokens > 0 {
             cmd.arg("--spec-draft-n-min").arg(min_draft_tokens.to_string());
+        }
+        if draft_k_cache_quant != "F16" {
+            cmd.arg("--spec-draft-type-k").arg(draft_k_cache_quant.to_lowercase());
+        }
+        if draft_v_cache_quant != "F16" {
+            cmd.arg("--spec-draft-type-v").arg(draft_v_cache_quant.to_lowercase());
         }
     }
 

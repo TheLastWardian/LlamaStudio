@@ -173,6 +173,37 @@
                   <label>{{ t('load.draftSplitProbability') }}</label>
                   <input type="number" v-model="tempCfg.draftSplitProbability" min="0" max="1" step="0.05" class="field-input" />
                 </div>
+                <details class="delicate-zone">
+                  <summary>{{ t('load.draftKvQuantZone') }}</summary>
+                  <div class="field" :title="t('load.draftKCacheQuantTooltip')">
+                    <label>{{ t('load.draftKCacheQuant') }}</label>
+                    <select class="field-select" v-model="tempCfg.draftKCacheQuant">
+                      <option>F16</option>
+                      <option>F32</option>
+                      <option>BF16</option>
+                      <option>Q8_0</option>
+                      <option>Q4_0</option>
+                      <option>Q4_1</option>
+                      <option>IQ4_NL</option>
+                      <option>Q5_0</option>
+                      <option>Q5_1</option>
+                    </select>
+                  </div>
+                  <div class="field" :title="t('load.draftVCacheQuantTooltip')">
+                    <label>{{ t('load.draftVCacheQuant') }}</label>
+                    <select class="field-select" v-model="tempCfg.draftVCacheQuant">
+                      <option>F16</option>
+                      <option>F32</option>
+                      <option>BF16</option>
+                      <option>Q8_0</option>
+                      <option>Q4_0</option>
+                      <option>Q4_1</option>
+                      <option>IQ4_NL</option>
+                      <option>Q5_0</option>
+                      <option>Q5_1</option>
+                    </select>
+                  </div>
+                </details>
               </div>
             </template>
             <div class="field">
@@ -438,6 +469,8 @@ async function invokeLoad(modelPath: string, cfg: ModelConfig) {
     draftSplitProbability: Number(cfg.draftSplitProbability ?? 0.10),
     kCacheQuant: cfg.kCacheQuant ?? 'Q8_0',
     vCacheQuant: cfg.vCacheQuant ?? 'Q8_0',
+    draftKCacheQuant: cfg.draftKCacheQuant ?? 'F16',
+    draftVCacheQuant: cfg.draftVCacheQuant ?? 'F16',
     cacheReuse: Number(cfg.cacheReuse ?? 0),
     ctxCheckpoints: Number(cfg.ctxCheckpoints ?? 32),
     checkpointMinStep: Number(cfg.checkpointMinStep ?? 8192),

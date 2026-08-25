@@ -26,6 +26,8 @@ export interface ModelConfig {
   minDraftTokens: number
   kCacheQuant: string
   vCacheQuant: string
+  draftKCacheQuant: string
+  draftVCacheQuant: string
   cacheReuse: number
   ctxCheckpoints: number
   checkpointMinStep: number
@@ -73,6 +75,8 @@ const modelDefaults: ModelConfig = {
   minDraftTokens: 0,
   kCacheQuant: 'Q8_0',
   vCacheQuant: 'Q8_0',
+  draftKCacheQuant: 'F16',
+  draftVCacheQuant: 'F16',
   cacheReuse: 0,
   ctxCheckpoints: 32,
   checkpointMinStep: 8192,

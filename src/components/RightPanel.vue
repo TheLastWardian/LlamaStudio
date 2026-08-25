@@ -112,6 +112,37 @@
               <label>{{ t('load.draftSplitProbability') }}</label>
               <input type="number" v-model.number="modelCfg.draftSplitProbability" min="0" max="1" step="0.05" class="field-input" />
             </div>
+            <details class="delicate-zone">
+              <summary>{{ t('load.draftKvQuantZone') }}</summary>
+              <div class="field" :title="t('load.draftKCacheQuantTooltip')">
+                <label>{{ t('load.draftKCacheQuant') }}</label>
+                <select class="field-select" v-model="modelCfg.draftKCacheQuant">
+                  <option>F16</option>
+                  <option>F32</option>
+                  <option>BF16</option>
+                  <option>Q8_0</option>
+                  <option>Q4_0</option>
+                  <option>Q4_1</option>
+                  <option>IQ4_NL</option>
+                  <option>Q5_0</option>
+                  <option>Q5_1</option>
+                </select>
+              </div>
+              <div class="field" :title="t('load.draftVCacheQuantTooltip')">
+                <label>{{ t('load.draftVCacheQuant') }}</label>
+                <select class="field-select" v-model="modelCfg.draftVCacheQuant">
+                  <option>F16</option>
+                  <option>F32</option>
+                  <option>BF16</option>
+                  <option>Q8_0</option>
+                  <option>Q4_0</option>
+                  <option>Q4_1</option>
+                  <option>IQ4_NL</option>
+                  <option>Q5_0</option>
+                  <option>Q5_1</option>
+                </select>
+              </div>
+            </details>
           </div>
         </template>
         <div class="field">
@@ -393,7 +424,7 @@ const hasUnsavedChanges = computed(() => {
   
   const keys: (keyof typeof modelCfg.value)[] = [
     'contextLength', 'gpuOffload', 'cpuThreads', 'evalBatch', 'physicalBatch',
-    'flashAttention', 'specType', 'draftSpecType', 'maxDraftTokens', 'minDraftTokens', 'draftSplitProbability', 'kCacheQuant', 'vCacheQuant', 'cacheReuse',
+    'flashAttention', 'specType', 'draftSpecType', 'maxDraftTokens', 'minDraftTokens', 'draftSplitProbability', 'kCacheQuant', 'vCacheQuant', 'draftKCacheQuant', 'draftVCacheQuant', 'cacheReuse',
     'ctxCheckpoints', 'checkpointMinStep',
     'reasoning', 'reasoningBudget', 'reasoningEffort', 'parallel', 'mlock', 'nCpuMoe', 'expertsPerToken',
     'mmap', 'kvUnified', 'seed', 'draftModelPath', 'threadsHttp', 'alias',
@@ -430,6 +461,8 @@ const modelCfg = ref<ModelConfig>({
   draftSplitProbability: 0.10,
   kCacheQuant: 'Q8_0',
   vCacheQuant: 'Q8_0',
+  draftKCacheQuant: 'F16',
+  draftVCacheQuant: 'F16',
   cacheReuse: 0,
   ctxCheckpoints: 32,
   checkpointMinStep: 8192,
@@ -559,6 +592,8 @@ async function loadModel() {
       draftSplitProbability: Number(modelCfg.value.draftSplitProbability ?? 0.10),
       kCacheQuant: modelCfg.value.kCacheQuant,
       vCacheQuant: modelCfg.value.vCacheQuant,
+      draftKCacheQuant: modelCfg.value.draftKCacheQuant ?? 'F16',
+      draftVCacheQuant: modelCfg.value.draftVCacheQuant ?? 'F16',
       cacheReuse: Number(modelCfg.value.cacheReuse ?? 0),
       ctxCheckpoints: Number(modelCfg.value.ctxCheckpoints ?? 32),
       checkpointMinStep: Number(modelCfg.value.checkpointMinStep ?? 8192),

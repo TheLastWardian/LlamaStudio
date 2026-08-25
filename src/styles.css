@@ -461,6 +461,26 @@ body {
   border-radius: 6px;
 }
 
+.delicate-zone {
+  margin-top: 8px;
+  padding: 4px 10px;
+  background: #2a2318;
+  border: 1px solid #5a4a2a;
+  border-radius: 6px;
+}
+
+.delicate-zone summary {
+  cursor: pointer;
+  color: #f5a55a;
+  font-size: 12px;
+  padding: 4px 0;
+  user-select: none;
+}
+
+.delicate-zone[open] summary {
+  margin-bottom: 4px;
+}
+
 .btn-load {
   width: 100%;
   padding: 8px;
