@@ -157,6 +157,24 @@
                       <option value="dflash">DFlash</option>
                     </select>
                   </div>
+                  <div class="field" v-if="tempCfg.draftSpecType === 'dflash'" :title="t('load.dflashNgramK4vTooltip')">
+                    <label>{{ t('load.dflashNgramK4v') }}</label>
+                    <input type="checkbox" v-model="tempCfg.dflashNgramK4v" class="toggle" />
+                  </div>
+                  <template v-if="tempCfg.draftSpecType === 'dflash' && tempCfg.dflashNgramK4v">
+                    <div class="field" :title="t('load.ngramK4vSizeNTooltip')">
+                      <label>{{ t('load.ngramK4vSizeN') }}</label>
+                      <input type="number" v-model.number="tempCfg.ngramK4vSizeN" min="1" class="field-input" />
+                    </div>
+                    <div class="field" :title="t('load.ngramK4vSizeMTooltip')">
+                      <label>{{ t('load.ngramK4vSizeM') }}</label>
+                      <input type="number" v-model.number="tempCfg.ngramK4vSizeM" min="1" class="field-input" />
+                    </div>
+                    <div class="field" :title="t('load.ngramK4vMinHitsTooltip')">
+                      <label>{{ t('load.ngramK4vMinHits') }}</label>
+                      <input type="number" v-model.number="tempCfg.ngramK4vMinHits" min="1" class="field-input" />
+                    </div>
+                  </template>
                 </template>
                 <div class="field" :title="t('load.maxDraftTokensTooltip')">
                   <label>{{ t('load.maxDraftTokens') }}</label>
@@ -475,6 +493,10 @@ async function invokeLoad(modelPath: string, cfg: ModelConfig) {
     minDraftTokens: Number(dp.minDraftTokens ?? 0),
     draftProbability: Number(dp.probability ?? 0.75),
     draftSplitProbability: Number(dp.splitProbability ?? 0.10),
+    dflashNgramK4v: cfg.dflashNgramK4v ?? false,
+    ngramK4vSizeN: Number(cfg.ngramK4vSizeN ?? 12),
+    ngramK4vSizeM: Number(cfg.ngramK4vSizeM ?? 48),
+    ngramK4vMinHits: Number(cfg.ngramK4vMinHits ?? 1),
     kCacheQuant: cfg.kCacheQuant ?? 'Q8_0',
     vCacheQuant: cfg.vCacheQuant ?? 'Q8_0',
     draftKCacheQuant: dp.kCacheQuant ?? 'F16',

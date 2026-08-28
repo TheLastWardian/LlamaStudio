@@ -96,6 +96,24 @@
                   <option value="dflash">DFlash</option>
                 </select>
               </div>
+              <div class="field" v-if="modelCfg.draftSpecType === 'dflash'" :title="t('load.dflashNgramK4vTooltip')">
+                <label>{{ t('load.dflashNgramK4v') }}</label>
+                <input type="checkbox" v-model="modelCfg.dflashNgramK4v" class="toggle" />
+              </div>
+              <template v-if="modelCfg.draftSpecType === 'dflash' && modelCfg.dflashNgramK4v">
+                <div class="field" :title="t('load.ngramK4vSizeNTooltip')">
+                  <label>{{ t('load.ngramK4vSizeN') }}</label>
+                  <input type="number" v-model.number="modelCfg.ngramK4vSizeN" min="1" class="field-input" />
+                </div>
+                <div class="field" :title="t('load.ngramK4vSizeMTooltip')">
+                  <label>{{ t('load.ngramK4vSizeM') }}</label>
+                  <input type="number" v-model.number="modelCfg.ngramK4vSizeM" min="1" class="field-input" />
+                </div>
+                <div class="field" :title="t('load.ngramK4vMinHitsTooltip')">
+                  <label>{{ t('load.ngramK4vMinHits') }}</label>
+                  <input type="number" v-model.number="modelCfg.ngramK4vMinHits" min="1" class="field-input" />
+                </div>
+              </template>
             </template>
             <div class="field" :title="t('load.maxDraftTokensTooltip')">
               <label>{{ t('load.maxDraftTokens') }}</label>
@@ -429,7 +447,7 @@ const hasUnsavedChanges = computed(() => {
   
   const keys: (keyof typeof modelCfg.value)[] = [
     'contextLength', 'gpuOffload', 'cpuThreads', 'evalBatch', 'physicalBatch',
-    'flashAttention', 'specType', 'draftSpecType', 'kCacheQuant', 'vCacheQuant', 'cacheReuse',
+    'flashAttention', 'specType', 'draftSpecType', 'dflashNgramK4v', 'ngramK4vSizeN', 'ngramK4vSizeM', 'ngramK4vMinHits', 'kCacheQuant', 'vCacheQuant', 'cacheReuse',
     'ctxCheckpoints', 'checkpointMinStep',
     'reasoning', 'reasoningBudget', 'reasoningBudgetCustom', 'reasoningEffort', 'parallel', 'mlock', 'nCpuMoe', 'expertsPerToken',
     'mmap', 'kvUnified', 'seed', 'draftModelPath', 'threadsHttp', 'alias',
@@ -467,6 +485,10 @@ const modelCfg = ref<ModelConfig>({
     draftMtp: { ...defaultDraftParams },
     dflash: { ...defaultDraftParams },
   },
+  dflashNgramK4v: false,
+  ngramK4vSizeN: 12,
+  ngramK4vSizeM: 48,
+  ngramK4vMinHits: 1,
   kCacheQuant: 'Q8_0',
   vCacheQuant: 'Q8_0',
   cacheReuse: 0,
@@ -600,6 +622,10 @@ async function loadModel() {
       minDraftTokens: Number(dp.minDraftTokens ?? 0),
       draftProbability: Number(dp.probability),
       draftSplitProbability: Number(dp.splitProbability ?? 0.10),
+      dflashNgramK4v: modelCfg.value.dflashNgramK4v,
+      ngramK4vSizeN: Number(modelCfg.value.ngramK4vSizeN ?? 12),
+      ngramK4vSizeM: Number(modelCfg.value.ngramK4vSizeM ?? 48),
+      ngramK4vMinHits: Number(modelCfg.value.ngramK4vMinHits ?? 1),
       kCacheQuant: modelCfg.value.kCacheQuant,
       vCacheQuant: modelCfg.value.vCacheQuant,
       draftKCacheQuant: dp.kCacheQuant ?? 'F16',

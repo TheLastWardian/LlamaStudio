@@ -53,6 +53,10 @@ export interface ModelConfig {
   specType: string
   draftSpecType: string
   draftParams: Record<SpecKind, DraftParams>
+  dflashNgramK4v: boolean
+  ngramK4vSizeN: number
+  ngramK4vSizeM: number
+  ngramK4vMinHits: number
   kCacheQuant: string
   vCacheQuant: string
   cacheReuse: number
@@ -103,6 +107,10 @@ const modelDefaults: ModelConfig = {
     draftMtp: { ...defaultDraftParams },
     dflash: { ...defaultDraftParams },
   },
+  dflashNgramK4v: false,
+  ngramK4vSizeN: 12,
+  ngramK4vSizeM: 48,
+  ngramK4vMinHits: 1,
   kCacheQuant: 'Q8_0',
   vCacheQuant: 'Q8_0',
   cacheReuse: 0,

@@ -330,6 +330,10 @@ fn load_model(
     draft_probability: f32,
     draft_split_probability: f32,
     min_draft_tokens: i32,
+    dflash_ngram_k4v: bool,
+    ngram_k4v_size_n: i32,
+    ngram_k4v_size_m: i32,
+    ngram_k4v_min_hits: i32,
     k_cache_quant: String,
     v_cache_quant: String,
     draft_k_cache_quant: String,
@@ -432,6 +436,7 @@ fn load_model(
     if spec_type == "Draft" && !draft_model_path.is_empty() {
         let spec = match draft_spec_type.as_str() {
             "mtp" => "draft-mtp",
+            "dflash" if dflash_ngram_k4v => "draft-dflash,ngram-map-k4v",
             "dflash" => "draft-dflash",
             _ => "draft-simple",
         };
@@ -439,6 +444,11 @@ fn load_model(
             .arg("-md").arg(&draft_model_path)
             .arg("--spec-draft-n-max").arg(max_draft_tokens.to_string())
             .arg("--spec-draft-ngl").arg("99");
+        if draft_spec_type == "dflash" && dflash_ngram_k4v {
+            cmd.arg("--spec-ngram-map-k4v-size-n").arg(ngram_k4v_size_n.to_string())
+                .arg("--spec-ngram-map-k4v-size-m").arg(ngram_k4v_size_m.to_string())
+                .arg("--spec-ngram-map-k4v-min-hits").arg(ngram_k4v_min_hits.to_string());
+        }
     }
 
     if spec_type != "None" {
