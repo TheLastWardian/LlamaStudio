@@ -93,30 +93,31 @@
                 <select class="field-select" v-model="modelCfg.draftSpecType">
                   <option value="simple">Simple</option>
                   <option value="mtp">MTP</option>
+                  <option value="dflash">DFlash</option>
                 </select>
               </div>
             </template>
             <div class="field" :title="t('load.maxDraftTokensTooltip')">
               <label>{{ t('load.maxDraftTokens') }}</label>
-              <input type="number" v-model.number="modelCfg.maxDraftTokens" class="field-input" />
+              <input type="number" v-model.number="modelCfg.draftParams[draftKind].maxDraftTokens" class="field-input" />
             </div>
             <div class="field" :title="t('load.minDraftTokensTooltip')">
               <label>{{ t('load.minDraftTokens') }}</label>
-              <input type="number" v-model.number="modelCfg.minDraftTokens" min="0" step="1" class="field-input" />
+              <input type="number" v-model.number="modelCfg.draftParams[draftKind].minDraftTokens" min="0" step="1" class="field-input" />
             </div>
             <div class="field" :title="t('load.draftProbabilityTooltip')">
               <label>{{ t('load.draftProbability') }}</label>
-              <input type="number" v-model.number="modelCfg.draftProbability" step="0.05" class="field-input" />
+              <input type="number" v-model.number="modelCfg.draftParams[draftKind].probability" step="0.05" class="field-input" />
             </div>
             <div class="field" :title="t('load.draftSplitProbabilityTooltip')">
               <label>{{ t('load.draftSplitProbability') }}</label>
-              <input type="number" v-model.number="modelCfg.draftSplitProbability" min="0" max="1" step="0.05" class="field-input" />
+              <input type="number" v-model.number="modelCfg.draftParams[draftKind].splitProbability" min="0" max="1" step="0.05" class="field-input" />
             </div>
             <details class="delicate-zone">
               <summary>{{ t('load.draftKvQuantZone') }}</summary>
               <div class="field" :title="t('load.draftKCacheQuantTooltip')">
                 <label>{{ t('load.draftKCacheQuant') }}</label>
-                <select class="field-select" v-model="modelCfg.draftKCacheQuant">
+                <select class="field-select" v-model="modelCfg.draftParams[draftKind].kCacheQuant">
                   <option>F16</option>
                   <option>F32</option>
                   <option>BF16</option>
@@ -130,7 +131,7 @@
               </div>
               <div class="field" :title="t('load.draftVCacheQuantTooltip')">
                 <label>{{ t('load.draftVCacheQuant') }}</label>
-                <select class="field-select" v-model="modelCfg.draftVCacheQuant">
+                <select class="field-select" v-model="modelCfg.draftParams[draftKind].vCacheQuant">
                   <option>F16</option>
                   <option>F32</option>
                   <option>BF16</option>
@@ -411,7 +412,7 @@
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { selectedModel, allModels, modelLoading, loadedModel, loadingModel, loadedModelConfig, loadedServerPort } from '../stores/selectedModel'
-import { loadConfig, loadModelConfig, saveModelConfig, type ModelConfig } from '../stores/config'
+import { loadConfig, loadModelConfig, saveModelConfig, type ModelConfig, defaultDraftParams, activeSpecKind } from '../stores/config'
 import { t } from '../i18n'
 
 const props = defineProps<{ currentView?: string }>()
@@ -428,15 +429,16 @@ const hasUnsavedChanges = computed(() => {
   
   const keys: (keyof typeof modelCfg.value)[] = [
     'contextLength', 'gpuOffload', 'cpuThreads', 'evalBatch', 'physicalBatch',
-    'flashAttention', 'specType', 'draftSpecType', 'maxDraftTokens', 'minDraftTokens', 'draftSplitProbability', 'kCacheQuant', 'vCacheQuant', 'draftKCacheQuant', 'draftVCacheQuant', 'cacheReuse',
+    'flashAttention', 'specType', 'draftSpecType', 'kCacheQuant', 'vCacheQuant', 'cacheReuse',
     'ctxCheckpoints', 'checkpointMinStep',
     'reasoning', 'reasoningBudget', 'reasoningBudgetCustom', 'reasoningEffort', 'parallel', 'mlock', 'nCpuMoe', 'expertsPerToken',
     'mmap', 'kvUnified', 'seed', 'draftModelPath', 'threadsHttp', 'alias',
     'host', 'noWarmup', 'sleepIdle', 'reasoningPreserve', 'fit', 'visionEnabled', 'mmprojPath',
     'kvOffload', 'cacheRam', 'temp', 'topP', 'topK', 'minP', 'repeatPenalty'
   ]
-  
-  return keys.some(k => String(modelCfg.value[k]) !== String(loadedModelConfig.value![k]))
+
+  return JSON.stringify(modelCfg.value.draftParams) !== JSON.stringify(loadedModelConfig.value!.draftParams) ||
+    keys.some(k => String(modelCfg.value[k]) !== String(loadedModelConfig.value![k]))
 })
 
 const effortOptions = computed(() => {
@@ -459,14 +461,14 @@ const modelCfg = ref<ModelConfig>({
   flashAttention: true,
   specType: 'MTP',
   draftSpecType: 'simple',
-  maxDraftTokens: 2,
-  minDraftTokens: 0,
-  draftProbability: 0.75,
-  draftSplitProbability: 0.10,
+  draftParams: {
+    mtp: { ...defaultDraftParams },
+    simple: { ...defaultDraftParams },
+    draftMtp: { ...defaultDraftParams },
+    dflash: { ...defaultDraftParams },
+  },
   kCacheQuant: 'Q8_0',
   vCacheQuant: 'Q8_0',
-  draftKCacheQuant: 'F16',
-  draftVCacheQuant: 'F16',
   cacheReuse: 0,
   ctxCheckpoints: 32,
   checkpointMinStep: 8192,
@@ -497,6 +499,8 @@ const modelCfg = ref<ModelConfig>({
   minP: 0.05,
   repeatPenalty: 1.0,
 })
+
+const draftKind = computed(() => activeSpecKind(modelCfg.value))
 
 const maxContext = computed(() => activeModel.value?.max_context || 262144)
 
@@ -579,6 +583,7 @@ async function loadModel() {
     const config = await loadConfig()
     console.log('config:', config)
     console.log('gpuLayers:', Number(modelCfg.value.gpuOffload))
+    const dp = modelCfg.value.draftParams[activeSpecKind(modelCfg.value)]
     const result = await invoke<string>('load_model', {
       llamaPath: config.llamaPath,
       modelPath: activeModel.value.path,
@@ -591,14 +596,14 @@ async function loadModel() {
       specType: modelCfg.value.specType,
       draftSpecType: modelCfg.value.draftSpecType ?? 'simple',
       draftModelPath: modelCfg.value.draftModelPath,
-      maxDraftTokens: Number(modelCfg.value.maxDraftTokens),
-      minDraftTokens: Number(modelCfg.value.minDraftTokens ?? 0),
-      draftProbability: modelCfg.value.draftProbability,
-      draftSplitProbability: Number(modelCfg.value.draftSplitProbability ?? 0.10),
+      maxDraftTokens: Number(dp.maxDraftTokens),
+      minDraftTokens: Number(dp.minDraftTokens ?? 0),
+      draftProbability: Number(dp.probability),
+      draftSplitProbability: Number(dp.splitProbability ?? 0.10),
       kCacheQuant: modelCfg.value.kCacheQuant,
       vCacheQuant: modelCfg.value.vCacheQuant,
-      draftKCacheQuant: modelCfg.value.draftKCacheQuant ?? 'F16',
-      draftVCacheQuant: modelCfg.value.draftVCacheQuant ?? 'F16',
+      draftKCacheQuant: dp.kCacheQuant ?? 'F16',
+      draftVCacheQuant: dp.vCacheQuant ?? 'F16',
       cacheReuse: Number(modelCfg.value.cacheReuse ?? 0),
       ctxCheckpoints: Number(modelCfg.value.ctxCheckpoints ?? 32),
       checkpointMinStep: Number(modelCfg.value.checkpointMinStep ?? 8192),

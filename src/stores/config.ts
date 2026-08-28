@@ -12,6 +12,37 @@ function getStore(): Promise<Store> {
   return storePromise
 }
 
+export type SpecKind = 'mtp' | 'simple' | 'draftMtp' | 'dflash'
+
+export const SPEC_KINDS: readonly SpecKind[] = ['mtp', 'simple', 'draftMtp', 'dflash']
+
+export interface DraftParams {
+  maxDraftTokens: number
+  minDraftTokens: number
+  probability: number
+  splitProbability: number
+  kCacheQuant: string
+  vCacheQuant: string
+}
+
+export const defaultDraftParams: DraftParams = {
+  maxDraftTokens: 2,
+  minDraftTokens: 0,
+  probability: 0.75,
+  splitProbability: 0.10,
+  kCacheQuant: 'F16',
+  vCacheQuant: 'F16',
+}
+
+export function activeSpecKind(cfg: { specType: string; draftSpecType: string }): SpecKind {
+  if (cfg.specType === 'MTP') return 'mtp'
+  switch (cfg.draftSpecType) {
+    case 'mtp': return 'draftMtp'
+    case 'dflash': return 'dflash'
+    default: return 'simple'
+  }
+}
+
 export interface ModelConfig {
   contextLength: number
   gpuOffload: number
@@ -21,14 +52,9 @@ export interface ModelConfig {
   flashAttention: boolean
   specType: string
   draftSpecType: string
-  maxDraftTokens: number
-  draftProbability: number
-  draftSplitProbability: number
-  minDraftTokens: number
+  draftParams: Record<SpecKind, DraftParams>
   kCacheQuant: string
   vCacheQuant: string
-  draftKCacheQuant: string
-  draftVCacheQuant: string
   cacheReuse: number
   ctxCheckpoints: number
   checkpointMinStep: number
@@ -71,14 +97,14 @@ const modelDefaults: ModelConfig = {
   flashAttention: true,
   specType: 'MTP',
   draftSpecType: 'simple',
-  maxDraftTokens: 2,
-  draftProbability: 0.75,
-  draftSplitProbability: 0.10,
-  minDraftTokens: 0,
+  draftParams: {
+    mtp: { ...defaultDraftParams },
+    simple: { ...defaultDraftParams },
+    draftMtp: { ...defaultDraftParams },
+    dflash: { ...defaultDraftParams },
+  },
   kCacheQuant: 'Q8_0',
   vCacheQuant: 'Q8_0',
-  draftKCacheQuant: 'F16',
-  draftVCacheQuant: 'F16',
   cacheReuse: 0,
   ctxCheckpoints: 32,
   checkpointMinStep: 8192,
@@ -112,11 +138,46 @@ const modelDefaults: ModelConfig = {
   repeatPenalty: 1.0,
 }
 
+type LegacyDraftFields = {
+  maxDraftTokens?: number
+  minDraftTokens?: number
+  draftProbability?: number
+  draftSplitProbability?: number
+  draftKCacheQuant?: string
+  draftVCacheQuant?: string
+}
+
 export async function loadModelConfig(modelPath: string): Promise<ModelConfig> {
   const store = await getStore()
   const key = 'model:' + modelPath.replace(/[\\/]/g, '_')
-  const saved = await store.get<Partial<ModelConfig>>(key)
-  return { ...modelDefaults, ...saved }
+  const saved = await store.get<Partial<ModelConfig> & LegacyDraftFields>(key)
+  const cfg: ModelConfig = { ...modelDefaults, ...(saved ?? {}) }
+
+  const hasLegacy = !saved?.draftParams
+  const legacy: DraftParams = {
+    maxDraftTokens: saved?.maxDraftTokens ?? modelDefaults.draftParams.mtp.maxDraftTokens,
+    minDraftTokens: saved?.minDraftTokens ?? modelDefaults.draftParams.mtp.minDraftTokens,
+    probability: saved?.draftProbability ?? modelDefaults.draftParams.mtp.probability,
+    splitProbability: saved?.draftSplitProbability ?? modelDefaults.draftParams.mtp.splitProbability,
+    kCacheQuant: saved?.draftKCacheQuant ?? modelDefaults.draftParams.mtp.kCacheQuant,
+    vCacheQuant: saved?.draftVCacheQuant ?? modelDefaults.draftParams.mtp.vCacheQuant,
+  }
+  const active = activeSpecKind(cfg)
+
+  const params = {} as Record<SpecKind, DraftParams>
+  for (const kind of SPEC_KINDS) {
+    const sp = saved?.draftParams?.[kind]
+    if (sp) {
+      params[kind] = { ...modelDefaults.draftParams[kind], ...sp }
+    } else if (hasLegacy && kind === active) {
+      params[kind] = { ...legacy }
+    } else {
+      params[kind] = { ...modelDefaults.draftParams[kind] }
+    }
+  }
+  cfg.draftParams = params
+
+  return cfg
 }
 
 export async function saveModelConfig(modelPath: string, config: ModelConfig): Promise<void> {

@@ -430,7 +430,11 @@ fn load_model(
     }
 
     if spec_type == "Draft" && !draft_model_path.is_empty() {
-        let spec = if draft_spec_type == "mtp" { "draft-mtp" } else { "draft-simple" };
+        let spec = match draft_spec_type.as_str() {
+            "mtp" => "draft-mtp",
+            "dflash" => "draft-dflash",
+            _ => "draft-simple",
+        };
         cmd.arg("--spec-type").arg(spec)
             .arg("-md").arg(&draft_model_path)
             .arg("--spec-draft-n-max").arg(max_draft_tokens.to_string())

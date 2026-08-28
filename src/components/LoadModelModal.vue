@@ -154,30 +154,31 @@
                     <select class="field-select" v-model="tempCfg.draftSpecType">
                       <option value="simple">Simple</option>
                       <option value="mtp">MTP</option>
+                      <option value="dflash">DFlash</option>
                     </select>
                   </div>
                 </template>
                 <div class="field" :title="t('load.maxDraftTokensTooltip')">
                   <label>{{ t('load.maxDraftTokens') }}</label>
-                  <input type="number" v-model="tempCfg.maxDraftTokens" class="field-input" min="1" />
+                  <input type="number" v-model.number="tempCfg.draftParams[draftKind].maxDraftTokens" class="field-input" min="1" />
                 </div>
                 <div class="field" :title="t('load.minDraftTokensTooltip')">
                   <label>{{ t('load.minDraftTokens') }}</label>
-                  <input type="number" v-model="tempCfg.minDraftTokens" min="0" step="1" class="field-input" />
+                  <input type="number" v-model.number="tempCfg.draftParams[draftKind].minDraftTokens" min="0" step="1" class="field-input" />
                 </div>
                 <div class="field" :title="t('load.draftProbabilityTooltip')">
                   <label>{{ t('load.draftProbability') }}</label>
-                  <input type="number" v-model="tempCfg.draftProbability" step="0.05" class="field-input" />
+                  <input type="number" v-model.number="tempCfg.draftParams[draftKind].probability" step="0.05" class="field-input" />
                 </div>
                 <div class="field" :title="t('load.draftSplitProbabilityTooltip')">
                   <label>{{ t('load.draftSplitProbability') }}</label>
-                  <input type="number" v-model="tempCfg.draftSplitProbability" min="0" max="1" step="0.05" class="field-input" />
+                  <input type="number" v-model.number="tempCfg.draftParams[draftKind].splitProbability" min="0" max="1" step="0.05" class="field-input" />
                 </div>
                 <details class="delicate-zone">
                   <summary>{{ t('load.draftKvQuantZone') }}</summary>
                   <div class="field" :title="t('load.draftKCacheQuantTooltip')">
                     <label>{{ t('load.draftKCacheQuant') }}</label>
-                    <select class="field-select" v-model="tempCfg.draftKCacheQuant">
+                    <select class="field-select" v-model="tempCfg.draftParams[draftKind].kCacheQuant">
                       <option>F16</option>
                       <option>F32</option>
                       <option>BF16</option>
@@ -191,7 +192,7 @@
                   </div>
                   <div class="field" :title="t('load.draftVCacheQuantTooltip')">
                     <label>{{ t('load.draftVCacheQuant') }}</label>
-                    <select class="field-select" v-model="tempCfg.draftVCacheQuant">
+                    <select class="field-select" v-model="tempCfg.draftParams[draftKind].vCacheQuant">
                       <option>F16</option>
                       <option>F32</option>
                       <option>BF16</option>
@@ -344,7 +345,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { allModels, loadedModel, selectedModel, modelLoading, loadingModel, loadedModelConfig, loadedServerPort } from '../stores/selectedModel'
 import { modelDisplayNames, modelMeta, groups } from '../stores/groups'
 import { invoke } from '@tauri-apps/api/core'
-import { loadConfig, loadModelConfig, saveModelConfig, type ModelConfig } from '../stores/config'
+import { loadConfig, loadModelConfig, saveModelConfig, type ModelConfig, defaultDraftParams, activeSpecKind } from '../stores/config'
 import { t } from '../i18n'
 import type { ModelFile } from '../stores/selectedModel'
 
@@ -359,6 +360,8 @@ const effortOptions = computed(() => {
 })
 const tempCfg = ref<ModelConfig | null>(null)
 const emit = defineEmits(['close'])
+
+const draftKind = computed(() => tempCfg.value ? activeSpecKind(tempCfg.value) : 'simple')
 
 const systemRamTotal = ref(0)
 const systemRamAvailable = ref(0)
@@ -455,6 +458,7 @@ async function invokeLoad(modelPath: string, cfg: ModelConfig) {
   const resolvedThreads = cpuThreads > 0 ? cpuThreads : await invoke<number>('get_cpu_threads')
   const gpuLayers = cfg.gpuOffload ?? 0
   const resolvedGpu = gpuLayers > 0 ? gpuLayers : (configModel.value?.layer_count ?? 999)
+  const dp = cfg.draftParams?.[activeSpecKind(cfg)] ?? defaultDraftParams
   await invoke('load_model', {
     llamaPath: config.llamaPath,
     modelPath,
@@ -467,14 +471,14 @@ async function invokeLoad(modelPath: string, cfg: ModelConfig) {
     specType: cfg.specType ?? 'None',
     draftSpecType: cfg.draftSpecType ?? 'simple',
     draftModelPath: cfg.draftModelPath ?? '',
-    maxDraftTokens: Number(cfg.maxDraftTokens ?? 2),
-    minDraftTokens: Number(cfg.minDraftTokens ?? 0),
-    draftProbability: Number(cfg.draftProbability ?? 0.75),
-    draftSplitProbability: Number(cfg.draftSplitProbability ?? 0.10),
+    maxDraftTokens: Number(dp.maxDraftTokens ?? 2),
+    minDraftTokens: Number(dp.minDraftTokens ?? 0),
+    draftProbability: Number(dp.probability ?? 0.75),
+    draftSplitProbability: Number(dp.splitProbability ?? 0.10),
     kCacheQuant: cfg.kCacheQuant ?? 'Q8_0',
     vCacheQuant: cfg.vCacheQuant ?? 'Q8_0',
-    draftKCacheQuant: cfg.draftKCacheQuant ?? 'F16',
-    draftVCacheQuant: cfg.draftVCacheQuant ?? 'F16',
+    draftKCacheQuant: dp.kCacheQuant ?? 'F16',
+    draftVCacheQuant: dp.vCacheQuant ?? 'F16',
     cacheReuse: Number(cfg.cacheReuse ?? 0),
     ctxCheckpoints: Number(cfg.ctxCheckpoints ?? 32),
     checkpointMinStep: Number(cfg.checkpointMinStep ?? 8192),
