@@ -229,15 +229,17 @@
         <div style="color:#555; font-size:11px; margin-bottom:4px;">
           {{ systemRamTotal > 0 ? `System RAM: ${systemRamTotal} MiB / Free: ${systemRamAvailable} MiB` : '' }}
         </div>
-        <div v-if="cacheRamWarning === 'unlimited'" style="color:#f5a55a; font-size:11px; margin-bottom:8px;">
-          {{ t('load.cacheRamUnlimited') }}
-        </div>
-        <div v-else-if="cacheRamWarning === 'critical'" style="color:#f55a5a; font-size:11px; margin-bottom:8px;">
-          {{ t('load.cacheRamCritical', { pct: cacheRamPct }) }}
-        </div>
-        <div v-else-if="cacheRamWarning === 'warning'" style="color:#f5a55a; font-size:11px; margin-bottom:8px;">
-          {{ t('load.cacheRamWarning', { pct: cacheRamPct }) }}
-        </div>
+        <template v-if="activeModel?.path !== loadedModel?.path">
+          <div v-if="cacheRamWarning === 'unlimited'" style="color:#f5a55a; font-size:11px; margin-bottom:8px;">
+            {{ t('load.cacheRamUnlimited') }}
+          </div>
+          <div v-else-if="cacheRamWarning === 'critical'" style="color:#f55a5a; font-size:11px; margin-bottom:8px;">
+            {{ t('load.cacheRamCritical', { pct: cacheRamPct }) }}
+          </div>
+          <div v-else-if="cacheRamWarning === 'warning'" style="color:#f5a55a; font-size:11px; margin-bottom:8px;">
+            {{ t('load.cacheRamWarning', { pct: cacheRamPct }) }}
+          </div>
+        </template>
         <div class="field" :title="t('load.seedTooltip')">
           <label>{{ t('load.seed') }}</label>
           <input type="number" v-model="modelCfg.seed" class="field-input" />
