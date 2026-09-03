@@ -340,6 +340,7 @@ fn load_model(
     ngram_mod_n_min: i32,
     ngram_mod_n_max: i32,
     ngram_mod_n_match: i32,
+    ngram_cache: bool,
     k_cache_quant: String,
     v_cache_quant: String,
     draft_k_cache_quant: String,
@@ -434,23 +435,27 @@ fn load_model(
         cmd.arg("-fa").arg("on");
     }
 
-    let ngram_mod_suffix = if ngram_mod { ",ngram-mod" } else { "" };
-
     if spec_type == "MTP" {
-        let spec = if dflash_ngram_k4v { "draft-mtp,ngram-map-k4v" } else { "draft-mtp" };
-        let spec = format!("{}{}", spec, ngram_mod_suffix);
+        let mut spec = String::from("draft-mtp");
+        if ngram_mod { spec.push_str(",ngram-mod"); }
+        if dflash_ngram_k4v { spec.push_str(",ngram-map-k4v"); }
+        if ngram_cache { spec.push_str(",ngram-cache"); }
         cmd.arg("--spec-type").arg(spec)
            .arg("--spec-draft-n-max").arg(max_draft_tokens.to_string());
     }
 
     if spec_type == "Draft" && !draft_model_path.is_empty() {
-        let spec = match draft_spec_type.as_str() {
+        let base = match draft_spec_type.as_str() {
             "mtp" => "draft-mtp",
-            "dflash" if dflash_ngram_k4v => "draft-dflash,ngram-map-k4v",
             "dflash" => "draft-dflash",
+            "eagle3" => "draft-eagle3",
+            "dspark" => "draft-dspark",
             _ => "draft-simple",
         };
-        let spec = format!("{}{}", spec, ngram_mod_suffix);
+        let mut spec = String::from(base);
+        if ngram_mod { spec.push_str(",ngram-mod"); }
+        if dflash_ngram_k4v && draft_spec_type == "dflash" { spec.push_str(",ngram-map-k4v"); }
+        if ngram_cache { spec.push_str(",ngram-cache"); }
         cmd.arg("--spec-type").arg(spec)
             .arg("-md").arg(&draft_model_path)
             .arg("--spec-draft-n-max").arg(max_draft_tokens.to_string())
@@ -584,6 +589,9 @@ fn load_model(
                 "ngram-mod (match={}, min={}, max={})",
                 ngram_mod_n_match, ngram_mod_n_min, ngram_mod_n_max
             ));
+        }
+        if ngram_cache {
+            spec_parts.push("ngram-cache".to_string());
         }
         let spec_str = format!("SPEC: {}", spec_parts.join(" + "));
         println!("{}", spec_str);

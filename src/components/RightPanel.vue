@@ -94,6 +94,8 @@
                   <option value="simple">Simple</option>
                   <option value="mtp">MTP</option>
                   <option value="dflash">DFlash</option>
+                  <option value="eagle3">EAGLE3</option>
+                  <option value="dspark">DSpark</option>
                 </select>
               </div>
             </template>
@@ -179,6 +181,10 @@
                   <input type="number" v-model.number="modelCfg.ngramModNMax" min="1" class="field-input" />
                 </div>
               </template>
+              <div v-if="ngramModAvailable" class="field" :title="t('load.ngramCacheTooltip')">
+                <label>{{ t('load.ngramCache') }}</label>
+                <input type="checkbox" v-model="modelCfg.ngramCache" class="toggle" />
+              </div>
             </details>
           </div>
         </template>
@@ -467,7 +473,7 @@ const hasUnsavedChanges = computed(() => {
   
   const keys: (keyof typeof modelCfg.value)[] = [
     'contextLength', 'gpuOffload', 'cpuThreads', 'evalBatch', 'physicalBatch',
-    'flashAttention', 'specType', 'draftSpecType', 'dflashNgramK4v', 'ngramK4vSizeN', 'ngramK4vSizeM', 'ngramK4vMinHits', 'ngramMod', 'ngramModNMatch', 'ngramModNMin', 'ngramModNMax', 'kCacheQuant', 'vCacheQuant', 'cacheReuse',
+    'flashAttention', 'specType', 'draftSpecType', 'dflashNgramK4v', 'ngramK4vSizeN', 'ngramK4vSizeM', 'ngramK4vMinHits', 'ngramMod', 'ngramModNMatch', 'ngramModNMin', 'ngramModNMax', 'ngramCache', 'kCacheQuant', 'vCacheQuant', 'cacheReuse',
     'ctxCheckpoints', 'checkpointMinStep',
     'reasoning', 'reasoningBudget', 'reasoningBudgetCustom', 'reasoningEffort', 'parallel', 'mlock', 'nCpuMoe', 'expertsPerToken',
     'mmap', 'kvUnified', 'seed', 'draftModelPath', 'threadsHttp', 'alias',
@@ -504,6 +510,8 @@ const modelCfg = ref<ModelConfig>({
     simple: { ...defaultDraftParams },
     draftMtp: { ...defaultDraftParams },
     dflash: { ...defaultDraftParams },
+    eagle3: { ...defaultDraftParams },
+    dspark: { ...defaultDraftParams },
   },
   dflashNgramK4v: false,
   ngramK4vSizeN: 12,
@@ -513,6 +521,7 @@ const modelCfg = ref<ModelConfig>({
   ngramModNMatch: 24,
   ngramModNMin: 48,
   ngramModNMax: 64,
+  ngramCache: false,
   kCacheQuant: 'Q8_0',
   vCacheQuant: 'Q8_0',
   cacheReuse: 0,
@@ -662,6 +671,7 @@ async function loadModel() {
       ngramModNMatch: Number(modelCfg.value.ngramModNMatch ?? 24),
       ngramModNMin: Number(modelCfg.value.ngramModNMin ?? 48),
       ngramModNMax: Number(modelCfg.value.ngramModNMax ?? 64),
+      ngramCache: modelCfg.value.ngramCache ?? false,
       kCacheQuant: modelCfg.value.kCacheQuant,
       vCacheQuant: modelCfg.value.vCacheQuant,
       draftKCacheQuant: dp.kCacheQuant ?? 'F16',

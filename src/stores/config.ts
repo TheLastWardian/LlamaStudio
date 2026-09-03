@@ -12,9 +12,9 @@ function getStore(): Promise<Store> {
   return storePromise
 }
 
-export type SpecKind = 'mtp' | 'simple' | 'draftMtp' | 'dflash'
+export type SpecKind = 'mtp' | 'simple' | 'draftMtp' | 'dflash' | 'eagle3' | 'dspark'
 
-export const SPEC_KINDS: readonly SpecKind[] = ['mtp', 'simple', 'draftMtp', 'dflash']
+export const SPEC_KINDS: readonly SpecKind[] = ['mtp', 'simple', 'draftMtp', 'dflash', 'eagle3', 'dspark']
 
 export interface DraftParams {
   maxDraftTokens: number
@@ -39,6 +39,8 @@ export function activeSpecKind(cfg: { specType: string; draftSpecType: string })
   switch (cfg.draftSpecType) {
     case 'mtp': return 'draftMtp'
     case 'dflash': return 'dflash'
+    case 'eagle3': return 'eagle3'
+    case 'dspark': return 'dspark'
     default: return 'simple'
   }
 }
@@ -61,6 +63,7 @@ export interface ModelConfig {
   ngramModNMatch: number
   ngramModNMin: number
   ngramModNMax: number
+  ngramCache: boolean
   kCacheQuant: string
   vCacheQuant: string
   cacheReuse: number
@@ -110,6 +113,8 @@ const modelDefaults: ModelConfig = {
     simple: { ...defaultDraftParams },
     draftMtp: { ...defaultDraftParams },
     dflash: { ...defaultDraftParams },
+    eagle3: { ...defaultDraftParams },
+    dspark: { ...defaultDraftParams },
   },
   dflashNgramK4v: false,
   ngramK4vSizeN: 12,
@@ -119,6 +124,7 @@ const modelDefaults: ModelConfig = {
   ngramModNMatch: 24,
   ngramModNMin: 48,
   ngramModNMax: 64,
+  ngramCache: false,
   kCacheQuant: 'Q8_0',
   vCacheQuant: 'Q8_0',
   cacheReuse: 0,

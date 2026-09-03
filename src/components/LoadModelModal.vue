@@ -155,6 +155,8 @@
                       <option value="simple">Simple</option>
                       <option value="mtp">MTP</option>
                       <option value="dflash">DFlash</option>
+                      <option value="eagle3">EAGLE3</option>
+                      <option value="dspark">DSpark</option>
                     </select>
                   </div>
                 </template>
@@ -240,6 +242,10 @@
                       <input type="number" v-model.number="tempCfg.ngramModNMax" min="1" class="field-input" />
                     </div>
                   </template>
+                  <div v-if="ngramModAvailable" class="field" :title="t('load.ngramCacheTooltip')">
+                    <label>{{ t('load.ngramCache') }}</label>
+                    <input type="checkbox" v-model="tempCfg.ngramCache" class="toggle" />
+                  </div>
                 </details>
               </div>
             </template>
@@ -528,6 +534,7 @@ async function invokeLoad(modelPath: string, cfg: ModelConfig) {
     ngramModNMatch: Number(cfg.ngramModNMatch ?? 24),
     ngramModNMin: Number(cfg.ngramModNMin ?? 48),
     ngramModNMax: Number(cfg.ngramModNMax ?? 64),
+    ngramCache: cfg.ngramCache ?? false,
     kCacheQuant: cfg.kCacheQuant ?? 'Q8_0',
     vCacheQuant: cfg.vCacheQuant ?? 'Q8_0',
     draftKCacheQuant: dp.kCacheQuant ?? 'F16',
