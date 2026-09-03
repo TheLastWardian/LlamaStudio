@@ -103,6 +103,17 @@ async function restoreLoadedModel(port: number, modelsPath: string) {
   }
 }
 
+function fmtLogTime(t: string): string {
+  const parts = t.split('.')
+  if (parts.length !== 4) return t
+  const min = parseInt(parts[0], 10)
+  const sec = parseInt(parts[1], 10)
+  const ms = parseInt(parts[2], 10)
+  if (isNaN(min) || isNaN(sec) || isNaN(ms)) return t
+  const totalSec = min * 60 + sec
+  return `${String(Math.floor(totalSec / 60)).padStart(2, '0')}:${String(totalSec % 60).padStart(2, '0')}.${String(ms).padStart(3, '0')}`
+}
+
 onMounted(async () => {
   const config = await loadConfig()
   setLang(config.language)
@@ -122,7 +133,7 @@ onMounted(async () => {
     const levelMap: Record<string, string> = { I: 'info', W: 'warn', E: 'error', D: 'debug' }
     serverLogs.value.push(
       match
-        ? { time: match[1], level: levelMap[match[2]] ?? 'info', msg: match[3] }
+        ? { time: fmtLogTime(match[1]), level: levelMap[match[2]] ?? 'info', msg: match[3] }
         : { time: '', level: 'info', msg: clean }
     )
 
