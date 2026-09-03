@@ -23,6 +23,8 @@ export default {
     modelsCount: 'models',
     ungrouped: 'Ungrouped',
     noModelSelected: 'No model selected.',
+    folderPath: 'Models folder',
+    openFolder: 'Open',
   },
   modelList: {
     createGroup: 'Create Group',
@@ -30,6 +32,7 @@ export default {
     pin: '📌 Pin',
     unpin: '📌 Unpin',
     rename: '✏ Rename',
+    revealInFolder: '📂 Open Location',
     moveToGroup: '📁 Move to group ▶',
     deleteGroup: '🗑 Delete Group',
   },

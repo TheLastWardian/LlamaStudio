@@ -596,6 +596,53 @@ body {
   overflow: hidden;
 }
 
+.models-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-top: 1px solid #2a2a2a;
+  background: #1a1a1a;
+  font-size: 11px;
+  color: #888;
+  flex-shrink: 0;
+}
+
+.models-footer-label {
+  color: #666;
+  white-space: nowrap;
+}
+
+.models-footer-path {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #999;
+  font-family: monospace;
+}
+
+.models-footer-open {
+  background: #2a2a2a;
+  border: 1px solid #333;
+  color: #ccc;
+  padding: 3px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.models-footer-open:hover:not(:disabled) {
+  background: #333;
+  color: #fff;
+}
+
+.models-footer-open:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .developer-view {
   display: flex;
   flex-direction: column;

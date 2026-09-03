@@ -80,6 +80,13 @@
           </template>
         </template>
       </div>
+
+      <!-- Models folder footer -->
+      <div class="models-footer">
+        <span class="models-footer-label">{{ t('models.folderPath') }}</span>
+        <span class="models-footer-path" :title="modelsPath">{{ modelsPath }}</span>
+        <button class="models-footer-open" :disabled="!modelsPath" @click="openModelsFolder">{{ t('models.openFolder') }}</button>
+      </div>
     </div>
 
     <!-- Context Menu -->
@@ -115,6 +122,7 @@
           {{ modelMeta[ctxMenu.modelPath!]?.pinned ? t('modelList.unpin') : t('modelList.pin') }}
         </div>
         <div class="ctx-item" @click="startRename(ctxMenu.modelPath!)">{{ t('modelList.rename') }}</div>
+        <div class="ctx-item" @click="revealModelLocation(ctxMenu.modelPath!)">{{ t('modelList.revealInFolder') }}</div>
         <div class="ctx-divider"></div>
         <div class="ctx-item" @click="moveToGroupMenu = !moveToGroupMenu">
           {{ t('modelList.moveToGroup') }}
@@ -147,6 +155,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
+import { revealItemInDir, openPath } from '@tauri-apps/plugin-opener'
 import { selectedModel, allModels } from '../stores/selectedModel'
 import { loadConfig } from '../stores/config'
 import { groups, modelMeta, modelDisplayNames, createGroup, deleteGroup, moveModelToGroup, togglePin, saveGroups, collapsedGroups } from '../stores/groups'
@@ -178,12 +187,14 @@ function formatSize(bytes: number): string {
 }
 
 const scanning = ref(false)
+const modelsPath = ref('')
 
 async function rescanModels() {
   if (scanning.value) return
   scanning.value = true
   try {
     const config = await loadConfig()
+    modelsPath.value = config.modelsPath
     models.value = await invoke('scan_models', { modelsPath: config.modelsPath })
     allModels.value = models.value
     if (models.value.length > 0 && !selectedModel.value) {
@@ -287,6 +298,24 @@ function handleMoveToGroup(modelPath: string, groupId: string | null) {
 function handleTogglePin(modelPath: string) {
   togglePin(modelPath)
   closeCtxMenu()
+}
+
+async function revealModelLocation(modelPath: string) {
+  closeCtxMenu()
+  try {
+    await revealItemInDir(modelPath)
+  } catch (e) {
+    console.error('Failed to reveal model in folder:', e)
+  }
+}
+
+async function openModelsFolder() {
+  if (!modelsPath.value) return
+  try {
+    await openPath(modelsPath.value)
+  } catch (e) {
+    console.error('Failed to open models folder:', e)
+  }
 }
 
 function startColResize(e: MouseEvent, col: typeof columns.value[0]) {

@@ -23,6 +23,8 @@ export default {
     modelsCount: 'modelos',
     ungrouped: 'Sin grupo',
     noModelSelected: 'No hay modelo seleccionado.',
+    folderPath: 'Carpeta de modelos',
+    openFolder: 'Abrir',
   },
   modelList: {
     createGroup: 'Crear grupo',
@@ -30,6 +32,7 @@ export default {
     pin: '📌 Fijar',
     unpin: '📌 Desfijar',
     rename: '✏ Renombrar',
+    revealInFolder: '📂 Abrir ubicación',
     moveToGroup: '📁 Mover a grupo ▶',
     deleteGroup: '🗑 Eliminar grupo',
   },
