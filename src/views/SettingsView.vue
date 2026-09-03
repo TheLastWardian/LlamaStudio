@@ -23,6 +23,16 @@
             <button class="btn-secondary" @click="browsePath('llama')">{{ t('settings.browse') }}</button>
           </div>
         </div>
+
+        <div class="settings-field">
+          <label>{{ t('settings.cudaGraphOpt') }}</label>
+          <input type="text" v-model="config.cudaGraphOpt" class="field-input" placeholder="1" />
+        </div>
+
+        <div class="settings-field">
+          <label :title="t('settings.logVerbosityTooltip')">{{ t('settings.logVerbosity') }}</label>
+          <input type="number" v-model.number="config.logVerbosity" min="1" max="5" class="field-input" placeholder="3" />
+        </div>
       </div>
 
       <div class="settings-section">
@@ -68,6 +78,8 @@ import { t, setLang } from '../i18n'
 const config = ref<AppConfig>({
   modelsPath: '',
   llamaPath: '',
+  cudaGraphOpt: '',
+  logVerbosity: 3,
   port: 8080,
   minimizeToTray: false,
   language: 'en',

@@ -316,6 +316,8 @@ fn load_model(
     app: tauri::AppHandle,
     state: State<ServerProcess>,
     llama_path: String,
+    cuda_graph_opt: String,
+    log_verbosity: i32,
     model_path: String,
     gpu_layers: i32,
     context_length: i32,
@@ -334,6 +336,10 @@ fn load_model(
     ngram_k4v_size_n: i32,
     ngram_k4v_size_m: i32,
     ngram_k4v_min_hits: i32,
+    ngram_mod: bool,
+    ngram_mod_n_min: i32,
+    ngram_mod_n_max: i32,
+    ngram_mod_n_match: i32,
     k_cache_quant: String,
     v_cache_quant: String,
     draft_k_cache_quant: String,
@@ -428,8 +434,12 @@ fn load_model(
         cmd.arg("-fa").arg("on");
     }
 
+    let ngram_mod_suffix = if ngram_mod { ",ngram-mod" } else { "" };
+
     if spec_type == "MTP" {
-        cmd.arg("--spec-type").arg("draft-mtp")
+        let spec = if dflash_ngram_k4v { "draft-mtp,ngram-map-k4v" } else { "draft-mtp" };
+        let spec = format!("{}{}", spec, ngram_mod_suffix);
+        cmd.arg("--spec-type").arg(spec)
            .arg("--spec-draft-n-max").arg(max_draft_tokens.to_string());
     }
 
@@ -440,15 +450,23 @@ fn load_model(
             "dflash" => "draft-dflash",
             _ => "draft-simple",
         };
+        let spec = format!("{}{}", spec, ngram_mod_suffix);
         cmd.arg("--spec-type").arg(spec)
             .arg("-md").arg(&draft_model_path)
             .arg("--spec-draft-n-max").arg(max_draft_tokens.to_string())
             .arg("--spec-draft-ngl").arg("99");
-        if draft_spec_type == "dflash" && dflash_ngram_k4v {
-            cmd.arg("--spec-ngram-map-k4v-size-n").arg(ngram_k4v_size_n.to_string())
-                .arg("--spec-ngram-map-k4v-size-m").arg(ngram_k4v_size_m.to_string())
-                .arg("--spec-ngram-map-k4v-min-hits").arg(ngram_k4v_min_hits.to_string());
-        }
+    }
+
+    if dflash_ngram_k4v && (spec_type == "MTP" || (spec_type == "Draft" && draft_spec_type == "dflash")) {
+        cmd.arg("--spec-ngram-map-k4v-size-n").arg(ngram_k4v_size_n.to_string())
+            .arg("--spec-ngram-map-k4v-size-m").arg(ngram_k4v_size_m.to_string())
+            .arg("--spec-ngram-map-k4v-min-hits").arg(ngram_k4v_min_hits.to_string());
+    }
+
+    if ngram_mod {
+        cmd.arg("--spec-ngram-mod-n-min").arg(ngram_mod_n_min.to_string())
+            .arg("--spec-ngram-mod-n-max").arg(ngram_mod_n_max.to_string())
+            .arg("--spec-ngram-mod-n-match").arg(ngram_mod_n_match.to_string());
     }
 
     if spec_type != "None" {
@@ -528,11 +546,49 @@ fn load_model(
         cmd.arg("--mmproj").arg(&mmproj_path);
     }
 
+    let cuda_graph_opt = cuda_graph_opt.trim();
+    if !cuda_graph_opt.is_empty() {
+        cmd.env("GGML_CUDA_GRAPH_OPT", cuda_graph_opt);
+    }
+
+    cmd.arg("-lv").arg(log_verbosity.to_string());
+
     let program = cmd.get_program().to_string_lossy().to_string();
     let args: Vec<String> = cmd.get_args().map(|a| a.to_string_lossy().to_string()).collect();
     let cmd_str = format!("CMD: {} {}", program, args.join(" "));
     println!("{}", cmd_str);
     let _ = app.emit("llama-log", cmd_str);
+
+    if spec_type != "None" {
+        let main = if spec_type == "MTP" {
+            "draft-mtp"
+        } else {
+            match draft_spec_type.as_str() {
+                "mtp" => "draft-mtp",
+                "dflash" => "draft-dflash",
+                _ => "draft-simple",
+            }
+        };
+        let mut spec_parts = vec![format!(
+            "{} (n_max={}, p_min={}, p_split={})",
+            main, max_draft_tokens, draft_probability, draft_split_probability
+        )];
+        if dflash_ngram_k4v && (spec_type == "MTP" || (spec_type == "Draft" && draft_spec_type == "dflash")) {
+            spec_parts.push(format!(
+                "ngram-map-k4v (N={}, M={}, min_hits={})",
+                ngram_k4v_size_n, ngram_k4v_size_m, ngram_k4v_min_hits
+            ));
+        }
+        if ngram_mod {
+            spec_parts.push(format!(
+                "ngram-mod (match={}, min={}, max={})",
+                ngram_mod_n_match, ngram_mod_n_min, ngram_mod_n_max
+            ));
+        }
+        let spec_str = format!("SPEC: {}", spec_parts.join(" + "));
+        println!("{}", spec_str);
+        let _ = app.emit("llama-log", spec_str);
+    }
 
     let mut child = cmd
         .creation_flags(CREATE_NO_WINDOW)

@@ -57,6 +57,10 @@ export interface ModelConfig {
   ngramK4vSizeN: number
   ngramK4vSizeM: number
   ngramK4vMinHits: number
+  ngramMod: boolean
+  ngramModNMatch: number
+  ngramModNMin: number
+  ngramModNMax: number
   kCacheQuant: string
   vCacheQuant: string
   cacheReuse: number
@@ -111,6 +115,10 @@ const modelDefaults: ModelConfig = {
   ngramK4vSizeN: 12,
   ngramK4vSizeM: 48,
   ngramK4vMinHits: 1,
+  ngramMod: false,
+  ngramModNMatch: 24,
+  ngramModNMin: 48,
+  ngramModNMax: 64,
   kCacheQuant: 'Q8_0',
   vCacheQuant: 'Q8_0',
   cacheReuse: 0,
@@ -198,6 +206,8 @@ export async function saveModelConfig(modelPath: string, config: ModelConfig): P
 export interface AppConfig {
   modelsPath: string
   llamaPath: string
+  cudaGraphOpt: string
+  logVerbosity: number
   port: number
   minimizeToTray: boolean
   language: 'en' | 'es'
@@ -206,6 +216,8 @@ export interface AppConfig {
 const defaults: AppConfig = {
   modelsPath: '',
   llamaPath: '',
+  cudaGraphOpt: '',
+  logVerbosity: 3,
   port: 8080,
   minimizeToTray: false,
   language: 'en',
@@ -218,6 +230,8 @@ export async function loadConfig(): Promise<AppConfig> {
   appConfig.value = {
     modelsPath: await store.get<string>('modelsPath') ?? defaults.modelsPath,
     llamaPath: await store.get<string>('llamaPath') ?? defaults.llamaPath,
+    cudaGraphOpt: await store.get<string>('cudaGraphOpt') ?? defaults.cudaGraphOpt,
+    logVerbosity: await store.get<number>('logVerbosity') ?? defaults.logVerbosity,
     port: await store.get<number>('port') ?? defaults.port,
     minimizeToTray: await store.get<boolean>('minimizeToTray') ?? defaults.minimizeToTray,
     language: await store.get<'en' | 'es'>('language') ?? defaults.language,
@@ -229,6 +243,8 @@ export async function saveConfig(config: AppConfig): Promise<void> {
   const store = await getStore()
   await store.set('modelsPath', config.modelsPath)
   await store.set('llamaPath', config.llamaPath)
+  await store.set('cudaGraphOpt', config.cudaGraphOpt)
+  await store.set('logVerbosity', config.logVerbosity)
   await store.set('port', config.port)
   await store.set('minimizeToTray', config.minimizeToTray)
   await store.set('language', config.language)

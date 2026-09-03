@@ -96,24 +96,6 @@
                   <option value="dflash">DFlash</option>
                 </select>
               </div>
-              <div class="field" v-if="modelCfg.draftSpecType === 'dflash'" :title="t('load.dflashNgramK4vTooltip')">
-                <label>{{ t('load.dflashNgramK4v') }}</label>
-                <input type="checkbox" v-model="modelCfg.dflashNgramK4v" class="toggle" />
-              </div>
-              <template v-if="modelCfg.draftSpecType === 'dflash' && modelCfg.dflashNgramK4v">
-                <div class="field" :title="t('load.ngramK4vSizeNTooltip')">
-                  <label>{{ t('load.ngramK4vSizeN') }}</label>
-                  <input type="number" v-model.number="modelCfg.ngramK4vSizeN" min="1" class="field-input" />
-                </div>
-                <div class="field" :title="t('load.ngramK4vSizeMTooltip')">
-                  <label>{{ t('load.ngramK4vSizeM') }}</label>
-                  <input type="number" v-model.number="modelCfg.ngramK4vSizeM" min="1" class="field-input" />
-                </div>
-                <div class="field" :title="t('load.ngramK4vMinHitsTooltip')">
-                  <label>{{ t('load.ngramK4vMinHits') }}</label>
-                  <input type="number" v-model.number="modelCfg.ngramK4vMinHits" min="1" class="field-input" />
-                </div>
-              </template>
             </template>
             <div class="field" :title="t('load.maxDraftTokensTooltip')">
               <label>{{ t('load.maxDraftTokens') }}</label>
@@ -161,6 +143,42 @@
                   <option>Q5_1</option>
                 </select>
               </div>
+              <div v-if="ngramK4vAvailable" class="field" :title="t('load.dflashNgramK4vTooltip')">
+                <label>{{ t('load.dflashNgramK4v') }}</label>
+                <input type="checkbox" v-model="modelCfg.dflashNgramK4v" class="toggle" />
+              </div>
+              <template v-if="ngramK4vAvailable && modelCfg.dflashNgramK4v">
+                <div class="field" :title="t('load.ngramK4vSizeNTooltip')">
+                  <label>{{ t('load.ngramK4vSizeN') }}</label>
+                  <input type="number" v-model.number="modelCfg.ngramK4vSizeN" min="1" class="field-input" />
+                </div>
+                <div class="field" :title="t('load.ngramK4vSizeMTooltip')">
+                  <label>{{ t('load.ngramK4vSizeM') }}</label>
+                  <input type="number" v-model.number="modelCfg.ngramK4vSizeM" min="1" class="field-input" />
+                </div>
+                <div class="field" :title="t('load.ngramK4vMinHitsTooltip')">
+                  <label>{{ t('load.ngramK4vMinHits') }}</label>
+                  <input type="number" v-model.number="modelCfg.ngramK4vMinHits" min="1" class="field-input" />
+                </div>
+              </template>
+              <div v-if="ngramModAvailable" class="field" :title="t('load.ngramModTooltip')">
+                <label>{{ t('load.ngramMod') }}</label>
+                <input type="checkbox" v-model="modelCfg.ngramMod" class="toggle" />
+              </div>
+              <template v-if="ngramModAvailable && modelCfg.ngramMod">
+                <div class="field" :title="t('load.ngramModNMatchTooltip')">
+                  <label>{{ t('load.ngramModNMatch') }}</label>
+                  <input type="number" v-model.number="modelCfg.ngramModNMatch" min="1" class="field-input" />
+                </div>
+                <div class="field" :title="t('load.ngramModNMinTooltip')">
+                  <label>{{ t('load.ngramModNMin') }}</label>
+                  <input type="number" v-model.number="modelCfg.ngramModNMin" min="1" class="field-input" />
+                </div>
+                <div class="field" :title="t('load.ngramModNMaxTooltip')">
+                  <label>{{ t('load.ngramModNMax') }}</label>
+                  <input type="number" v-model.number="modelCfg.ngramModNMax" min="1" class="field-input" />
+                </div>
+              </template>
             </details>
           </div>
         </template>
@@ -449,7 +467,7 @@ const hasUnsavedChanges = computed(() => {
   
   const keys: (keyof typeof modelCfg.value)[] = [
     'contextLength', 'gpuOffload', 'cpuThreads', 'evalBatch', 'physicalBatch',
-    'flashAttention', 'specType', 'draftSpecType', 'dflashNgramK4v', 'ngramK4vSizeN', 'ngramK4vSizeM', 'ngramK4vMinHits', 'kCacheQuant', 'vCacheQuant', 'cacheReuse',
+    'flashAttention', 'specType', 'draftSpecType', 'dflashNgramK4v', 'ngramK4vSizeN', 'ngramK4vSizeM', 'ngramK4vMinHits', 'ngramMod', 'ngramModNMatch', 'ngramModNMin', 'ngramModNMax', 'kCacheQuant', 'vCacheQuant', 'cacheReuse',
     'ctxCheckpoints', 'checkpointMinStep',
     'reasoning', 'reasoningBudget', 'reasoningBudgetCustom', 'reasoningEffort', 'parallel', 'mlock', 'nCpuMoe', 'expertsPerToken',
     'mmap', 'kvUnified', 'seed', 'draftModelPath', 'threadsHttp', 'alias',
@@ -491,6 +509,10 @@ const modelCfg = ref<ModelConfig>({
   ngramK4vSizeN: 12,
   ngramK4vSizeM: 48,
   ngramK4vMinHits: 1,
+  ngramMod: false,
+  ngramModNMatch: 24,
+  ngramModNMin: 48,
+  ngramModNMax: 64,
   kCacheQuant: 'Q8_0',
   vCacheQuant: 'Q8_0',
   cacheReuse: 0,
@@ -525,6 +547,12 @@ const modelCfg = ref<ModelConfig>({
 })
 
 const draftKind = computed(() => activeSpecKind(modelCfg.value))
+
+const ngramK4vAvailable = computed(() => {
+  return modelCfg.value.specType === 'MTP' || (modelCfg.value.specType === 'Draft' && modelCfg.value.draftSpecType === 'dflash')
+})
+
+const ngramModAvailable = computed(() => modelCfg.value.specType !== 'None')
 
 const maxContext = computed(() => activeModel.value?.max_context || 262144)
 
@@ -610,6 +638,8 @@ async function loadModel() {
     const dp = modelCfg.value.draftParams[activeSpecKind(modelCfg.value)]
     const result = await invoke<string>('load_model', {
       llamaPath: config.llamaPath,
+      cudaGraphOpt: config.cudaGraphOpt ?? '',
+      logVerbosity: Number(config.logVerbosity ?? 3),
       modelPath: activeModel.value.path,
       gpuLayers: Number(modelCfg.value.gpuOffload),
       contextLength: Number(modelCfg.value.contextLength),
@@ -628,6 +658,10 @@ async function loadModel() {
       ngramK4vSizeN: Number(modelCfg.value.ngramK4vSizeN ?? 12),
       ngramK4vSizeM: Number(modelCfg.value.ngramK4vSizeM ?? 48),
       ngramK4vMinHits: Number(modelCfg.value.ngramK4vMinHits ?? 1),
+      ngramMod: modelCfg.value.ngramMod ?? false,
+      ngramModNMatch: Number(modelCfg.value.ngramModNMatch ?? 24),
+      ngramModNMin: Number(modelCfg.value.ngramModNMin ?? 48),
+      ngramModNMax: Number(modelCfg.value.ngramModNMax ?? 64),
       kCacheQuant: modelCfg.value.kCacheQuant,
       vCacheQuant: modelCfg.value.vCacheQuant,
       draftKCacheQuant: dp.kCacheQuant ?? 'F16',
