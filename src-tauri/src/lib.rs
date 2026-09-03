@@ -732,9 +732,23 @@ pub fn run() {
         })
         .manage(ServerProcess(Mutex::new(None)))
         .invoke_handler(tauri::generate_handler![scan_models, load_model, stop_model, save_window_state, load_window_state, get_cpu_threads, get_system_ram])
-        .run(tauri::generate_context!())
+        .build(tauri::generate_context!())
+        .and_then(|app| {
+            app.run(|app_handle, event| {
+                if let tauri::RunEvent::Exit = event {
+                    if let Some(state) = app_handle.try_state::<ServerProcess>() {
+                        let mut lock = state.0.lock().unwrap();
+                        if let Some(mut child) = lock.take() {
+                            let _ = child.kill();
+                            let _ = child.wait();
+                        }
+                    }
+                }
+            });
+            Ok(())
+        })
         .expect("error while running tauri application");
-}
+    }
 
 #[cfg(test)]
 mod tests {
