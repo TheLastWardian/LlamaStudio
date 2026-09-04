@@ -196,7 +196,7 @@ async function rescanModels() {
     models.value = await invoke('scan_models', { modelsPath: config.modelsPath })
     allModels.value = models.value
     if (models.value.length > 0 && !selectedModel.value) {
-      selectedModel.value = models.value[0]
+      selectedModel.value = models.value.find(m => !m.is_draft) ?? models.value[0]
     }
     listVersion.value++
   } finally {
@@ -210,8 +210,9 @@ onMounted(() => { rescanModels() })
 const groupedModels = computed(() => {
   listVersion.value
   const filtered = models.value.filter(m =>
-    m.name.toLowerCase().includes(search.value.toLowerCase()) ||
-    m.publisher.toLowerCase().includes(search.value.toLowerCase())
+    !m.is_draft &&
+    (m.name.toLowerCase().includes(search.value.toLowerCase()) ||
+    m.publisher.toLowerCase().includes(search.value.toLowerCase()))
   )
 
   const result: { group: { id: string, name: string } | null, models: ModelFile[] }[] = []

@@ -31,6 +31,7 @@ export interface ModelFile {
   supports_effort: boolean
   supported_effort_levels: string[]
   mmproj_paths: string[]
+  is_draft: boolean
 }
 
 export const selectedModel = ref<ModelFile | null>(null)

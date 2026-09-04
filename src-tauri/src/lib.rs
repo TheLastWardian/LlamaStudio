@@ -46,27 +46,29 @@ pub struct ModelFile {
     pub supports_effort: bool,
     pub supported_effort_levels: Vec<String>,
     pub mmproj_paths: Vec<String>,
+    pub is_draft: bool,
 }
 
-fn read_gguf_metadata(path: &str) -> HashMap<String, String> {
+fn read_gguf_metadata(path: &str) -> (HashMap<String, String>, u64) {
     let mut meta = HashMap::new();
     let file = match std::fs::File::open(path) {
         Ok(f) => f,
-        Err(_) => return meta,
+        Err(_) => return (meta, 0),
     };
     let mut reader = std::io::BufReader::new(file);
-    
+
     let mut magic = [0u8; 4];
-    if std::io::Read::read_exact(&mut reader, &mut magic).is_err() { return meta; }
-    if &magic != b"GGUF" { return meta; }
-    
+    if std::io::Read::read_exact(&mut reader, &mut magic).is_err() { return (meta, 0); }
+    if &magic != b"GGUF" { return (meta, 0); }
+
     let mut version = [0u8; 4];
-    if std::io::Read::read_exact(&mut reader, &mut version).is_err() { return meta; }
-    
+    if std::io::Read::read_exact(&mut reader, &mut version).is_err() { return (meta, 0); }
+
     let mut buf8 = [0u8; 8];
-    if std::io::Read::read_exact(&mut reader, &mut buf8).is_err() { return meta; }
-    
-    if std::io::Read::read_exact(&mut reader, &mut buf8).is_err() { return meta; }
+    if std::io::Read::read_exact(&mut reader, &mut buf8).is_err() { return (meta, 0); }
+    let tensor_count = u64::from_le_bytes(buf8);
+
+    if std::io::Read::read_exact(&mut reader, &mut buf8).is_err() { return (meta, 0); }
     let kv_count = u64::from_le_bytes(buf8);
     
     for _ in 0..kv_count {
@@ -186,8 +188,8 @@ fn read_gguf_metadata(path: &str) -> HashMap<String, String> {
             _ => break,
         }
     }
-    
-    meta
+
+    (meta, tensor_count)
 }
 
 fn analyze_chat_template(tmpl: &str) -> (bool, bool, Vec<String>) {
@@ -282,7 +284,7 @@ fn scan_models(models_path: String) -> Vec<ModelFile> {
             .cloned()
             .unwrap_or_default();
 
-        let meta = read_gguf_metadata(&path_str);
+        let (meta, tensor_count) = read_gguf_metadata(&path_str);
         let arch = meta.get("general.architecture").cloned().unwrap_or_default();
         let params = meta.get("general.parameter_count")
             .and_then(|v| v.parse::<u64>().ok())
@@ -296,10 +298,10 @@ fn scan_models(models_path: String) -> Vec<ModelFile> {
             .and_then(|v| v.parse::<u32>().ok())
             .unwrap_or(0);
         let layer_key = format!("{}.block_count", arch);
-        let layer_count = meta.get(&layer_key)
+        let block_count = meta.get(&layer_key)
             .or_else(|| meta.get("llama.block_count"))
-            .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(999);
+            .and_then(|v| v.parse::<u64>().ok());
+        let layer_count = block_count.and_then(|n| u32::try_from(n).ok()).unwrap_or(999);
         let embedding_length = meta.get(&format!("{}.embedding_length", arch))
             .or_else(|| meta.get("llama.embedding_length"))
             .and_then(|v| v.parse::<u32>().ok())
@@ -370,6 +372,17 @@ fn scan_models(models_path: String) -> Vec<ModelFile> {
             .unwrap_or_default();
         let (supports_thinking, supports_effort, supported_effort_levels) = analyze_chat_template(&chat_template);
 
+        // External draft/MTP files are not standalone chat models: they are
+        // loaded with -md from the right panel. Detected structurally (no
+        // filename matching): a drafter references external `target_layers`, a
+        // head-only MTP file has fewer tensors than declared blocks, and an
+        // assistant model uses a `*-assistant` architecture. Full models that
+        // embed an MTP head (e.g. qwen35, nextn_predict_layers=1) keep the
+        // complete tensor set and stay visible.
+        let is_draft = meta.contains_key(&format!("{}.target_layers", arch))
+            || block_count.map(|bc| tensor_count < bc).unwrap_or(false)
+            || arch.ends_with("-assistant");
+
         models.push(ModelFile {
             name: file_name,
             publisher,
@@ -401,6 +414,7 @@ fn scan_models(models_path: String) -> Vec<ModelFile> {
             supports_effort,
             supported_effort_levels,
             mmproj_paths,
+            is_draft,
         });
     }
 
@@ -638,7 +652,7 @@ fn load_model(
     }
 
     if experts_per_token > 0 {
-        let meta = read_gguf_metadata(&model_path);
+        let (meta, _) = read_gguf_metadata(&model_path);
         let arch = meta.get("general.architecture").cloned().unwrap_or_default();
         if !arch.is_empty() {
             let key = format!("{}.expert_used_count", arch);
@@ -886,6 +900,7 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::{analyze_chat_template, read_gguf_metadata, scan_models, ModelFile};
+    use std::collections::HashMap;
     use std::fs;
 
     #[test]
@@ -908,7 +923,7 @@ mod tests {
     #[test]
     fn parse_gemma4_per_layer_kv() {
         let path = r"F:\Users\Wardian\.lmstudio\models\EZForever\gemma-4-26B-A4B-it-qat-uncensored-heretic-UDmerge-GGUF\gemma-4-26B-A4B-it-qat-uncensored-heretic-UDmerge-Q4_K_XXL.gguf";
-        let meta = read_gguf_metadata(path);
+        let (meta, _) = read_gguf_metadata(path);
         if meta.is_empty() { return; } // sin el modelo en esta máquina
         assert_eq!(meta.get("gemma4.attention.head_count_kv").map(String::as_str),
             Some("8,8,8,8,8,2,8,8,8,8,8,2,8,8,8,8,8,2,8,8,8,8,8,2,8,8,8,8,8,2"));
@@ -917,6 +932,23 @@ mod tests {
         assert_eq!(meta.get("gemma4.attention.sliding_window").map(String::as_str), Some("1024"));
         assert_eq!(meta.get("gemma4.attention.key_length_swa").map(String::as_str), Some("256"));
         assert_eq!(meta.get("gemma4.block_count").map(String::as_str), Some("30"));
+    }
+
+    #[test]
+    fn classify_external_drafts() {
+        let dir = r"F:\Users\Wardian\.lmstudio\models\unsloth\Qwen3.8-27B-GGUF";
+        let models = scan_models(dir.to_string());
+        if models.is_empty() { return; } // sin los modelos en esta máquina
+        let by_name: HashMap<&str, &ModelFile> = models.iter().map(|m| (m.name.as_str(), m)).collect();
+        if let Some(m) = by_name.get("mtp-Qwen3.8-27B-Q4_0.gguf") {
+            assert!(m.is_draft, "head-only MTP file (18 tensors / 65 blocks) must be a draft");
+        }
+        if let Some(m) = by_name.get("Qwen3.8-27B-DFlash2-Q4_K_M.gguf") {
+            assert!(m.is_draft, "dflash drafter (target_layers) must be a draft");
+        }
+        if let Some(m) = by_name.get("Qwen3.8-27B-UD-Q4_K_XL.gguf") {
+            assert!(!m.is_draft, "full qwen35 with embedded MTP must stay visible");
+        }
     }
 
     #[test]

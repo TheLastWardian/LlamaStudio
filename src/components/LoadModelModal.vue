@@ -524,6 +524,7 @@ const cacheRamWarning = computed(() => {
 
 const groupedFilteredModels = computed(() => {
   const filtered = allModels.value.filter(m =>
+    !m.is_draft &&
     m.path !== loadedModel.value?.path &&
     (m.name.toLowerCase().includes(search.value.toLowerCase()) ||
      (modelDisplayNames[m.path] ?? '').toLowerCase().includes(search.value.toLowerCase()))
