@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 *.local
+docs/auditoria-2026-08-25.md
 
 # Editor directories and files
 .vscode/*
