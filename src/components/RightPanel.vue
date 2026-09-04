@@ -505,7 +505,7 @@ const modelCfg = ref<ModelConfig>({
   evalBatch: 2048,
   physicalBatch: 512,
   flashAttention: true,
-  specType: 'MTP',
+  specType: 'None',
   draftSpecType: 'simple',
   draftParams: {
     mtp: { ...defaultDraftParams },
