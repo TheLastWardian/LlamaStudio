@@ -604,6 +604,8 @@ const vramEstimate = computed(() => estimateVram(activeModel.value, {
   ctx: modelCfg.value.contextLength,
   kCache: modelCfg.value.kCacheQuant,
   vCache: modelCfg.value.vCacheQuant,
+  draftKCache: modelCfg.value.draftParams.mtp.kCacheQuant,
+  draftVCache: modelCfg.value.draftParams.mtp.vCacheQuant,
   nCpuMoe: modelCfg.value.nCpuMoe,
   nParallel: modelCfg.value.parallel,
   specMtp: modelCfg.value.specType === 'MTP',

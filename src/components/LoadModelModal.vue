@@ -463,6 +463,8 @@ const vramEstimate = computed(() => estimateVram(configModel.value, {
   ctx: tempCfg.value?.contextLength,
   kCache: tempCfg.value?.kCacheQuant ?? 'F16',
   vCache: tempCfg.value?.vCacheQuant ?? 'F16',
+  draftKCache: tempCfg.value?.draftParams.mtp.kCacheQuant ?? 'F16',
+  draftVCache: tempCfg.value?.draftParams.mtp.vCacheQuant ?? 'F16',
   nCpuMoe: tempCfg.value?.nCpuMoe ?? 0,
   nParallel: tempCfg.value?.parallel ?? 1,
   specMtp: tempCfg.value?.specType === 'MTP',

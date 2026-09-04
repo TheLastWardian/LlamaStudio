@@ -20,6 +20,8 @@ export function estimateVram(
     ctx: number | null | undefined
     kCache: string
     vCache: string
+    draftKCache?: string
+    draftVCache?: string
     nCpuMoe?: number
     nParallel?: number
     specMtp?: boolean
@@ -60,7 +62,11 @@ export function estimateVram(
   let kv = 0
   if (headDim > 0 && model.head_count_kv > 0 && kvLayers > 0) {
     const kvHeads = model.head_count_kv > 0 ? model.head_count_kv : model.head_count
-    kv = kvLayers * ctx * kvHeads * headDim * ((KV_BYTES[opts.kCache] ?? 2) + (KV_BYTES[opts.vCache] ?? 2))
+    kv = nFull * ctx * kvHeads * headDim * ((KV_BYTES[opts.kCache] ?? 2) + (KV_BYTES[opts.vCache] ?? 2))
+    // The MTP draft KV uses its own (independent) quantization.
+    if (specMtp) {
+      kv += ctx * kvHeads * headDim * ((KV_BYTES[opts.draftKCache ?? 'F16'] ?? 2) + (KV_BYTES[opts.draftVCache ?? 'F16'] ?? 2))
+    }
   }
 
   // SSM recurrent state (hybrids only): the server allocates it per offloaded
