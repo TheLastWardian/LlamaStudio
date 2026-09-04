@@ -48,7 +48,7 @@
       <span style="color:#666; font-size:11px; text-transform:uppercase;">{{ t('developer.logs') }}</span>
       <button class="btn-clear-logs" @click="clearLogs">🗑 {{ t('developer.clearLogs') }}</button>
     </div>
-      <div class="dev-logs" ref="logsEl" tabindex="-1" @keydown.ctrl.a.prevent="selectAllLogs" @keydown.meta.a.prevent="selectAllLogs">
+      <div class="dev-logs" ref="logsEl" tabindex="-1" @scroll.passive="onLogsScroll" @keydown.ctrl.a.prevent="selectAllLogs" @keydown.meta.a.prevent="selectAllLogs">
         <div v-for="(log, i) in logs" :key="i" class="log-line">
           <span class="log-time">{{ log.time }}</span>
           <span :class="'log-level-' + log.level">{{ log.level.toUpperCase() }}</span>
@@ -61,21 +61,67 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, onMounted } from 'vue'
+import { ref, watch, nextTick, computed, onMounted, onUnmounted } from 'vue'
 import { serverLogs, loadedModel, modelLoading, loadedServerPort, prefillProgress, generationTokens } from '../stores/selectedModel'
 import { invoke } from '@tauri-apps/api/core'
-import { loadConfig } from '../stores/config'
+import { appConfig } from '../stores/config'
 import LoadModelModal from '../components/LoadModelModal.vue'
 import { t } from '../i18n'
 
 const logsEl = ref<HTMLElement>()
 const logs = serverLogs
 const showModal = ref(false)
-const port = ref(8080)
+const port = computed(() => loadedServerPort.value ?? appConfig.value.port)
 
-onMounted(async () => {
-  const config = await loadConfig()
-  port.value = config.port
+const AUTO_SCROLL_PAUSE_MS = 15000
+let autoScrollPaused = false
+let resumeTimer: number | undefined
+
+function scrollLogsToBottom() {
+  const el = logsEl.value
+  if (el) el.scrollTop = el.scrollHeight
+}
+
+function isNearBottom(el: HTMLElement, threshold = 48): boolean {
+  return el.scrollHeight - el.scrollTop - el.clientHeight < threshold
+}
+
+function onLogsScroll() {
+  const el = logsEl.value
+  if (!el) return
+  if (isNearBottom(el)) {
+    if (resumeTimer !== undefined) {
+      clearTimeout(resumeTimer)
+      resumeTimer = undefined
+    }
+    autoScrollPaused = false
+    return
+  }
+  autoScrollPaused = true
+  if (resumeTimer !== undefined) clearTimeout(resumeTimer)
+  resumeTimer = window.setTimeout(() => {
+    resumeTimer = undefined
+    autoScrollPaused = false
+    scrollLogsToBottom()
+  }, AUTO_SCROLL_PAUSE_MS)
+}
+
+watch(logs, () => {
+  if (autoScrollPaused) return
+  nextTick(scrollLogsToBottom)
+}, { deep: true })
+
+onMounted(() => {
+  nextTick(() => {
+    if (logsEl.value && !isNearBottom(logsEl.value)) scrollLogsToBottom()
+  })
+})
+
+onUnmounted(() => {
+  if (resumeTimer !== undefined) {
+    clearTimeout(resumeTimer)
+    resumeTimer = undefined
+  }
 })
 
 function escHtml(str: string): string {
@@ -183,12 +229,4 @@ function clearLogs() {
   prefillProgress.value = null
   generationTokens.value = null
 }
-
-watch(logs, () => {
-  nextTick(() => {
-    if (logsEl.value) {
-      logsEl.value.scrollTop = logsEl.value.scrollHeight
-    }
-  })
-}, { deep: true })
 </script>
