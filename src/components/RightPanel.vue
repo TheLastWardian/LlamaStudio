@@ -439,8 +439,8 @@
         <div class="section-title">🔗 {{ t('info.apiUsage') }}</div>
         <div class="info-label" style="margin-bottom:6px;">{{ t('info.serverReachable') }}</div>
         <div class="copy-row">
-          <span class="tag-pill copy-pill">http://127.0.0.1:8080</span>
-          <button class="btn-copy" @click="copy('http://127.0.0.1:8080')">⧉</button>
+          <span class="tag-pill copy-pill">{{ serverUrl }}</span>
+          <button class="btn-copy" @click="copy(serverUrl)">⧉</button>
         </div>
       </div>
 
@@ -456,7 +456,7 @@
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { selectedModel, allModels, modelLoading, loadedModel, loadingModel, loadedModelConfig, loadedServerPort } from '../stores/selectedModel'
-import { loadConfig, loadModelConfig, saveModelConfig, type ModelConfig, defaultDraftParams, activeSpecKind } from '../stores/config'
+import { loadConfig, loadModelConfig, saveModelConfig, appConfig, type ModelConfig, defaultDraftParams, activeSpecKind } from '../stores/config'
 import { t } from '../i18n'
 
 const props = defineProps<{ currentView?: string }>()
@@ -466,6 +466,8 @@ const activeTab = ref('load')
 const activeModel = computed(() =>
   ((props.currentView === 'developer' || props.currentView === 'chat') && loadedModel.value) ? loadedModel.value : selectedModel.value
 )
+
+const serverUrl = computed(() => `http://127.0.0.1:${loadedServerPort.value ?? appConfig.value.port}`)
 
 const hasUnsavedChanges = computed(() => {
   if (!loadedModelConfig.value || !loadedModel.value) return false
@@ -679,7 +681,7 @@ async function loadModel() {
       cacheReuse: Number(modelCfg.value.cacheReuse ?? 0),
       ctxCheckpoints: Number(modelCfg.value.ctxCheckpoints ?? 32),
       checkpointMinStep: Number(modelCfg.value.checkpointMinStep ?? 8192),
-      port: config.port,
+      port: Number(config.port) || 8080,
       host: modelCfg.value.host ?? '127.0.0.1',
       alias: modelCfg.value.alias ?? '',
       threadsHttp: Number(modelCfg.value.threadsHttp ?? 2),
@@ -708,7 +710,7 @@ async function loadModel() {
       repeatPenalty: Number(modelCfg.value.repeatPenalty ?? 1.0),
     })
     console.log('invoke result:', result)
-    loadedServerPort.value = config.port
+    loadedServerPort.value = Number(config.port) || 8080
     loadedModel.value = activeModel.value
   } catch (e) {
     console.error('invoke error:', e)

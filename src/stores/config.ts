@@ -242,7 +242,7 @@ export async function loadConfig(): Promise<AppConfig> {
     minimizeToTray: await store.get<boolean>('minimizeToTray') ?? defaults.minimizeToTray,
     language: await store.get<'en' | 'es'>('language') ?? defaults.language,
   }
-  return appConfig.value
+  return { ...appConfig.value }
 }
 
 export async function saveConfig(config: AppConfig): Promise<void> {

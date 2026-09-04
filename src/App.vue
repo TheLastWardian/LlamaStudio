@@ -128,7 +128,7 @@ onMounted(async () => {
   
   unlistenLogs = await listen<string>('llama-log', (event) => {
     const line = event.payload
-    const clean = line.replace(/\x1B\[[0-9;]*m/g, '').replace(/INFO/g, '')
+    const clean = line.replace(/\x1B\[[0-9;]*m/g, '')
     const match = clean.match(/^(\S+)\s+([IWED])\s+(.+)$/)
     const levelMap: Record<string, string> = { I: 'info', W: 'warn', E: 'error', D: 'debug' }
     serverLogs.value.push(
@@ -136,6 +136,7 @@ onMounted(async () => {
         ? { time: fmtLogTime(match[1]), level: levelMap[match[2]] ?? 'info', msg: match[3] }
         : { time: '', level: 'info', msg: clean }
     )
+    if (serverLogs.value.length > 1000) serverLogs.value.splice(0, serverLogs.value.length - 1000)
 
     if (clean.includes('print_timing')) {
       if (clean.includes('prompt processing')) {
@@ -154,11 +155,6 @@ onMounted(async () => {
       generationTokens.value = null
     }
 
-    setTimeout(() => {
-      const logsEl = document.querySelector('.dev-logs') as HTMLElement
-      if (logsEl) logsEl.scrollTop = logsEl.scrollHeight
-    }, 10)
-    
     if (clean.includes('model loaded')) {
       modelLoading.value = false
       prefillProgress.value = null

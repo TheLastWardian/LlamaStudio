@@ -39,7 +39,7 @@
         <div class="section-title">{{ t('settings.server') }}</div>
         <div class="settings-field">
           <label>{{ t('settings.defaultPort') }}</label>
-          <input type="number" v-model="config.port" class="field-input" />
+          <input type="number" v-model.number="config.port" class="field-input" />
         </div>
       </div>
 
