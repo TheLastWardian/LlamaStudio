@@ -445,12 +445,16 @@ async function refreshSystemRam() {
   const [total, available] = await invoke<[number, number]>('get_system_ram')
   systemRamTotal.value = total
   systemRamAvailable.value = available
+}
+
+async function refreshGpuMem() {
   const gpu = await invoke<[number, number] | null>('get_gpu_memory')
   if (gpu) gpuMemTotal.value = gpu[0]
 }
 
 onMounted(() => {
   refreshSystemRam()
+  refreshGpuMem()
   window.addEventListener('focus', refreshSystemRam)
 })
 

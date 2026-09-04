@@ -761,6 +761,7 @@ fn get_system_ram() -> (u64, u64) { // (total, available) en MiB
 fn get_gpu_memory() -> Option<(u64, u64)> { // (total, free) en MiB, primer GPU
     let out = std::process::Command::new("nvidia-smi")
         .args(["--query-gpu=memory.total,memory.free", "--format=csv,noheader,nounits"])
+        .creation_flags(CREATE_NO_WINDOW)
         .output()
         .ok()?;
     if !out.status.success() { return None; }
