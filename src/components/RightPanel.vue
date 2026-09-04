@@ -51,7 +51,7 @@
         <div
           class="vram-estimate"
           v-if="vramEstimate"
-               :title="t(vramEstimate.ssmGiB > 0.005 ? 'load.vramBreakdownSsm' : 'load.vramBreakdown', { w: vramEstimate.weightsGiB.toFixed(1), k: vramEstimate.kvGiB.toFixed(1), s: vramEstimate.ssmGiB.toFixed(1), b: vramEstimate.runtimeGiB.toFixed(1) })"
+                :title="t(vramTooltip, { w: vramEstimate.weightsGiB.toFixed(1), k: vramEstimate.kvGiB.toFixed(1), s: vramEstimate.ssmGiB.toFixed(1), b: vramEstimate.runtimeGiB.toFixed(1), d: vramEstimate.draftGiB.toFixed(1), v: vramEstimate.mmprojGiB.toFixed(1) })"
         >
           <div v-if="gpuMemTotal > 0" :class="'vram-bar vram-' + vramLevel"><div class="vram-fill" :style="{ width: vramPct + '%' }"></div></div>
           <span :class="'vram-text vram-' + vramLevel">{{ t('load.vramEstimate', { size: vramEstimate.totalGiB.toFixed(1) }) }}</span>
@@ -603,6 +603,16 @@ onUnmounted(() => {
   window.removeEventListener('focus', refreshSystemRam)
 })
 
+const mmprojSize = ref(0)
+watch(() => modelCfg.value.mmprojPath, async (p) => {
+  mmprojSize.value = p ? (await invoke<number | null>('get_file_size', { path: p })) ?? 0 : 0
+}, { immediate: true })
+
+const draftModelFile = computed(() => {
+  const p = modelCfg.value.draftModelPath ?? ''
+  return p ? allModels.value.find(m => m.path === p) ?? null : null
+})
+
 const vramEstimate = computed(() => estimateVram(activeModel.value, {
   ngl: modelCfg.value.gpuOffload,
   ctx: modelCfg.value.contextLength,
@@ -614,7 +624,18 @@ const vramEstimate = computed(() => estimateVram(activeModel.value, {
   nCpuMoe: modelCfg.value.nCpuMoe,
   nParallel: modelCfg.value.parallel,
   specMtp: modelCfg.value.specType === 'MTP',
+  draftModel: draftModelFile.value,
+  mmprojSizeBytes: modelCfg.value.visionEnabled ? mmprojSize.value : 0,
 }))
+
+const vramTooltip = computed(() => {
+  const e = vramEstimate.value
+  if (!e) return 'load.vramBreakdown'
+  const hasExt = e.draftGiB > 0.005 || e.mmprojGiB > 0.005
+  const hasSsm = e.ssmGiB > 0.005
+  if (hasExt) return hasSsm ? 'load.vramBreakdownSsmExt' : 'load.vramBreakdownExt'
+  return hasSsm ? 'load.vramBreakdownSsm' : 'load.vramBreakdown'
+})
 
 const vramPct = computed(() => {
   if (!vramEstimate.value || gpuMemTotal.value <= 0) return 0

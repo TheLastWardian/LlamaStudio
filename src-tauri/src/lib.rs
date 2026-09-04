@@ -29,6 +29,11 @@ pub struct ModelFile {
     pub head_count: u32,
     pub head_count_kv: u32,
     pub key_length: u32,
+    pub sliding_window: u32,
+    pub sliding_window_pattern: String,
+    pub key_length_swa: u32,
+    pub head_count_kv_list: String,
+    pub shared_kv_layers: u32,
     pub full_attention_interval: u32,
     pub ssm_state_size: u32,
     pub ssm_inner_size: u32,
@@ -131,10 +136,25 @@ fn read_gguf_metadata(path: &str) -> HashMap<String, String> {
                     _ => None,
                 };
 
+                let store_csv = alen <= 512 && matches!(atype, 4 | 5 | 7);
                 if let Some(esize) = element_size {
                     let total = esize * alen;
-                    let mut skip = vec![0u8; total as usize];
-                    if std::io::Read::read_exact(&mut reader, &mut skip).is_err() { break; }
+                    let mut buf = vec![0u8; total as usize];
+                    if std::io::Read::read_exact(&mut reader, &mut buf).is_err() { break; }
+                    if store_csv {
+                        let vals: Vec<String> = (0..alen).map(|i| {
+                            let off = (i * esize) as usize;
+                            let b = &buf[off..off + esize as usize];
+                            match atype {
+                                4 | 5 => {
+                                    let bytes: [u8; 4] = b.try_into().unwrap();
+                                    if atype == 4 { u32::from_le_bytes(bytes).to_string() } else { i32::from_le_bytes(bytes).to_string() }
+                                }
+                                _ => if b[0] != 0 { "1".to_string() } else { "0".to_string() },
+                            }
+                        }).collect();
+                        meta.insert(key, vals.join(","));
+                    }
                 } else if atype == 8 {
                     for _ in 0..alen {
                         let mut slen_buf = [0u8; 8];
@@ -296,6 +316,23 @@ fn scan_models(models_path: String) -> Vec<ModelFile> {
             .or_else(|| meta.get("llama.attention.key_length"))
             .and_then(|v| v.parse::<u32>().ok())
             .unwrap_or(0);
+        let sliding_window = meta.get(&format!("{}.attention.sliding_window", arch))
+            .or_else(|| meta.get("llama.attention.sliding_window"))
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(0);
+        let sliding_window_pattern = meta.get(&format!("{}.attention.sliding_window_pattern", arch))
+            .cloned()
+            .unwrap_or_default();
+        let key_length_swa = meta.get(&format!("{}.attention.key_length_swa", arch))
+            .or_else(|| meta.get("llama.attention.key_length_swa"))
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(0);
+        let head_count_kv_list = meta.get(&format!("{}.attention.head_count_kv", arch))
+            .cloned()
+            .unwrap_or_default();
+        let shared_kv_layers = meta.get(&format!("{}.attention.shared_kv_layers", arch))
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(0);
         let full_attention_interval = meta.get(&format!("{}.full_attention_interval", arch))
             .or_else(|| meta.get("llama.full_attention_interval"))
             .and_then(|v| v.parse::<u32>().ok())
@@ -347,6 +384,11 @@ fn scan_models(models_path: String) -> Vec<ModelFile> {
             head_count,
             head_count_kv,
             key_length,
+            sliding_window,
+            sliding_window_pattern,
+            key_length_swa,
+            head_count_kv_list,
+            shared_kv_layers,
             full_attention_interval,
             ssm_state_size,
             ssm_inner_size,
@@ -773,6 +815,11 @@ fn get_gpu_memory() -> Option<(u64, u64)> { // (total, free) en MiB, primer GPU
     Some((total, free))
 }
 
+#[tauri::command]
+fn get_file_size(path: String) -> Option<u64> {
+    fs::metadata(&path).ok().map(|m| m.len())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -817,7 +864,7 @@ pub fn run() {
             Ok(())
         })
         .manage(ServerProcess(Mutex::new(None)))
-        .invoke_handler(tauri::generate_handler![scan_models, load_model, stop_model, save_window_state, load_window_state, get_cpu_threads, get_system_ram, get_gpu_memory])
+        .invoke_handler(tauri::generate_handler![scan_models, load_model, stop_model, save_window_state, load_window_state, get_cpu_threads, get_system_ram, get_gpu_memory, get_file_size])
         .build(tauri::generate_context!())
         .and_then(|app| {
             app.run(|app_handle, event| {
@@ -838,7 +885,7 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{analyze_chat_template, scan_models, ModelFile};
+    use super::{analyze_chat_template, read_gguf_metadata, scan_models, ModelFile};
     use std::fs;
 
     #[test]
@@ -856,6 +903,20 @@ mod tests {
         assert!(thinking);
         assert!(effort);
         assert_eq!(levels, vec!["xhigh".to_string(), "medium".to_string(), "low".to_string()]);
+    }
+
+    #[test]
+    fn parse_gemma4_per_layer_kv() {
+        let path = r"F:\Users\Wardian\.lmstudio\models\EZForever\gemma-4-26B-A4B-it-qat-uncensored-heretic-UDmerge-GGUF\gemma-4-26B-A4B-it-qat-uncensored-heretic-UDmerge-Q4_K_XXL.gguf";
+        let meta = read_gguf_metadata(path);
+        if meta.is_empty() { return; } // sin el modelo en esta máquina
+        assert_eq!(meta.get("gemma4.attention.head_count_kv").map(String::as_str),
+            Some("8,8,8,8,8,2,8,8,8,8,8,2,8,8,8,8,8,2,8,8,8,8,8,2,8,8,8,8,8,2"));
+        assert_eq!(meta.get("gemma4.attention.sliding_window_pattern").map(String::as_str),
+            Some("1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0"));
+        assert_eq!(meta.get("gemma4.attention.sliding_window").map(String::as_str), Some("1024"));
+        assert_eq!(meta.get("gemma4.attention.key_length_swa").map(String::as_str), Some("256"));
+        assert_eq!(meta.get("gemma4.block_count").map(String::as_str), Some("30"));
     }
 
     #[test]

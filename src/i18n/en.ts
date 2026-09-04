@@ -173,6 +173,8 @@ export default {
     vramEstimate: '≈ {size} GiB VRAM',
     vramBreakdown: 'Weights {w} GiB · KV {k} GiB · Runtime {b} GiB',
     vramBreakdownSsm: 'Weights {w} GiB · KV {k} GiB · SSM {s} GiB · Runtime {b} GiB',
+    vramBreakdownExt: 'Weights {w} GiB · KV {k} GiB · Runtime {b} GiB · Draft {d} GiB · Vision {v} GiB',
+    vramBreakdownSsmExt: 'Weights {w} GiB · KV {k} GiB · SSM {s} GiB · Runtime {b} GiB · Draft {d} GiB · Vision {v} GiB',
   },
   app: {
     loading: '⏳ Loading {name}...',

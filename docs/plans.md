@@ -56,6 +56,30 @@
 > weights +988 por mlock).
 > `--load-mode mlock` deja parte de los weights en RAM host (medido: 896-987 MiB);
 > la estimación usa el archivo completo: sobreestima ~1 GiB, lado seguro para OOM.
+>
+> **Revisión 2026-09-04 (fix v3, calibrado contra Gemma 4 26B A4B, gemma4):**
+> el modelo trae 3 características que la fórmula anterior no modelaba:
+> - `head_count_kv` y `sliding_window_pattern` son **arrays por capa** (25 capas
+>   SWA con 8 heads/dim 256 y 5 capas full con 2 heads/dim 512). El parser las
+>   almacena como CSV (arrays ≤512 elementos). KV = suma por capa: capas full →
+>   `ctx × kvHeads[i] × 512`, capas SWA → `min(ctx, sliding_window+512) × kvHeads[i] × key_length_swa`
+>   (medido 1536 celdas = 1024 + 512 ubatch). Medido 113.91 + 84.38 = 198.29 MiB;
+>   estimado 198 MiB.
+> - MTP como **archivo separado** (`-md`, arch gemma4-assistant): se suma
+>   `draft.size × 1.7` (weights + compute ~0.7×, medido 147/225) y su KV solo si
+>   `shared_kv_layers < layer_count` (gemma4-assistant comparte 4/4 con las capas
+>   del modelo principal → +0). MTP embebido (qwen35) mantiene el +1 capa.
+> - Visión (`--mmproj`): `mmproj.size × 1.13` (medido 1,290.09 para 1,139.46).
+>   Tamaño vía comando nuevo `get_file_size` (mmproj no está en la lista de modelos).
+> Gotcha: el scanner mete el valor **escalar** de `head_count_kv` también en
+> `head_count_kv_list` (1 entrada). El modo por-capas solo se activa con
+> **>1 entradas Y `full_attention_interval <= 1`**; si no, los híbridos (qwen35,
+> interval 4) darían KV a las 65 capas en vez de 16 (+8 GiB de error).
+> Con MTP separado, el runtime NO multiplica ×2 (el compute del draft ya va en su
+> término). Tercera calibración (ngl 30, ctx 20626, KV Q4_0, MTP -md, visión ON):
+> server reportó 13,212.95 + 113.91 + 81.00 + 326.11 + 225.21 + 147.03 + 1,139.46
+> + 150.63 = 15,396 MiB GPU. Estimación: **16.15 GiB** (KV −0.1%, draft +2.9%,
+> visión −0.2%, runtime con margen, weights +437 por mlock).
 
 - Fórmula original (pre-fix, solo válida para densos estándar):
   ```

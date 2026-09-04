@@ -14,6 +14,11 @@ export interface ModelFile {
   head_count: number
   head_count_kv: number
   key_length: number
+  sliding_window: number
+  sliding_window_pattern: string
+  key_length_swa: number
+  head_count_kv_list: string
+  shared_kv_layers: number
   full_attention_interval: number
   ssm_state_size: number
   ssm_inner_size: number
