@@ -72,7 +72,7 @@
             <div
               class="vram-estimate"
               v-if="vramEstimate"
-              :title="t(vramEstimate.ssmGiB > 0.005 ? 'load.vramBreakdownSsm' : 'load.vramBreakdown', { w: vramEstimate.weightsGiB.toFixed(1), k: vramEstimate.kvGiB.toFixed(1), s: vramEstimate.ssmGiB.toFixed(1), b: vramEstimate.bufferGiB.toFixed(1) })"
+               :title="t(vramEstimate.ssmGiB > 0.005 ? 'load.vramBreakdownSsm' : 'load.vramBreakdown', { w: vramEstimate.weightsGiB.toFixed(1), k: vramEstimate.kvGiB.toFixed(1), s: vramEstimate.ssmGiB.toFixed(1), b: vramEstimate.runtimeGiB.toFixed(1) })"
             >
               <div v-if="gpuMemTotal > 0" :class="'vram-bar vram-' + vramLevel"><div class="vram-fill" :style="{ width: vramPct + '%' }"></div></div>
               <span :class="'vram-text vram-' + vramLevel">{{ t('load.vramEstimate', { size: vramEstimate.totalGiB.toFixed(1) }) }}</span>
@@ -464,6 +464,8 @@ const vramEstimate = computed(() => estimateVram(configModel.value, {
   kCache: tempCfg.value?.kCacheQuant ?? 'F16',
   vCache: tempCfg.value?.vCacheQuant ?? 'F16',
   nCpuMoe: tempCfg.value?.nCpuMoe ?? 0,
+  nParallel: tempCfg.value?.parallel ?? 1,
+  specMtp: tempCfg.value?.specType === 'MTP',
 }))
 
 const vramPct = computed(() => {

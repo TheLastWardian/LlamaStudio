@@ -25,28 +25,31 @@
 
 **2. Estimación — helper frontend (`src/utils/vram.ts`)**
 
-> **Revisión 2026-09-04 (fix):** la fórmula original sobreestimaba ~25% en el modelo
-> qwen35 híbrido (24.6 GiB vs ~19.5 reales). Causas: (a) `head_dim = emb/heads` no es
-> válido cuando `attention.key_length` existe (qwen35: 213 vs 256; gemma4: 176 vs 512);
-> (b) los modelos híbridos (`full_attention_interval` + `ssm.*`) solo tienen KV
-> creciente en 1 de cada N capas; el resto es SSM con estado fijo; (c) MoE con
-> `--n-cpu-moe N` deja N expertos por capa en CPU. Fórmula corregida:
+> **Revisión 2026-09-04 (fix v2, calibrado contra el log de llama.cpp b10784):**
+> la fórmula original sobreestimaba el KV de híbridos y subestimaba el SSM y el
+> runtime. Calibración con Qwen3.8-27B (qwen35, ngl 65, ctx 155648, KV Q4_0, -np 2,
+> draft-mtp): el server reportó weights 15,839 + KV 2,736 (16 capas) + SSM 1,197 +
+> compute 861+840 + KV-MTP 171 = 21,620 MiB GPU; medido con nvidia-smi: 22,462 MiB
+> (con Windows). Estimación actual: **22.52 GiB** (KV exacto, SSM +1.7%, runtime
+> −3.8%, weights con margen por mlock). Fórmula:
 > ```
 > head_dim    = key_length || (embedding_length / head_count)
 > bytesKV     = { F32: 4, F16: 2, Q8_0: 1.0625, Q4_0: 0.5625 }
 > interval    = full_attention_interval || 1          (1 = denso, sin cambio)
-> n_full      = ceil(ngl / interval)                  (capas de atención plena en GPU)
+> n_full      = floor(ngl / interval)                 (medido: 16 capas para ngl 65)
 > weights_gpu = size_bytes × (ngl / layer_count)
 >             × (1 − frac_experts × n_cpu_moe / expert_count)   [solo MoE con n_cpu_moe > 0]
 >   donde frac_experts = expert_params / (expert_params + attn_params) (por capa, desde GGUF)
-> kv_cache    = n_full × ctx × head_count_kv × head_dim × (bytesK + bytesV)
-> ssm_state   = (ngl − n_full) × ssm.state_size × ssm.inner_size × 4   [solo híbridos, fijo, no escala con ctx]
-> buffer      ≈ 200 MB
-> total       = weights_gpu + kv_cache + ssm_state + buffer
+> kv_cache    = (n_full + [1 si MTP]) × ctx × head_count_kv × head_dim × (bytesK + bytesV)
+> ssm_state   = ngl × ssm.state_size × ssm.inner_size × 4 × n_parallel × 3 × 1.04
+>   [solo híbridos; el ×3 = recurrent sequence slots del server, ×1.04 = buffer R]
+> runtime     = max(0.5 GiB, weights_gpu × 0.05 × [2 si MTP]) + 0.5 GiB
+>   [compute buffers ≈5% de los weights por contexto (medido 861/15839) + contexto CUDA]
+> total       = weights_gpu + kv_cache + ssm_state + runtime
 > ```
-> Verificado contra el server en vivo (Qwen3.8-27B qwen35, ngl 65, ctx 155648, KV Q4_0):
-> 19.5 GiB estimado vs ~19 GiB reales (22.4 GiB GPU total − ~3 GiB desktop/Discord).
 > `--cache-ram` NO afecta la VRAM (es prompt cache en RAM, PR llama.cpp#16391).
+> `--load-mode mlock` deja parte de los weights en RAM host (medido: 896 MiB); la
+> estimación usa el archivo completo: sobreestima ~900 MiB, lado seguro para OOM.
 
 - Fórmula original (pre-fix, solo válida para densos estándar):
   ```
@@ -57,7 +60,7 @@
   buffer      ≈ 200 MB
   total       = weights_gpu + kv_cache + buffer
   ```
-- `ngl = 0` → solo buffer (la capa de output queda en GPU, subestimación aceptable)
+- `ngl = 0` → solo runtime (la capa de output queda en GPU, subestimación aceptable)
 
 **3. UI — RightPanel.vue + LoadModelModal.vue**
 - Bajo el slider de GPU Offload:
