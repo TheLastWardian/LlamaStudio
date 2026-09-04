@@ -175,6 +175,18 @@ onMounted(async () => {
     }
   })
 
+  await listen('llama-exited', () => {
+    if (!loadedModel.value && !modelLoading.value) return
+    serverLogs.value.push({ time: '', level: 'error', msg: 'server process exited' })
+    if (serverLogs.value.length > 1000) serverLogs.value.splice(0, serverLogs.value.length - 1000)
+    loadedModel.value = null
+    loadingModel.value = null
+    loadedServerPort.value = null
+    modelLoading.value = false
+    prefillProgress.value = null
+    generationTokens.value = null
+  })
+
   await win.listen('tauri://close-requested', async () => {
     const config = await loadConfig()
     if (config.minimizeToTray) {

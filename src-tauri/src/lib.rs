@@ -1,7 +1,8 @@
 use std::fs;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
 use serde::Serialize;
 use tauri::{Emitter, Manager, State, Runtime};
 use tauri::menu::{Menu, MenuItem};
@@ -309,7 +310,7 @@ fn scan_models(models_path: String) -> Vec<ModelFile> {
     models
 }
 
-pub struct ServerProcess(pub Mutex<Option<std::process::Child>>);
+pub struct ServerProcess(pub Mutex<Option<(std::process::Child, Arc<AtomicBool>)>>);
 
 #[tauri::command]
 fn load_model(
@@ -378,8 +379,10 @@ fn load_model(
 ) -> Result<String, String> {
     let mut child_lock = state.0.lock().unwrap();
 
-    if let Some(mut child) = child_lock.take() {
+    if let Some((mut child, stop_flag)) = child_lock.take() {
+        stop_flag.store(true, Ordering::SeqCst);
         let _ = child.kill();
+        thread::spawn(move || { let _ = child.wait(); });
     }
 
     let load_mode = match (mmap, mlock) {
@@ -398,15 +401,18 @@ fn load_model(
         .arg("-ub").arg(physical_batch.to_string())
         .arg("--port").arg(port.to_string())
         .arg("--host").arg(&host)
-        .arg("--threads-http").arg(threads_http.to_string())
         .arg("--cache-prompt")
         .arg("--props")
         .arg("--jinja")
           .arg("-np").arg(parallel.to_string())
          .arg("--fit").arg(&fit)
          .arg("--load-mode").arg(load_mode)
-         .stdout(Stdio::inherit())
-         .stderr(Stdio::piped());
+          .stdout(Stdio::inherit())
+          .stderr(Stdio::piped());
+
+    if threads_http > 0 {
+        cmd.arg("--threads-http").arg(threads_http.to_string());
+    }
 
     cmd.arg("--cache-ram").arg(cache_ram.to_string());
     cmd.arg("--temp").arg(temp.to_string())
@@ -571,6 +577,8 @@ fn load_model(
             match draft_spec_type.as_str() {
                 "mtp" => "draft-mtp",
                 "dflash" => "draft-dflash",
+                "eagle3" => "draft-eagle3",
+                "dspark" => "draft-dspark",
                 _ => "draft-simple",
             }
         };
@@ -601,10 +609,12 @@ fn load_model(
     let mut child = cmd
         .creation_flags(CREATE_NO_WINDOW)
         .spawn()
-        .map_err(|e| format!("Failed to spawn: {}", e))?;
+        .map_err(|e| format!("Failed to spawn '{}': {}", llama_path, e))?;
 
     let stderr = child.stderr.take().unwrap();
     let app_handle = app.clone();
+    let stop_flag = Arc::new(AtomicBool::new(false));
+    let flag = Arc::clone(&stop_flag);
     thread::spawn(move || {
         let reader = BufReader::new(stderr);
         for line in reader.lines() {
@@ -612,17 +622,22 @@ fn load_model(
                 let _ = app_handle.emit("llama-log", line);
             }
         }
+        if !flag.load(Ordering::SeqCst) {
+            let _ = app_handle.emit("llama-exited", ());
+        }
     });
 
-    *child_lock = Some(child);
+    *child_lock = Some((child, stop_flag));
     Ok(format!("Started: {}", model_path))
 }
 
 #[tauri::command]
 fn stop_model(state: State<ServerProcess>) -> Result<(), String> {
     let mut child_lock = state.0.lock().unwrap();
-    if let Some(mut child) = child_lock.take() {
+    if let Some((mut child, stop_flag)) = child_lock.take() {
+        stop_flag.store(true, Ordering::SeqCst);
         child.kill().map_err(|e| e.to_string())?;
+        thread::spawn(move || { let _ = child.wait(); });
     }
     Ok(())
 }
@@ -738,7 +753,7 @@ pub fn run() {
                 if let tauri::RunEvent::Exit = event {
                     if let Some(state) = app_handle.try_state::<ServerProcess>() {
                         let mut lock = state.0.lock().unwrap();
-                        if let Some(mut child) = lock.take() {
+                        if let Some((mut child, _stop_flag)) = lock.take() {
                             let _ = child.kill();
                             let _ = child.wait();
                         }
