@@ -30,7 +30,7 @@
         <div class="section-title">⚙ {{ t('load.contextAndOffload') }}</div>
         <div class="field">
           <label>{{ t('load.contextLength') }}</label>
-          <input type="number" v-model="modelCfg.contextLength" class="field-input" />
+          <input type="number" v-model.number="modelCfg.contextLength" class="field-input" />
         </div>
         <div class="field">
           <label style="color:#555; font-size:11px;">{{ t('load.modelSupportsTokens', { max: maxContext }) }}</label>
@@ -40,7 +40,7 @@
           min="512" 
           :max="maxContext" 
           step="512"
-          v-model="modelCfg.contextLength" 
+          v-model.number="modelCfg.contextLength" 
           class="slider full-width"
         />
         <div class="field">
@@ -54,7 +54,7 @@
         <div class="section-title">≋ {{ t('load.advanced') }}</div>
         <div class="field" :title="t('load.cpuThreadsTooltip')">
           <label>{{ t('load.cpuThreads') }}</label>
-          <input type="number" v-model="modelCfg.cpuThreads" class="field-input" min="1" max="128" />
+          <input type="number" v-model.number="modelCfg.cpuThreads" class="field-input" min="1" max="128" />
         </div>
         <div class="field">
           <label>{{ t('load.evalBatch') }}</label>
@@ -208,19 +208,19 @@
         </div>
         <div class="field" :title="t('load.cacheReuseTooltip')">
           <label>{{ t('load.cacheReuse') }}</label>
-          <input type="number" v-model="modelCfg.cacheReuse" class="field-input" min="0" />
+          <input type="number" v-model.number="modelCfg.cacheReuse" class="field-input" min="0" />
         </div>
         <div class="field" :title="t('load.ctxCheckpointsTooltip')">
           <label>{{ t('load.ctxCheckpoints') }}</label>
-          <input type="number" v-model="modelCfg.ctxCheckpoints" class="field-input" min="0" />
+          <input type="number" v-model.number="modelCfg.ctxCheckpoints" class="field-input" min="0" />
         </div>
         <div class="field" :title="t('load.checkpointMinStepTooltip')">
           <label>{{ t('load.checkpointMinStep') }}</label>
-          <input type="number" v-model="modelCfg.checkpointMinStep" class="field-input" min="0" />
+          <input type="number" v-model.number="modelCfg.checkpointMinStep" class="field-input" min="0" />
         </div>
         <div class="field" :title="t('load.parallelTooltip')">
           <label>{{ t('load.parallelSlots') }}</label>
-          <input type="number" v-model="modelCfg.parallel" class="field-input" min="1" max="16" />
+          <input type="number" v-model.number="modelCfg.parallel" class="field-input" min="1" max="16" />
         </div>
         <div class="field" :title="t('load.mlockTooltip')">
           <label>{{ t('load.mlock') }}</label>
@@ -240,7 +240,7 @@
         </div>
         <div class="field" :title="t('load.cacheRamTooltip')">
           <label>{{ t('load.cacheRam') }}</label>
-          <input type="number" v-model="modelCfg.cacheRam" class="field-input" min="-1" />
+          <input type="number" v-model.number="modelCfg.cacheRam" class="field-input" min="-1" />
         </div>
         <input
           type="range"
@@ -266,15 +266,15 @@
         </template>
         <div class="field" :title="t('load.seedTooltip')">
           <label>{{ t('load.seed') }}</label>
-          <input type="number" v-model="modelCfg.seed" class="field-input" />
+          <input type="number" v-model.number="modelCfg.seed" class="field-input" />
         </div>
         <div class="field" v-if="activeModel?.is_moe" :title="t('load.cpuMoETooltip')">
           <label>{{ t('load.cpuMoE') }}</label>
-          <input type="number" v-model="modelCfg.nCpuMoe" class="field-input" min="0" />
+          <input type="number" v-model.number="modelCfg.nCpuMoe" class="field-input" min="0" />
         </div>
         <div class="field" v-if="activeModel?.is_moe" :title="t('load.numExpertsTooltip')">
           <label>{{ t('load.numExperts') }}</label>
-          <input type="number" v-model="modelCfg.expertsPerToken" class="field-input" min="0" :max="activeModel?.expert_count || undefined" :placeholder="activeModel?.expert_used_count > 0 ? String(activeModel?.expert_used_count) : ''" />
+          <input type="number" v-model.number="modelCfg.expertsPerToken" class="field-input" min="0" :max="activeModel?.expert_count || undefined" :placeholder="activeModel?.expert_used_count > 0 ? String(activeModel?.expert_used_count) : ''" />
         </div>
       </div>
 
@@ -344,7 +344,7 @@
         </div>
         <div class="field" :title="t('load.httpThreadsTooltip')">
           <label>{{ t('load.httpThreads') }}</label>
-          <input type="number" v-model="modelCfg.threadsHttp" class="field-input" min="1" max="8" />
+          <input type="number" v-model.number="modelCfg.threadsHttp" class="field-input" min="1" max="8" />
         </div>
         <div class="field" :title="t('load.noWarmupTooltip')">
           <label>{{ t('load.noWarmup') }}</label>
@@ -352,7 +352,7 @@
         </div>
         <div class="field" :title="t('load.sleepIdleTooltip')">
           <label>{{ t('load.sleepIdle') }}</label>
-          <input type="number" v-model="modelCfg.sleepIdle" class="field-input" min="-1" />
+          <input type="number" v-model.number="modelCfg.sleepIdle" class="field-input" min="-1" />
         </div>
         <div class="field" :title="t('load.reasoningPreserveTooltip')">
           <label>{{ t('load.reasoningPreserve') }}</label>
@@ -373,23 +373,23 @@
       <div class="panel-section">
         <div class="field">
           <label>{{ t('inference.temperature') }}</label>
-          <input type="number" v-model="modelCfg.temp" class="field-input" step="0.05" min="0" max="2" />
+          <input type="number" v-model.number="modelCfg.temp" class="field-input" step="0.05" min="0" max="2" />
         </div>
         <div class="field">
           <label>{{ t('inference.topP') }}</label>
-          <input type="number" v-model="modelCfg.topP" class="field-input" step="0.01" min="0" max="1" />
+          <input type="number" v-model.number="modelCfg.topP" class="field-input" step="0.01" min="0" max="1" />
         </div>
         <div class="field">
           <label>{{ t('inference.topK') }}</label>
-          <input type="number" v-model="modelCfg.topK" class="field-input" step="1" min="0" />
+          <input type="number" v-model.number="modelCfg.topK" class="field-input" step="1" min="0" />
         </div>
         <div class="field">
           <label>{{ t('inference.minP') }}</label>
-          <input type="number" v-model="modelCfg.minP" class="field-input" step="0.01" min="0" max="1" />
+          <input type="number" v-model.number="modelCfg.minP" class="field-input" step="0.01" min="0" max="1" />
         </div>
         <div class="field">
           <label>{{ t('inference.repeatPenalty') }}</label>
-          <input type="number" v-model="modelCfg.repeatPenalty" class="field-input" step="0.01" min="0" />
+          <input type="number" v-model.number="modelCfg.repeatPenalty" class="field-input" step="0.01" min="0" />
         </div>
       </div>
     </div>
@@ -456,7 +456,7 @@
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { selectedModel, allModels, modelLoading, loadedModel, loadingModel, loadedModelConfig, loadedServerPort } from '../stores/selectedModel'
-import { loadConfig, loadModelConfig, saveModelConfig, appConfig, type ModelConfig, defaultDraftParams, activeSpecKind } from '../stores/config'
+import { loadConfig, loadModelConfig, saveModelConfig, appConfig, type ModelConfig, defaultDraftParams, activeSpecKind, numOrDefault } from '../stores/config'
 import { t } from '../i18n'
 
 const props = defineProps<{ currentView?: string }>()
@@ -646,72 +646,85 @@ async function loadModel() {
   loading.value = true
   error.value = ''
 
+  if (modelCfg.value.specType === 'Draft' && !(modelCfg.value.draftModelPath ?? '').trim()) {
+    error.value = t('load.draftNeedsModel')
+    modelLoading.value = false
+    return
+  }
+  if (modelCfg.value.visionEnabled && !(modelCfg.value.mmprojPath ?? '').trim()) {
+    error.value = t('load.visionNeedsMmproj')
+    modelLoading.value = false
+    return
+  }
+
   try {
     const config = await loadConfig()
     console.log('config:', config)
-    console.log('gpuLayers:', Number(modelCfg.value.gpuOffload))
-    const dp = modelCfg.value.draftParams[activeSpecKind(modelCfg.value)]
+    const cfg = modelCfg.value
+    const resolvedThreads = numOrDefault(cfg.cpuThreads, 0) > 0 ? numOrDefault(cfg.cpuThreads, 0) : await invoke<number>('get_cpu_threads')
+    const resolvedGpu = numOrDefault(cfg.gpuOffload, 0) > 0 ? numOrDefault(cfg.gpuOffload, 0) : (model.layer_count ?? 999)
+    const dp = cfg.draftParams[activeSpecKind(cfg)]
     const result = await invoke<string>('load_model', {
       llamaPath: config.llamaPath,
       cudaGraphOpt: config.cudaGraphOpt ?? '',
       logVerbosity: Number(config.logVerbosity ?? 3),
       modelPath: model.path,
-      gpuLayers: Number(modelCfg.value.gpuOffload),
-      contextLength: Number(modelCfg.value.contextLength),
-      cpuThreads: Number(modelCfg.value.cpuThreads),
-      evalBatch: Number(modelCfg.value.evalBatch),
-      physicalBatch: Number(modelCfg.value.physicalBatch),
-      flashAttention: modelCfg.value.flashAttention,
-      specType: modelCfg.value.specType,
-      draftSpecType: modelCfg.value.draftSpecType ?? 'simple',
-      draftModelPath: modelCfg.value.draftModelPath,
-      maxDraftTokens: Number(dp.maxDraftTokens),
-      minDraftTokens: Number(dp.minDraftTokens ?? 0),
-      draftProbability: Number(dp.probability),
-      draftSplitProbability: Number(dp.splitProbability ?? 0.10),
-      dflashNgramK4v: modelCfg.value.dflashNgramK4v,
-      ngramK4vSizeN: Number(modelCfg.value.ngramK4vSizeN ?? 12),
-      ngramK4vSizeM: Number(modelCfg.value.ngramK4vSizeM ?? 48),
-      ngramK4vMinHits: Number(modelCfg.value.ngramK4vMinHits ?? 1),
-      ngramMod: modelCfg.value.ngramMod ?? false,
-      ngramModNMatch: Number(modelCfg.value.ngramModNMatch ?? 24),
-      ngramModNMin: Number(modelCfg.value.ngramModNMin ?? 48),
-      ngramModNMax: Number(modelCfg.value.ngramModNMax ?? 64),
-      ngramCache: modelCfg.value.ngramCache ?? false,
-      kCacheQuant: modelCfg.value.kCacheQuant,
-      vCacheQuant: modelCfg.value.vCacheQuant,
+      gpuLayers: resolvedGpu,
+      contextLength: numOrDefault(cfg.contextLength, 4096),
+      cpuThreads: resolvedThreads,
+      evalBatch: numOrDefault(cfg.evalBatch, 2048),
+      physicalBatch: numOrDefault(cfg.physicalBatch, 512),
+      flashAttention: cfg.flashAttention ?? true,
+      specType: cfg.specType ?? 'None',
+      draftSpecType: cfg.draftSpecType ?? 'simple',
+      draftModelPath: cfg.draftModelPath ?? '',
+      maxDraftTokens: numOrDefault(dp.maxDraftTokens, 2),
+      minDraftTokens: numOrDefault(dp.minDraftTokens, 0),
+      draftProbability: numOrDefault(dp.probability, 0.75),
+      draftSplitProbability: numOrDefault(dp.splitProbability, 0.10),
+      dflashNgramK4v: cfg.dflashNgramK4v ?? false,
+      ngramK4vSizeN: numOrDefault(cfg.ngramK4vSizeN, 12),
+      ngramK4vSizeM: numOrDefault(cfg.ngramK4vSizeM, 48),
+      ngramK4vMinHits: numOrDefault(cfg.ngramK4vMinHits, 1),
+      ngramMod: cfg.ngramMod ?? false,
+      ngramModNMatch: numOrDefault(cfg.ngramModNMatch, 24),
+      ngramModNMin: numOrDefault(cfg.ngramModNMin, 48),
+      ngramModNMax: numOrDefault(cfg.ngramModNMax, 64),
+      ngramCache: cfg.ngramCache ?? false,
+      kCacheQuant: cfg.kCacheQuant ?? 'Q8_0',
+      vCacheQuant: cfg.vCacheQuant ?? 'Q8_0',
       draftKCacheQuant: dp.kCacheQuant ?? 'F16',
       draftVCacheQuant: dp.vCacheQuant ?? 'F16',
-      cacheReuse: Number(modelCfg.value.cacheReuse ?? 0),
-      ctxCheckpoints: Number(modelCfg.value.ctxCheckpoints ?? 32),
-      checkpointMinStep: Number(modelCfg.value.checkpointMinStep ?? 8192),
+      cacheReuse: numOrDefault(cfg.cacheReuse, 0),
+      ctxCheckpoints: numOrDefault(cfg.ctxCheckpoints, 32),
+      checkpointMinStep: numOrDefault(cfg.checkpointMinStep, 8192),
       port: Number(config.port) || 8080,
-      host: modelCfg.value.host ?? '127.0.0.1',
-      alias: modelCfg.value.alias ?? '',
-      threadsHttp: Number(modelCfg.value.threadsHttp ?? 2),
-      noWarmup: modelCfg.value.noWarmup ?? false,
-      sleepIdle: Number(modelCfg.value.sleepIdle ?? -1),
-      reasoningPreserve: modelCfg.value.reasoningPreserve ?? false,
-      fit: modelCfg.value.fit ?? 'on',
-      reasoning: modelCfg.value.reasoning ?? 'auto',
-      reasoningBudget: modelCfg.value.reasoningBudget === 'custom' ? Number(modelCfg.value.reasoningBudgetCustom ?? 2048) : Number(modelCfg.value.reasoningBudget),
-      reasoningEffort: modelCfg.value.reasoningEffort,
-      parallel: Number(modelCfg.value.parallel ?? 1),
-      mlock: modelCfg.value.mlock ?? false,
-      mmap: modelCfg.value.mmap ?? false,
-      kvUnified: modelCfg.value.kvUnified ?? false,
-      kvOffload: modelCfg.value.kvOffload ?? false,
-      cacheRam: Number(modelCfg.value.cacheRam ?? 0),
-      nCpuMoe: Number(modelCfg.value.nCpuMoe ?? 0),
-      expertsPerToken: Number(modelCfg.value.expertsPerToken ?? 0),
-      visionEnabled: modelCfg.value.visionEnabled ?? false,
-      mmprojPath: modelCfg.value.mmprojPath ?? '',
-      seed: Number(modelCfg.value.seed ?? -1),
-      temp: Number(modelCfg.value.temp ?? 0.8),
-      topP: Number(modelCfg.value.topP ?? 0.95),
-      topK: Number(modelCfg.value.topK ?? 40),
-      minP: Number(modelCfg.value.minP ?? 0.05),
-      repeatPenalty: Number(modelCfg.value.repeatPenalty ?? 1.0),
+      host: cfg.host ?? '127.0.0.1',
+      alias: cfg.alias ?? '',
+      threadsHttp: numOrDefault(cfg.threadsHttp, 2),
+      noWarmup: cfg.noWarmup ?? false,
+      sleepIdle: numOrDefault(cfg.sleepIdle, -1),
+      reasoningPreserve: cfg.reasoningPreserve ?? false,
+      fit: cfg.fit ?? 'on',
+      reasoning: cfg.reasoning ?? 'auto',
+      reasoningBudget: cfg.reasoningBudget === 'custom' ? Math.max(1, numOrDefault(cfg.reasoningBudgetCustom, 2048)) : numOrDefault(cfg.reasoningBudget, -1),
+      reasoningEffort: cfg.reasoningEffort ?? 'default',
+      parallel: numOrDefault(cfg.parallel, 1),
+      mlock: cfg.mlock ?? false,
+      mmap: cfg.mmap ?? false,
+      kvUnified: cfg.kvUnified ?? false,
+      kvOffload: cfg.kvOffload ?? false,
+      cacheRam: numOrDefault(cfg.cacheRam, 0),
+      nCpuMoe: numOrDefault(cfg.nCpuMoe, 0),
+      expertsPerToken: numOrDefault(cfg.expertsPerToken, 0),
+      visionEnabled: cfg.visionEnabled ?? false,
+      mmprojPath: cfg.mmprojPath ?? '',
+      seed: numOrDefault(cfg.seed, -1),
+      temp: numOrDefault(cfg.temp, 0.8),
+      topP: numOrDefault(cfg.topP, 0.95),
+      topK: numOrDefault(cfg.topK, 40),
+      minP: numOrDefault(cfg.minP, 0.05),
+      repeatPenalty: numOrDefault(cfg.repeatPenalty, 1.0),
     })
     console.log('invoke result:', result)
     loadedServerPort.value = Number(config.port) || 8080

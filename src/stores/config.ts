@@ -45,6 +45,12 @@ export function activeSpecKind(cfg: { specType: string; draftSpecType: string })
   }
 }
 
+export function numOrDefault(v: number | string | null | undefined, d: number): number {
+  if (v === null || v === undefined || v === '') return d
+  const n = Number(v)
+  return Number.isFinite(n) ? n : d
+}
+
 export interface ModelConfig {
   contextLength: number
   gpuOffload: number

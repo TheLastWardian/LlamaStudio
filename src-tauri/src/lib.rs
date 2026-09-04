@@ -400,12 +400,12 @@ fn load_model(
         .arg("-b").arg(eval_batch.to_string())
         .arg("-ub").arg(physical_batch.to_string())
         .arg("--port").arg(port.to_string())
-        .arg("--host").arg(&host)
+        .arg("--host").arg(if host.is_empty() { "127.0.0.1" } else { host.as_str() })
         .arg("--cache-prompt")
         .arg("--props")
         .arg("--jinja")
           .arg("-np").arg(parallel.to_string())
-         .arg("--fit").arg(&fit)
+          .arg("--fit").arg(if fit.is_empty() { "on" } else { fit.as_str() })
          .arg("--load-mode").arg(load_mode)
           .stdout(Stdio::inherit())
           .stderr(Stdio::piped());
@@ -508,7 +508,7 @@ fn load_model(
     cmd.arg("--ctx-checkpoints").arg(ctx_checkpoints.to_string());
     cmd.arg("--checkpoint-min-step").arg(checkpoint_min_step.to_string());
 
-    cmd.arg("--reasoning").arg(&reasoning);
+    cmd.arg("--reasoning").arg(if reasoning.is_empty() { "auto" } else { reasoning.as_str() });
     if reasoning != "auto" {
         let kwargs = if reasoning == "on" {
             r#"{"enable_thinking":true}"#
