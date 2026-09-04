@@ -61,7 +61,7 @@
             <div class="col-cell" :style="{ width: columns[1].width + 'px' }">
               <span class="badge">{{ model.params || '?' }}</span>
             </div>
-            <div class="col-cell" :style="{ width: columns[2].width + 'px' }">{{ model.publisher }}</div>
+            <div class="col-cell" :style="{ width: columns[2].width + 'px' }">{{ model.publisher === 'Ungrouped' ? t('models.ungrouped') : model.publisher }}</div>
             <div class="col-cell" :style="{ width: columns[3].width + 'px' }">
               <template v-if="renamingPath === model.path">
                 <input class="rename-input" v-model="renameValue" @keyup.enter="confirmRename" @keyup.escape="cancelRename" @blur="confirmRename" @click.stop />

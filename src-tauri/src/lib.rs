@@ -204,125 +204,126 @@ fn scan_models(models_path: String) -> Vec<ModelFile> {
     let base = PathBuf::from(&models_path);
     let mut models = Vec::new();
 
-    let publishers = match fs::read_dir(&base) {
-        Ok(d) => d,
-        Err(_) => return models,
-    };
+    // Walk recursivo: cualquier .gguf a cualquier profundidad (máx 6, sin dirs ocultos)
+    let mut mmproj_by_dir: HashMap<PathBuf, Vec<String>> = HashMap::new();
+    let mut gguf_files: Vec<(PathBuf, u64)> = Vec::new();
+    let mut stack: Vec<(PathBuf, u32)> = vec![(base.clone(), 0)];
 
-    for publisher_entry in publishers.flatten() {
-        let publisher_path = publisher_entry.path();
-        if !publisher_path.is_dir() { continue; }
-        let publisher = publisher_entry.file_name().to_string_lossy().to_string();
-
-        let model_families = match fs::read_dir(&publisher_path) {
+    while let Some((dir, depth)) = stack.pop() {
+        let entries = match fs::read_dir(&dir) {
             Ok(d) => d,
             Err(_) => continue,
         };
-
-        for family_entry in model_families.flatten() {
-            let family_path = family_entry.path();
-            if !family_path.is_dir() { continue; }
-            let model_family = family_entry.file_name().to_string_lossy().to_string();
-
-            let files = match fs::read_dir(&family_path) {
-                Ok(d) => d,
-                Err(_) => continue,
-            };
-
-            let mut mmproj_files: Vec<String> = Vec::new();
-            let mut gguf_files: Vec<(String, u64)> = Vec::new();
-
-            for file_entry in files.flatten() {
-                let file_path = file_entry.path();
-                let file_name = file_entry.file_name().to_string_lossy().to_string();
-                if !file_name.ends_with(".gguf") { continue; }
-
-                let size_bytes = file_entry.metadata().map(|m| m.len()).unwrap_or(0);
-
-                if file_name.contains("mmproj") {
-                    mmproj_files.push(file_path.to_string_lossy().to_string());
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().to_string();
+            if path.is_dir() {
+                if depth < 6 && !name.starts_with('.') {
+                    stack.push((path, depth + 1));
+                }
+            } else if name.ends_with(".gguf") {
+                let size_bytes = entry.metadata().map(|m| m.len()).unwrap_or(0);
+                let dir_key = path.parent().map(|p| p.to_path_buf()).unwrap_or_default();
+                if name.contains("mmproj") {
+                    mmproj_by_dir.entry(dir_key).or_default().push(path.to_string_lossy().to_string());
                 } else {
-                    gguf_files.push((file_path.to_string_lossy().to_string(), size_bytes));
+                    gguf_files.push((path, size_bytes));
                 }
             }
-
-            for (file_path, size_bytes) in gguf_files {
-                let file_name = std::path::Path::new(&file_path)
-                    .file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .to_string();
-
-                let meta = read_gguf_metadata(&file_path);
-                let arch = meta.get("general.architecture").cloned().unwrap_or_default();
-                let params = meta.get("general.parameter_count")
-                    .and_then(|v| v.parse::<u64>().ok())
-                    .map(|n| format!("{:.0}B", n as f64 / 1_000_000_000.0))
-                    .or_else(|| meta.get("general.size_label").cloned())
-                    .unwrap_or_default();
-                let ctx_key = format!("{}.context_length", arch);
-                let max_context = meta.get(&ctx_key)
-                    .or_else(|| meta.get("llama.context_length"))
-                    .or_else(|| meta.get("model.context_length"))
-                    .and_then(|v| v.parse::<u32>().ok())
-                    .unwrap_or(0);
-                let layer_key = format!("{}.block_count", arch);
-                let layer_count = meta.get(&layer_key)
-                    .or_else(|| meta.get("llama.block_count"))
-                    .and_then(|v| v.parse::<u32>().ok())
-                    .unwrap_or(999);
-                let embedding_length = meta.get(&format!("{}.embedding_length", arch))
-                    .or_else(|| meta.get("llama.embedding_length"))
-                    .and_then(|v| v.parse::<u32>().ok())
-                    .unwrap_or(0);
-                let head_count = meta.get(&format!("{}.attention.head_count", arch))
-                    .or_else(|| meta.get("llama.attention.head_count"))
-                    .and_then(|v| v.parse::<u32>().ok())
-                    .unwrap_or(0);
-                let head_count_kv = meta.get(&format!("{}.attention.head_count_kv", arch))
-                    .or_else(|| meta.get("llama.attention.head_count_kv"))
-                    .and_then(|v| v.parse::<u32>().ok())
-                    .unwrap_or(head_count);
-                let expert_count = meta.get(&format!("{}.expert_count", arch))
-                    .or_else(|| meta.get("llama.expert_count"))
-                    .and_then(|v| v.parse::<u32>().ok())
-                    .unwrap_or(0);
-                let is_moe = expert_count > 0 || arch.contains("moe");
-                let expert_used_key = format!("{}.expert_used_count", arch);
-                let expert_used_count = meta.get(&expert_used_key)
-                    .or_else(|| meta.get("llama.expert_used_count"))
-                    .and_then(|v| v.parse::<u32>().ok())
-                    .unwrap_or(0);
-                let chat_template = meta.get("general.chat_template")
-                    .filter(|s| !s.is_empty())
-                    .or_else(|| meta.get("tokenizer.chat_template"))
-                    .cloned()
-                    .unwrap_or_default();
-                let (supports_thinking, supports_effort, supported_effort_levels) = analyze_chat_template(&chat_template);
-
-                models.push(ModelFile {
-                    name: file_name,
-                    publisher: publisher.clone(),
-                    model_family: model_family.clone(),
-                    size_bytes,
-                    path: file_path,
-                    arch,
-                    params,
-                    max_context,
-                    layer_count,
-                    embedding_length,
-                    head_count,
-                    head_count_kv,
-                    is_moe,
-                    expert_count,
-                    expert_used_count,
-                    supports_thinking,
-                    supports_effort,
-                    supported_effort_levels,
-                    mmproj_paths: mmproj_files.clone(),
-                });
-            }
         }
+    }
+
+    for (file_path, size_bytes) in gguf_files {
+        // publisher = 1er dir bajo la raíz; family = dir contenedor del archivo
+        let rel = file_path.strip_prefix(&base).unwrap_or_else(|_| std::path::Path::new(""));
+        let mut dirs: Vec<String> = rel.components()
+            .map(|c| c.as_os_str().to_string_lossy().to_string())
+            .collect();
+        dirs.pop(); // último componente = nombre del archivo
+        let publisher = dirs.first().cloned().unwrap_or_else(|| "Ungrouped".to_string());
+        let model_family = dirs.last().cloned()
+            .or_else(|| base.file_name().map(|n| n.to_string_lossy().to_string()))
+            .unwrap_or_default();
+
+        let file_name = file_path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+        let path_str = file_path.to_string_lossy().to_string();
+        let mmproj_paths = mmproj_by_dir
+            .get(&file_path.parent().map(|p| p.to_path_buf()).unwrap_or_default())
+            .cloned()
+            .unwrap_or_default();
+
+        let meta = read_gguf_metadata(&path_str);
+        let arch = meta.get("general.architecture").cloned().unwrap_or_default();
+        let params = meta.get("general.parameter_count")
+            .and_then(|v| v.parse::<u64>().ok())
+            .map(|n| format!("{:.0}B", n as f64 / 1_000_000_000.0))
+            .or_else(|| meta.get("general.size_label").cloned())
+            .unwrap_or_default();
+        let ctx_key = format!("{}.context_length", arch);
+        let max_context = meta.get(&ctx_key)
+            .or_else(|| meta.get("llama.context_length"))
+            .or_else(|| meta.get("model.context_length"))
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(0);
+        let layer_key = format!("{}.block_count", arch);
+        let layer_count = meta.get(&layer_key)
+            .or_else(|| meta.get("llama.block_count"))
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(999);
+        let embedding_length = meta.get(&format!("{}.embedding_length", arch))
+            .or_else(|| meta.get("llama.embedding_length"))
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(0);
+        let head_count = meta.get(&format!("{}.attention.head_count", arch))
+            .or_else(|| meta.get("llama.attention.head_count"))
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(0);
+        let head_count_kv = meta.get(&format!("{}.attention.head_count_kv", arch))
+            .or_else(|| meta.get("llama.attention.head_count_kv"))
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(head_count);
+        let expert_count = meta.get(&format!("{}.expert_count", arch))
+            .or_else(|| meta.get("llama.expert_count"))
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(0);
+        let is_moe = expert_count > 0 || arch.contains("moe");
+        let expert_used_key = format!("{}.expert_used_count", arch);
+        let expert_used_count = meta.get(&expert_used_key)
+            .or_else(|| meta.get("llama.expert_used_count"))
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(0);
+        let chat_template = meta.get("general.chat_template")
+            .filter(|s| !s.is_empty())
+            .or_else(|| meta.get("tokenizer.chat_template"))
+            .cloned()
+            .unwrap_or_default();
+        let (supports_thinking, supports_effort, supported_effort_levels) = analyze_chat_template(&chat_template);
+
+        models.push(ModelFile {
+            name: file_name,
+            publisher,
+            model_family,
+            size_bytes,
+            path: path_str,
+            arch,
+            params,
+            max_context,
+            layer_count,
+            embedding_length,
+            head_count,
+            head_count_kv,
+            is_moe,
+            expert_count,
+            expert_used_count,
+            supports_thinking,
+            supports_effort,
+            supported_effort_levels,
+            mmproj_paths,
+        });
     }
 
     models
@@ -800,7 +801,8 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::analyze_chat_template;
+    use super::{analyze_chat_template, scan_models, ModelFile};
+    use std::fs;
 
     #[test]
     fn analyze_qwen38_style_template() {
@@ -826,5 +828,47 @@ mod tests {
         assert!(!thinking);
         assert!(!effort);
         assert!(levels.is_empty());
+    }
+
+    #[test]
+    fn scan_models_finds_models_at_any_depth() {
+        let root = std::env::temp_dir().join(format!("llamastudio-scan-test-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("pub/fam/deep")).unwrap();
+        fs::create_dir_all(root.join("solo")).unwrap();
+        fs::create_dir_all(root.join(".hidden")).unwrap();
+        fs::write(root.join("flat.gguf"), b"").unwrap();
+        fs::write(root.join("solo/one.gguf"), b"").unwrap();
+        fs::write(root.join("pub/fam/model.gguf"), b"").unwrap();
+        fs::write(root.join("pub/fam/mmproj-x.gguf"), b"").unwrap();
+        fs::write(root.join("pub/fam/deep/deeper.gguf"), b"").unwrap();
+        fs::write(root.join(".hidden/secret.gguf"), b"").unwrap();
+        fs::write(root.join("nota.txt"), b"").unwrap();
+
+        let models = scan_models(root.to_string_lossy().to_string());
+        let by_name: std::collections::HashMap<String, &ModelFile> = models.iter().map(|m| (m.name.clone(), m)).collect();
+
+        assert_eq!(models.len(), 4, "hidden dir, non-gguf files and mmproj must not be models");
+
+        let flat = by_name.get("flat.gguf").unwrap();
+        assert_eq!(flat.publisher, "Ungrouped");
+        assert!(flat.mmproj_paths.is_empty());
+
+        let one = by_name.get("one.gguf").unwrap();
+        assert_eq!(one.publisher, "solo");
+        assert_eq!(one.model_family, "solo");
+
+        let m = by_name.get("model.gguf").unwrap();
+        assert_eq!(m.publisher, "pub");
+        assert_eq!(m.model_family, "fam");
+        assert_eq!(m.mmproj_paths.len(), 1);
+        assert!(m.mmproj_paths[0].ends_with("mmproj-x.gguf"));
+
+        let d = by_name.get("deeper.gguf").unwrap();
+        assert_eq!(d.publisher, "pub");
+        assert_eq!(d.model_family, "deep");
+        assert!(d.mmproj_paths.is_empty());
+
+        let _ = fs::remove_dir_all(&root);
     }
 }

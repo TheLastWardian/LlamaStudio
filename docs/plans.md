@@ -58,7 +58,7 @@
 
 ---
 
-## Plan 2: Detección dinámica de modelos (sin exigir `creador/modelo/modelo.gguf`)
+## Plan 2: Detección dinámica de modelos (sin exigir `creador/modelo/modelo.gguf`) — ✅ IMPLEMENTADO (2026-09-03)
 
 **Objetivo:** detectar cualquier `.gguf` dentro de la carpeta de modelos sin importar la profundidad de la carpeta.
 
