@@ -25,6 +25,9 @@ pub struct ModelFile {
     pub params: String,
     pub max_context: u32,
     pub layer_count: u32,
+    pub embedding_length: u32,
+    pub head_count: u32,
+    pub head_count_kv: u32,
     pub is_moe: bool,
     pub expert_count: u32,
     pub expert_used_count: u32,
@@ -268,6 +271,18 @@ fn scan_models(models_path: String) -> Vec<ModelFile> {
                     .or_else(|| meta.get("llama.block_count"))
                     .and_then(|v| v.parse::<u32>().ok())
                     .unwrap_or(999);
+                let embedding_length = meta.get(&format!("{}.embedding_length", arch))
+                    .or_else(|| meta.get("llama.embedding_length"))
+                    .and_then(|v| v.parse::<u32>().ok())
+                    .unwrap_or(0);
+                let head_count = meta.get(&format!("{}.attention.head_count", arch))
+                    .or_else(|| meta.get("llama.attention.head_count"))
+                    .and_then(|v| v.parse::<u32>().ok())
+                    .unwrap_or(0);
+                let head_count_kv = meta.get(&format!("{}.attention.head_count_kv", arch))
+                    .or_else(|| meta.get("llama.attention.head_count_kv"))
+                    .and_then(|v| v.parse::<u32>().ok())
+                    .unwrap_or(head_count);
                 let expert_count = meta.get(&format!("{}.expert_count", arch))
                     .or_else(|| meta.get("llama.expert_count"))
                     .and_then(|v| v.parse::<u32>().ok())
@@ -295,6 +310,9 @@ fn scan_models(models_path: String) -> Vec<ModelFile> {
                     params,
                     max_context,
                     layer_count,
+                    embedding_length,
+                    head_count,
+                    head_count_kv,
                     is_moe,
                     expert_count,
                     expert_used_count,
@@ -702,6 +720,21 @@ fn get_system_ram() -> (u64, u64) { // (total, available) en MiB
     )
 }
 
+#[tauri::command]
+fn get_gpu_memory() -> Option<(u64, u64)> { // (total, free) en MiB, primer GPU
+    let out = std::process::Command::new("nvidia-smi")
+        .args(["--query-gpu=memory.total,memory.free", "--format=csv,noheader,nounits"])
+        .output()
+        .ok()?;
+    if !out.status.success() { return None; }
+    let line = String::from_utf8_lossy(&out.stdout);
+    let first = line.lines().next()?;
+    let mut parts = first.split(',').map(|s| s.trim().parse::<u64>());
+    let total = parts.next()?.ok()?;
+    let free = parts.next()?.ok()?;
+    Some((total, free))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -746,7 +779,7 @@ pub fn run() {
             Ok(())
         })
         .manage(ServerProcess(Mutex::new(None)))
-        .invoke_handler(tauri::generate_handler![scan_models, load_model, stop_model, save_window_state, load_window_state, get_cpu_threads, get_system_ram])
+        .invoke_handler(tauri::generate_handler![scan_models, load_model, stop_model, save_window_state, load_window_state, get_cpu_threads, get_system_ram, get_gpu_memory])
         .build(tauri::generate_context!())
         .and_then(|app| {
             app.run(|app_handle, event| {

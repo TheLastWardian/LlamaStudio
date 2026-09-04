@@ -48,6 +48,14 @@
           <input type="range" min="0" :max="activeModel?.layer_count ?? 999" v-model.number="modelCfg.gpuOffload" class="slider" />
           <span class="slider-value">{{ modelCfg.gpuOffload }}</span>
         </div>
+        <div
+          class="vram-estimate"
+          v-if="vramEstimate"
+          :title="t('load.vramBreakdown', { w: vramEstimate.weightsGiB.toFixed(1), k: vramEstimate.kvGiB.toFixed(1), b: vramEstimate.bufferGiB.toFixed(1) })"
+        >
+          <div v-if="gpuMemTotal > 0" :class="'vram-bar vram-' + vramLevel"><div class="vram-fill" :style="{ width: vramPct + '%' }"></div></div>
+          <span :class="'vram-text vram-' + vramLevel">{{ t('load.vramEstimate', { size: vramEstimate.totalGiB.toFixed(1) }) }}</span>
+        </div>
       </div>
 
       <div class="panel-section">
@@ -458,6 +466,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { selectedModel, allModels, modelLoading, loadedModel, loadingModel, loadedModelConfig, loadedServerPort, prefillProgress, generationTokens } from '../stores/selectedModel'
 import { loadConfig, loadModelConfig, saveModelConfig, appConfig, type ModelConfig, defaultDraftParams, activeSpecKind, numOrDefault } from '../stores/config'
 import { t } from '../i18n'
+import { estimateVram } from '../utils/vram'
 
 const props = defineProps<{ currentView?: string }>()
 
@@ -571,11 +580,14 @@ const maxContext = computed(() => activeModel.value?.max_context || 262144)
 
 const systemRamTotal = ref(0)
 const systemRamAvailable = ref(0)
+const gpuMemTotal = ref(0)
 
 async function refreshSystemRam() {
   const [total, available] = await invoke<[number, number]>('get_system_ram')
   systemRamTotal.value = total
   systemRamAvailable.value = available
+  const gpu = await invoke<[number, number] | null>('get_gpu_memory')
+  if (gpu) gpuMemTotal.value = gpu[0]
 }
 
 onMounted(() => {
@@ -585,6 +597,25 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('focus', refreshSystemRam)
+})
+
+const vramEstimate = computed(() => estimateVram(activeModel.value, {
+  ngl: modelCfg.value.gpuOffload,
+  ctx: modelCfg.value.contextLength,
+  kCache: modelCfg.value.kCacheQuant,
+  vCache: modelCfg.value.vCacheQuant,
+}))
+
+const vramPct = computed(() => {
+  if (!vramEstimate.value || gpuMemTotal.value <= 0) return 0
+  return Math.min(100, Math.round((vramEstimate.value.totalGiB / (gpuMemTotal.value / 1024)) * 100))
+})
+
+const vramLevel = computed(() => {
+  if (gpuMemTotal.value <= 0) return 'ok'
+  if (vramPct.value >= 90) return 'critical'
+  if (vramPct.value >= 70) return 'warning'
+  return 'ok'
 })
 
 const cacheRamPct = computed(() => {

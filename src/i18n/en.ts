@@ -170,6 +170,8 @@ export default {
     loading: 'Loading...',
     stop: '⏹ Stop',
     systemRam: 'System RAM: {total} MiB / Free: {free} MiB',
+    vramEstimate: '≈ {size} GiB VRAM',
+    vramBreakdown: 'Weights {w} GiB · KV {k} GiB · Buffer {b} GiB',
   },
   app: {
     loading: '⏳ Loading {name}...',

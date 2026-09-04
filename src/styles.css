@@ -421,6 +421,50 @@ body {
   font-size: 12px;
 }
 
+.vram-estimate {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.vram-bar {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: #3a3a3a;
+  overflow: hidden;
+}
+
+.vram-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: #5af58a;
+  transition: width 0.15s;
+}
+
+.vram-text {
+  font-size: 11px;
+  color: #aaa;
+  white-space: nowrap;
+}
+
+.vram-warning .vram-fill {
+  background: #f5a55a;
+}
+
+.vram-critical .vram-fill {
+  background: #f55a5a;
+}
+
+.vram-warning.vram-text {
+  color: #f5a55a;
+}
+
+.vram-critical.vram-text {
+  color: #f55a5a;
+}
+
 .toggle {
   appearance: none;
   -webkit-appearance: none;

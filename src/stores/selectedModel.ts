@@ -10,6 +10,9 @@ export interface ModelFile {
   params: string
   max_context: number
   layer_count: number
+  embedding_length: number
+  head_count: number
+  head_count_kv: number
   is_moe: boolean
   expert_count: number
   expert_used_count: number
