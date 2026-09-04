@@ -22,6 +22,7 @@ export function estimateVram(
     vCache: string
     draftKCache?: string
     draftVCache?: string
+    specDraftMax?: number
     nCpuMoe?: number
     nParallel?: number
     specMtp?: boolean
@@ -69,20 +70,23 @@ export function estimateVram(
     }
   }
 
-  // SSM recurrent state (hybrids only): the server allocates it per offloaded
-  // layer, scaled by n_parallel and its recurrent sequence slots.
-  // Measured (qwen35, -np 2): 64 layers x 3 MiB x 2 seqs x 3 rs x ~1.04
-  // = 1197 MiB vs llama.cpp's reported 1197 MiB.
+  // SSM recurrent state (hybrids only): allocated per offloaded layer, scaled
+  // by n_parallel and by the recurrent sequence slots, which follow the spec
+  // draft n_max (measured: n_max 3 → 3 rs, n_max 5 → 5 rs); without spec
+  // decoding there is 1 slot.
   let ssm = 0
   if (ngl > 0 && model.ssm_state_size > 0 && model.ssm_inner_size > 0) {
     const nParallel = Math.max(1, opts.nParallel ?? 1)
-    ssm = ngl * model.ssm_state_size * model.ssm_inner_size * 4 * nParallel * 3 * 1.04
+    const rsSeq = specMtp ? Math.max(1, opts.specDraftMax ?? 1) : 1
+    ssm = ngl * model.ssm_state_size * model.ssm_inner_size * 4 * nParallel * rsSeq
   }
 
-  // Runtime: compute buffers (~5% of GPU weights per context; measured
-  // 861 MiB / 15,839 MiB at batch 512, MTP adds a second one) plus
-  // CUDA context/driver overhead (~0.5 GiB).
-  const runtime = Math.max(0.5 * GIB, weights * 0.05 * (specMtp ? 2 : 1)) + 0.5 * GIB
+  // Runtime: compute buffers scale with active compute, not total weights:
+  // ~5% of GPU weights per context for dense models (861/15,839 MiB), ~2%
+  // for MoE (360/19,400 MiB for A3B); MTP spec decoding adds a second one.
+  // Plus CUDA context/driver overhead (~0.5 GiB).
+  const computeRate = model.is_moe ? 0.02 : 0.05
+  const runtime = Math.max(0.5 * GIB, weights * computeRate * (specMtp ? 2 : 1)) + 0.5 * GIB
 
   return {
     weightsGiB: weights / GIB,

@@ -41,15 +41,21 @@
 >             × (1 − frac_experts × n_cpu_moe / expert_count)   [solo MoE con n_cpu_moe > 0]
 >   donde frac_experts = expert_params / (expert_params + attn_params) (por capa, desde GGUF)
 > kv_cache    = (n_full + [1 si MTP]) × ctx × head_count_kv × head_dim × (bytesK + bytesV)
-> ssm_state   = ngl × ssm.state_size × ssm.inner_size × 4 × n_parallel × 3 × 1.04
->   [solo híbridos; el ×3 = recurrent sequence slots del server, ×1.04 = buffer R]
-> runtime     = max(0.5 GiB, weights_gpu × 0.05 × [2 si MTP]) + 0.5 GiB
->   [compute buffers ≈5% de los weights por contexto (medido 861/15839) + contexto CUDA]
+> ssm_state   = ngl × ssm.state_size × ssm.inner_size × 4 × n_parallel × rs_seq
+>   [solo híbridos; rs_seq = spec_draft_n_max si hay MTP (medido: n_max 3→3 rs,
+>    n_max 5→5 rs), 1 sin spec]
+> runtime     = max(0.5 GiB, weights_gpu × [5% denso / 2% MoE] × [2 si MTP]) + 0.5 GiB
+>   [compute buffers escalan con compute activa: medido 861/15839 (5.4%) denso,
+>    360/19400 (1.9%) MoE A3B; + contexto CUDA ~0.5 GiB]
 > total       = weights_gpu + kv_cache + ssm_state + runtime
 > ```
 > `--cache-ram` NO afecta la VRAM (es prompt cache en RAM, PR llama.cpp#16391).
-> `--load-mode mlock` deja parte de los weights en RAM host (medido: 896 MiB); la
-> estimación usa el archivo completo: sobreestima ~900 MiB, lado seguro para OOM.
+> Segunda calibración con Qwen3.6-35B-A3B (qwen35moe, ngl 41, ctx 104960, KV Q4_0,
+> n_max 5): server reportó 19,400 + 576.56 (10 capas) + 376.88 + 360+355.8 + 57.66
+> = 21,114 MiB GPU. Estimación: **22.23 GiB** (KV exacto, SSM +8%, runtime +19%,
+> weights +988 por mlock).
+> `--load-mode mlock` deja parte de los weights en RAM host (medido: 896-987 MiB);
+> la estimación usa el archivo completo: sobreestima ~1 GiB, lado seguro para OOM.
 
 - Fórmula original (pre-fix, solo válida para densos estándar):
   ```
