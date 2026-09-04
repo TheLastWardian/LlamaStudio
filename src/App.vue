@@ -41,7 +41,7 @@ const rightPanelWidth = ref(300)
 
 let unlistenLogs: (() => void) | null = null
 
-watch(currentView, (newView, oldView) => {
+watch(currentView, (newView) => {
   if (newView !== 'settings') {
     previousView.value = newView
   }
@@ -89,7 +89,7 @@ async function restoreLoadedModel(port: number, modelsPath: string) {
     }
     if (!model) {
       const name = id.split(/[\\/]/).pop() || id
-      model = { name, publisher: '', model_family: '', size_bytes: 0, path: id, arch: '', params: '', max_context: 0, layer_count: 0, is_moe: false, expert_count: 0, expert_used_count: 0, mmproj_paths: [] }
+      model = { name, publisher: '', model_family: '', size_bytes: 0, path: id, arch: '', params: '', max_context: 0, layer_count: 0, is_moe: false, expert_count: 0, expert_used_count: 0, supports_thinking: false, supports_effort: false, supported_effort_levels: [], mmproj_paths: [] }
     }
 
     selectedModel.value = model

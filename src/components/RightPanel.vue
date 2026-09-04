@@ -278,7 +278,7 @@
         </div>
       </div>
 
-      <template v-if="activeModel?.mmproj_paths?.length > 0">
+      <template v-if="activeModel && activeModel.mmproj_paths.length > 0">
         <div class="panel-section">
           <div class="section-title">👁️ {{ t('load.vision') }}</div>
           <div class="field" :title="t('load.visionTooltip')">
@@ -549,6 +549,8 @@ const modelCfg = ref<ModelConfig>({
   cacheRam: 0,
   nCpuMoe: 0,
   expertsPerToken: 0,
+  visionEnabled: false,
+  mmprojPath: '',
   seed: -1,
   temp: 0.8,
   topP: 0.95,
@@ -636,8 +638,10 @@ const loading = ref(false)
 const error = ref('')
 
 async function loadModel() {
-  console.log('loadModel called', activeModel.value)
-  loadingModel.value = activeModel.value
+  const model = activeModel.value
+  if (!model) return
+  console.log('loadModel called', model)
+  loadingModel.value = model
   modelLoading.value = true
   loading.value = true
   error.value = ''
@@ -651,7 +655,7 @@ async function loadModel() {
       llamaPath: config.llamaPath,
       cudaGraphOpt: config.cudaGraphOpt ?? '',
       logVerbosity: Number(config.logVerbosity ?? 3),
-      modelPath: activeModel.value.path,
+      modelPath: model.path,
       gpuLayers: Number(modelCfg.value.gpuOffload),
       contextLength: Number(modelCfg.value.contextLength),
       cpuThreads: Number(modelCfg.value.cpuThreads),
@@ -711,7 +715,7 @@ async function loadModel() {
     })
     console.log('invoke result:', result)
     loadedServerPort.value = Number(config.port) || 8080
-    loadedModel.value = activeModel.value
+    loadedModel.value = model
   } catch (e) {
     console.error('invoke error:', e)
     error.value = String(e)

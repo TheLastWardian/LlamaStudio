@@ -384,7 +384,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { allModels, loadedModel, selectedModel, modelLoading, loadingModel, loadedModelConfig, loadedServerPort } from '../stores/selectedModel'
+import { allModels, loadedModel, selectedModel, modelLoading, loadingModel, loadedServerPort } from '../stores/selectedModel'
 import { modelDisplayNames, modelMeta, groups } from '../stores/groups'
 import { invoke } from '@tauri-apps/api/core'
 import { loadConfig, loadModelConfig, saveModelConfig, type ModelConfig, defaultDraftParams, activeSpecKind } from '../stores/config'
