@@ -51,7 +51,7 @@
         <div
           class="vram-estimate"
           v-if="vramEstimate"
-          :title="t('load.vramBreakdown', { w: vramEstimate.weightsGiB.toFixed(1), k: vramEstimate.kvGiB.toFixed(1), b: vramEstimate.bufferGiB.toFixed(1) })"
+              :title="t(vramEstimate.ssmGiB > 0.005 ? 'load.vramBreakdownSsm' : 'load.vramBreakdown', { w: vramEstimate.weightsGiB.toFixed(1), k: vramEstimate.kvGiB.toFixed(1), s: vramEstimate.ssmGiB.toFixed(1), b: vramEstimate.bufferGiB.toFixed(1) })"
         >
           <div v-if="gpuMemTotal > 0" :class="'vram-bar vram-' + vramLevel"><div class="vram-fill" :style="{ width: vramPct + '%' }"></div></div>
           <span :class="'vram-text vram-' + vramLevel">{{ t('load.vramEstimate', { size: vramEstimate.totalGiB.toFixed(1) }) }}</span>
@@ -604,6 +604,7 @@ const vramEstimate = computed(() => estimateVram(activeModel.value, {
   ctx: modelCfg.value.contextLength,
   kCache: modelCfg.value.kCacheQuant,
   vCache: modelCfg.value.vCacheQuant,
+  nCpuMoe: modelCfg.value.nCpuMoe,
 }))
 
 const vramPct = computed(() => {

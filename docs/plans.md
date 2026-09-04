@@ -23,8 +23,32 @@
   - parsear 2 ints; `None` si nvidia-smi no existe o falla (la UI oculta la comparación y muestra solo el absoluto)
 - Registrar en `generate_handler!` (lib.rs:749)
 
-**2. Estimación — helper frontend**
-- Nueva función (p.ej. `src/stores/config.ts` o `src/utils/vram.ts`):
+**2. Estimación — helper frontend (`src/utils/vram.ts`)**
+
+> **Revisión 2026-09-04 (fix):** la fórmula original sobreestimaba ~25% en el modelo
+> qwen35 híbrido (24.6 GiB vs ~19.5 reales). Causas: (a) `head_dim = emb/heads` no es
+> válido cuando `attention.key_length` existe (qwen35: 213 vs 256; gemma4: 176 vs 512);
+> (b) los modelos híbridos (`full_attention_interval` + `ssm.*`) solo tienen KV
+> creciente en 1 de cada N capas; el resto es SSM con estado fijo; (c) MoE con
+> `--n-cpu-moe N` deja N expertos por capa en CPU. Fórmula corregida:
+> ```
+> head_dim    = key_length || (embedding_length / head_count)
+> bytesKV     = { F32: 4, F16: 2, Q8_0: 1.0625, Q4_0: 0.5625 }
+> interval    = full_attention_interval || 1          (1 = denso, sin cambio)
+> n_full      = ceil(ngl / interval)                  (capas de atención plena en GPU)
+> weights_gpu = size_bytes × (ngl / layer_count)
+>             × (1 − frac_experts × n_cpu_moe / expert_count)   [solo MoE con n_cpu_moe > 0]
+>   donde frac_experts = expert_params / (expert_params + attn_params) (por capa, desde GGUF)
+> kv_cache    = n_full × ctx × head_count_kv × head_dim × (bytesK + bytesV)
+> ssm_state   = (ngl − n_full) × ssm.state_size × ssm.inner_size × 4   [solo híbridos, fijo, no escala con ctx]
+> buffer      ≈ 200 MB
+> total       = weights_gpu + kv_cache + ssm_state + buffer
+> ```
+> Verificado contra el server en vivo (Qwen3.8-27B qwen35, ngl 65, ctx 155648, KV Q4_0):
+> 19.5 GiB estimado vs ~19 GiB reales (22.4 GiB GPU total − ~3 GiB desktop/Discord).
+> `--cache-ram` NO afecta la VRAM (es prompt cache en RAM, PR llama.cpp#16391).
+
+- Fórmula original (pre-fix, solo válida para densos estándar):
   ```
   head_dim    = embedding_length / head_count
   bytesKV     = { F32: 4, F16: 2, Q8_0: 1, Q4_0: 0.5 }

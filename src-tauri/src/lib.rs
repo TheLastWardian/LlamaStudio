@@ -28,6 +28,12 @@ pub struct ModelFile {
     pub embedding_length: u32,
     pub head_count: u32,
     pub head_count_kv: u32,
+    pub key_length: u32,
+    pub full_attention_interval: u32,
+    pub ssm_state_size: u32,
+    pub ssm_inner_size: u32,
+    pub feed_forward_length: u32,
+    pub expert_feed_forward_length: u32,
     pub is_moe: bool,
     pub expert_count: u32,
     pub expert_used_count: u32,
@@ -286,6 +292,30 @@ fn scan_models(models_path: String) -> Vec<ModelFile> {
             .or_else(|| meta.get("llama.attention.head_count_kv"))
             .and_then(|v| v.parse::<u32>().ok())
             .unwrap_or(head_count);
+        let key_length = meta.get(&format!("{}.attention.key_length", arch))
+            .or_else(|| meta.get("llama.attention.key_length"))
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(0);
+        let full_attention_interval = meta.get(&format!("{}.full_attention_interval", arch))
+            .or_else(|| meta.get("llama.full_attention_interval"))
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(0);
+        let ssm_state_size = meta.get(&format!("{}.ssm.state_size", arch))
+            .or_else(|| meta.get("llama.ssm.state_size"))
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(0);
+        let ssm_inner_size = meta.get(&format!("{}.ssm.inner_size", arch))
+            .or_else(|| meta.get("llama.ssm.inner_size"))
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(0);
+        let feed_forward_length = meta.get(&format!("{}.feed_forward_length", arch))
+            .or_else(|| meta.get("llama.feed_forward_length"))
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(0);
+        let expert_feed_forward_length = meta.get(&format!("{}.expert_feed_forward_length", arch))
+            .or_else(|| meta.get("llama.expert_feed_forward_length"))
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(0);
         let expert_count = meta.get(&format!("{}.expert_count", arch))
             .or_else(|| meta.get("llama.expert_count"))
             .and_then(|v| v.parse::<u32>().ok())
@@ -316,6 +346,12 @@ fn scan_models(models_path: String) -> Vec<ModelFile> {
             embedding_length,
             head_count,
             head_count_kv,
+            key_length,
+            full_attention_interval,
+            ssm_state_size,
+            ssm_inner_size,
+            feed_forward_length,
+            expert_feed_forward_length,
             is_moe,
             expert_count,
             expert_used_count,

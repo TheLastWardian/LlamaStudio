@@ -172,6 +172,7 @@ export default {
     systemRam: 'RAM de sistema: {total} MiB / Libre: {free} MiB',
     vramEstimate: '≈ {size} GiB VRAM',
     vramBreakdown: 'Pesos {w} GiB · KV {k} GiB · Buffer {b} GiB',
+    vramBreakdownSsm: 'Pesos {w} GiB · KV {k} GiB · SSM {s} GiB · Buffer {b} GiB',
   },
   app: {
     loading: '⏳ Cargando {name}...',

@@ -13,6 +13,12 @@ export interface ModelFile {
   embedding_length: number
   head_count: number
   head_count_kv: number
+  key_length: number
+  full_attention_interval: number
+  ssm_state_size: number
+  ssm_inner_size: number
+  feed_forward_length: number
+  expert_feed_forward_length: number
   is_moe: boolean
   expert_count: number
   expert_used_count: number

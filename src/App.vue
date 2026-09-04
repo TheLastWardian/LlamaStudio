@@ -88,7 +88,7 @@ async function restoreLoadedModel(port: number, modelsPath: string) {
     }
     if (!model) {
       const name = id.split(/[\\/]/).pop() || id
-      model = { name, publisher: '', model_family: '', size_bytes: 0, path: id, arch: '', params: '', max_context: 0, layer_count: 0, embedding_length: 0, head_count: 0, head_count_kv: 0, is_moe: false, expert_count: 0, expert_used_count: 0, supports_thinking: false, supports_effort: false, supported_effort_levels: [], mmproj_paths: [] }
+      model = { name, publisher: '', model_family: '', size_bytes: 0, path: id, arch: '', params: '', max_context: 0, layer_count: 0, embedding_length: 0, head_count: 0, head_count_kv: 0, key_length: 0, full_attention_interval: 0, ssm_state_size: 0, ssm_inner_size: 0, feed_forward_length: 0, expert_feed_forward_length: 0, is_moe: false, expert_count: 0, expert_used_count: 0, supports_thinking: false, supports_effort: false, supported_effort_levels: [], mmproj_paths: [] }
     }
 
     selectedModel.value = model
