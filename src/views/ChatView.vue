@@ -31,7 +31,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { loadedModel, modelLoading, loadedServerPort } from '../stores/selectedModel'
+import { loadedModel, modelLoading, loadedServerPort, prefillProgress, generationTokens } from '../stores/selectedModel'
 import { modelDisplayNames } from '../stores/groups'
 import { appConfig } from '../stores/config'
 import { invoke } from '@tauri-apps/api/core'
@@ -50,5 +50,7 @@ async function eject() {
   loadedModel.value = null
   loadedServerPort.value = null
   modelLoading.value = false
+  prefillProgress.value = null
+  generationTokens.value = null
 }
 </script>

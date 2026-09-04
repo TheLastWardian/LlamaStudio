@@ -15,7 +15,6 @@
     </div>
     <div v-if="(currentView !== 'developer' && currentView !== 'chat') || loadedModel" class="resize-handle" @mousedown="startResize"></div>
     <RightPanel v-if="(currentView !== 'developer' && currentView !== 'chat') || loadedModel" :style="{ width: rightPanelWidth + 'px' }" :currentView="currentView" />
-    <div v-else-if="currentView === 'developer'" style="width: 0px"></div>
   </div>
 </template>
 
@@ -124,8 +123,6 @@ onMounted(async () => {
 
   restoreLoadedModel(config.port, config.modelsPath)
 
-  if (unlistenLogs) unlistenLogs()
-  
   unlistenLogs = await listen<string>('llama-log', (event) => {
     const line = event.payload
     const clean = line.replace(/\x1B\[[0-9;]*m/g, '')

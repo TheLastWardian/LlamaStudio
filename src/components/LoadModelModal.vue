@@ -24,7 +24,7 @@
 
         <!-- Lista agrupada -->
         <div class="modal-model-list">
-          <template v-for="section in groupedFilteredModels" :key="section.groupName">
+          <template v-for="section in groupedFilteredModels" :key="section.groupId">
             <div v-if="section.models.length > 0" class="modal-section-title">
               {{ section.groupName }}
             </div>
@@ -388,7 +388,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { allModels, loadedModel, selectedModel, modelLoading, loadingModel, loadedServerPort } from '../stores/selectedModel'
+import { allModels, loadedModel, selectedModel, modelLoading, loadingModel, loadedServerPort, prefillProgress, generationTokens } from '../stores/selectedModel'
 import { modelDisplayNames, modelMeta, groups } from '../stores/groups'
 import { invoke } from '@tauri-apps/api/core'
 import { loadConfig, loadModelConfig, saveModelConfig, type ModelConfig, defaultDraftParams, activeSpecKind, numOrDefault } from '../stores/config'
@@ -474,14 +474,14 @@ const groupedFilteredModels = computed(() => {
     return (modelMeta[a.path]?.order ?? 0) - (modelMeta[b.path]?.order ?? 0)
   }
 
-  const result: { groupName: string, models: ModelFile[] }[] = []
+  const result: { groupId: string, groupName: string, models: ModelFile[] }[] = []
 
   const sortedGroups = [...groups.value].sort((a, b) => a.order - b.order)
   for (const group of sortedGroups) {
     const groupModels = filtered
       .filter(m => modelMeta[m.path]?.groupId === group.id)
       .sort(sortModel)
-    result.push({ groupName: `📁 ${group.name}`, models: groupModels })
+    result.push({ groupId: group.id, groupName: `📁 ${group.name}`, models: groupModels })
   }
 
   const ungrouped = filtered
@@ -489,7 +489,7 @@ const groupedFilteredModels = computed(() => {
     .sort(sortModel)
   
   if (ungrouped.length > 0) {
-    result.push({ groupName: groups.value.length > 0 ? t('models.ungrouped') : t('models.yourModels'), models: ungrouped })
+    result.push({ groupId: 'ungrouped', groupName: groups.value.length > 0 ? t('models.ungrouped') : t('models.yourModels'), models: ungrouped })
   }
 
   return result
@@ -521,8 +521,7 @@ async function invokeLoad(modelPath: string, cfg: ModelConfig) {
   const config = await loadConfig()
   const cpuThreads = numOrDefault(cfg.cpuThreads, 0)
   const resolvedThreads = cpuThreads > 0 ? cpuThreads : await invoke<number>('get_cpu_threads')
-  const gpuLayers = numOrDefault(cfg.gpuOffload, 0)
-  const resolvedGpu = gpuLayers > 0 ? gpuLayers : (configModel.value?.layer_count ?? 999)
+  const resolvedGpu = numOrDefault(cfg.gpuOffload, 999)
   const dp = cfg.draftParams?.[activeSpecKind(cfg)] ?? defaultDraftParams
   await invoke('load_model', {
     llamaPath: config.llamaPath,
@@ -608,6 +607,8 @@ async function selectModel(model: ModelFile) {
     await invokeLoad(model.path, cfg)
   } catch (e) {
     modelLoading.value = false
+    loadingModel.value = null
+    selectedModel.value = loadedModel.value
     console.error(e)
   }
 }
@@ -632,6 +633,9 @@ async function loadWithConfig() {
     await invokeLoad(configModel.value.path, tempCfg.value)
   } catch (e) {
     modelLoading.value = false
+    loadingModel.value = null
+    selectedModel.value = loadedModel.value
+    console.error(e)
   }
 }
 
@@ -640,6 +644,8 @@ async function eject() {
   loadedModel.value = null
   loadedServerPort.value = null
   modelLoading.value = false
+  prefillProgress.value = null
+  generationTokens.value = null
   emit('close')
 }
 </script>

@@ -694,7 +694,7 @@ fn get_cpu_threads() -> usize {
 #[tauri::command]
 fn get_system_ram() -> (u64, u64) { // (total, available) en MiB
     use sysinfo::System;
-    let mut sys = System::new_all();
+    let mut sys = System::new();
     sys.refresh_memory();
     (
         sys.total_memory() / 1024 / 1024,

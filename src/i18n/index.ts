@@ -2,8 +2,6 @@ import { ref } from 'vue'
 import en from './en'
 import es from './es'
 
-// type TranslationKeys = typeof en
-
 export const currentLang = ref<'en' | 'es'>('en')
 
 export function t(key: string, params?: Record<string, string | number>): string {

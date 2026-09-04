@@ -455,7 +455,7 @@
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
-import { selectedModel, allModels, modelLoading, loadedModel, loadingModel, loadedModelConfig, loadedServerPort } from '../stores/selectedModel'
+import { selectedModel, allModels, modelLoading, loadedModel, loadingModel, loadedModelConfig, loadedServerPort, prefillProgress, generationTokens } from '../stores/selectedModel'
 import { loadConfig, loadModelConfig, saveModelConfig, appConfig, type ModelConfig, defaultDraftParams, activeSpecKind, numOrDefault } from '../stores/config'
 import { t } from '../i18n'
 
@@ -620,7 +620,7 @@ watch(activeModel, async (model) => {
       cfg.cpuThreads = await invoke<number>('get_cpu_threads')
     }
     const maxLayers = model.layer_count ?? 999
-    if (!cfg.gpuOffload || cfg.gpuOffload > maxLayers) {
+    if (cfg.gpuOffload > maxLayers) {
       cfg.gpuOffload = maxLayers
     }
     modelCfg.value = cfg
@@ -640,7 +640,6 @@ const error = ref('')
 async function loadModel() {
   const model = activeModel.value
   if (!model) return
-  console.log('loadModel called', model)
   loadingModel.value = model
   modelLoading.value = true
   loading.value = true
@@ -659,12 +658,11 @@ async function loadModel() {
 
   try {
     const config = await loadConfig()
-    console.log('config:', config)
     const cfg = modelCfg.value
     const resolvedThreads = numOrDefault(cfg.cpuThreads, 0) > 0 ? numOrDefault(cfg.cpuThreads, 0) : await invoke<number>('get_cpu_threads')
-    const resolvedGpu = numOrDefault(cfg.gpuOffload, 0) > 0 ? numOrDefault(cfg.gpuOffload, 0) : (model.layer_count ?? 999)
+    const resolvedGpu = numOrDefault(cfg.gpuOffload, 999)
     const dp = cfg.draftParams[activeSpecKind(cfg)]
-    const result = await invoke<string>('load_model', {
+    await invoke('load_model', {
       llamaPath: config.llamaPath,
       cudaGraphOpt: config.cudaGraphOpt ?? '',
       logVerbosity: Number(config.logVerbosity ?? 3),
@@ -726,13 +724,12 @@ async function loadModel() {
       minP: numOrDefault(cfg.minP, 0.05),
       repeatPenalty: numOrDefault(cfg.repeatPenalty, 1.0),
     })
-    console.log('invoke result:', result)
     loadedServerPort.value = Number(config.port) || 8080
     loadedModel.value = model
   } catch (e) {
-    console.error('invoke error:', e)
     error.value = String(e)
     modelLoading.value = false
+    loadingModel.value = null
   } finally {
     loading.value = false
   }
@@ -743,6 +740,8 @@ async function stopModel() {
   modelLoading.value = false
   loadedModel.value = null
   loadedServerPort.value = null
+  prefillProgress.value = null
+  generationTokens.value = null
 }
 
 function copy(text: string) {

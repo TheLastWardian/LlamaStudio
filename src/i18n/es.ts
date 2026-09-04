@@ -18,7 +18,6 @@ export default {
     llm: 'LLM',
     quant: 'Cuant',
     size: 'Tamaño',
-    modified: 'Modificado',
     actions: 'Acciones',
     modelsCount: 'modelos',
     ungrouped: 'Sin grupo',

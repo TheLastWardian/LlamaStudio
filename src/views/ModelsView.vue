@@ -74,8 +74,7 @@
               <span class="tag quant">{{ model.name.split('-').pop()?.replace('.gguf','').replace('.GGUF','') }}</span>
             </div>
             <div class="col-cell" :style="{ width: columns[5].width + 'px' }">{{ formatSize(model.size_bytes) }}</div>
-            <div class="col-cell" :style="{ width: columns[6].width + 'px' }">-</div>
-            <div class="col-cell" :style="{ width: columns[7].width + 'px' }">···</div>
+            <div class="col-cell" :style="{ width: columns[6].width + 'px' }">···</div>
           </div>
           </template>
         </template>
@@ -153,7 +152,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { revealItemInDir, openPath } from '@tauri-apps/plugin-opener'
 import { selectedModel, allModels } from '../stores/selectedModel'
@@ -170,7 +169,6 @@ const columns = ref([
   { key: 'llm', labelKey: 'models.llm', width: 400 },
   { key: 'quant', labelKey: 'models.quant', width: 90 },
   { key: 'size', labelKey: 'models.size', width: 80 },
-  { key: 'modified', labelKey: 'models.modified', width: 100 },
   { key: 'actions', labelKey: 'models.actions', width: 60 },
 ])
 
@@ -318,18 +316,26 @@ async function openModelsFolder() {
   }
 }
 
+const activeCleanups: Array<() => void> = []
+
 function startColResize(e: MouseEvent, col: typeof columns.value[0]) {
   e.preventDefault()
   e.stopPropagation()
   const startX = e.clientX
   const startWidth = col.width
   function onMove(e: MouseEvent) { col.width = Math.max(50, startWidth + (e.clientX - startX)) }
-  function onUp() { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+  function cleanup() {
+    window.removeEventListener('mousemove', onMove)
+    window.removeEventListener('mouseup', cleanup)
+    const i = activeCleanups.indexOf(cleanup)
+    if (i !== -1) activeCleanups.splice(i, 1)
+  }
+  activeCleanups.push(cleanup)
   window.addEventListener('mousemove', onMove)
-  window.addEventListener('mouseup', onUp)
+  window.addEventListener('mouseup', cleanup)
 }
 
-const dragging = ref<{ modelPath: string, x: number, y: number } | null>(null)
+const dragging = ref<{ modelPath: string } | null>(null)
 const dropTarget = ref<string | null>(null)
 const dropModelPath = ref<string | null>(null)
 const listVersion = ref(0)
@@ -364,7 +370,7 @@ function onGroupMouseDown(e: MouseEvent, groupId: string) {
     }
   }
 
-  function onUp() {
+  function cleanup() {
     if (started && draggingGroup.value && dropGroupTarget.value) {
       const from = groups.value.findIndex(g => g.id === draggingGroup.value)
       const to = groups.value.findIndex(g => g.id === dropGroupTarget.value)
@@ -380,11 +386,14 @@ function onGroupMouseDown(e: MouseEvent, groupId: string) {
     draggingGroup.value = null
     dropGroupTarget.value = null
     window.removeEventListener('mousemove', onMove)
-    window.removeEventListener('mouseup', onUp)
+    window.removeEventListener('mouseup', cleanup)
+    const i = activeCleanups.indexOf(cleanup)
+    if (i !== -1) activeCleanups.splice(i, 1)
   }
 
+  activeCleanups.push(cleanup)
   window.addEventListener('mousemove', onMove)
-  window.addEventListener('mouseup', onUp)
+  window.addEventListener('mouseup', cleanup)
 }
 
 function startRename(modelPath: string) {
@@ -437,7 +446,7 @@ function onModelMouseDown(e: MouseEvent, modelPath: string) {
       started = true
     }
     if (started) {
-      dragging.value = { modelPath, x: e.clientX, y: e.clientY }
+      dragging.value = { modelPath }
       const el = document.elementFromPoint(e.clientX, e.clientY)
       const groupEl = el?.closest('[data-group-id]')
       dropTarget.value = groupEl?.getAttribute('data-group-id') ?? null
@@ -446,12 +455,6 @@ function onModelMouseDown(e: MouseEvent, modelPath: string) {
   }
 
   function cleanup() {
-    window.removeEventListener('mousemove', onMove)
-    window.removeEventListener('mouseup', onUp)
-    window.removeEventListener('mouseleave', onUp)
-  }
-
-  function onUp() {
       if (started && dragging.value) {
       const gId = dropTarget.value === 'ungrouped' ? null : dropTarget.value
 
@@ -498,13 +501,22 @@ function onModelMouseDown(e: MouseEvent, modelPath: string) {
     dragging.value = null
     dropTarget.value = null
     dropModelPath.value = null
-    cleanup()
+    window.removeEventListener('mousemove', onMove)
+    window.removeEventListener('mouseup', cleanup)
+    document.removeEventListener('mouseleave', cleanup)
+    const i = activeCleanups.indexOf(cleanup)
+    if (i !== -1) activeCleanups.splice(i, 1)
   }
 
+  activeCleanups.push(cleanup)
   window.addEventListener('mousemove', onMove)
-  window.addEventListener('mouseup', onUp)
-  window.addEventListener('mouseleave', onUp)
+  window.addEventListener('mouseup', cleanup)
+  document.addEventListener('mouseleave', cleanup)
 }
+
+onUnmounted(() => {
+  for (const c of [...activeCleanups]) c()
+})
 </script>
 
 <style scoped>

@@ -180,6 +180,7 @@ export async function loadModelConfig(modelPath: string): Promise<ModelConfig> {
   const key = 'model:' + modelPath.replace(/[\\/]/g, '_')
   const saved = await store.get<Partial<ModelConfig> & LegacyDraftFields>(key)
   const cfg: ModelConfig = { ...modelDefaults, ...(saved ?? {}) }
+  if (!saved) cfg.gpuOffload = 999
 
   const hasLegacy = !saved?.draftParams
   const legacy: DraftParams = {
