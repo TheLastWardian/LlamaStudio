@@ -3,7 +3,7 @@
     <Sidebar :currentView="currentView" :previousView="previousView" @navigate="currentView = $event" />
     <div class="main">
       <div v-if="modelLoading" class="loading-overlay">
-        <span class="loading-text">⏳ Loading {{ selectedModel?.name }}...</span>
+        <span class="loading-text">{{ t('app.loading', { name: selectedModel?.name ?? '' }) }}</span>
         <div class="loading-bar">
           <div class="loading-bar-fill"></div>
         </div>
@@ -27,7 +27,7 @@ import { listen } from '@tauri-apps/api/event'
 import { serverLogs, modelLoading, selectedModel, loadedModel, loadingModel, loadedModelConfig, loadedServerPort, prefillProgress, generationTokens, type ModelFile } from './stores/selectedModel'
 import { appConfig, loadConfig, loadModelConfig } from './stores/config'
 import { loadGroups } from './stores/groups'
-import { setLang } from './i18n'
+import { setLang, t } from './i18n'
 import Sidebar from './components/Sidebar.vue'
 import ModelsView from './views/ModelsView.vue'
 import ChatView from './views/ChatView.vue'

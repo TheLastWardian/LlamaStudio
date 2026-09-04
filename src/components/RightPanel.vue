@@ -27,7 +27,7 @@
     <div class="panel-scroll">
     <div v-if="activeTab === 'load'">
       <div class="panel-section">
-        <div class="section-title">⚙ Context and Offload</div>
+        <div class="section-title">⚙ {{ t('load.contextAndOffload') }}</div>
         <div class="field">
           <label>{{ t('load.contextLength') }}</label>
           <input type="number" v-model="modelCfg.contextLength" class="field-input" />
@@ -91,11 +91,11 @@
               <div class="field">
                 <label>{{ t('load.draftType') }}</label>
                 <select class="field-select" v-model="modelCfg.draftSpecType">
-                  <option value="simple">Simple</option>
-                  <option value="mtp">MTP</option>
-                  <option value="dflash">DFlash</option>
-                  <option value="eagle3">EAGLE3</option>
-                  <option value="dspark">DSpark</option>
+                  <option value="simple">{{ t('load.draftSimple') }}</option>
+                  <option value="mtp">{{ t('load.mtp') }}</option>
+                  <option value="dflash">{{ t('load.draftDflash') }}</option>
+                  <option value="eagle3">{{ t('load.draftEagle3') }}</option>
+                  <option value="dspark">{{ t('load.draftDspark') }}</option>
                 </select>
               </div>
             </template>
@@ -251,7 +251,7 @@
           class="slider full-width"
         />
         <div style="color:#555; font-size:11px; margin-bottom:4px;">
-          {{ systemRamTotal > 0 ? `System RAM: ${systemRamTotal} MiB / Free: ${systemRamAvailable} MiB` : '' }}
+          {{ systemRamTotal > 0 ? t('load.systemRam', { total: systemRamTotal, free: systemRamAvailable }) : '' }}
         </div>
         <template v-if="activeModel?.path !== loadedModel?.path">
           <div v-if="cacheRamWarning === 'unlimited'" style="color:#f5a55a; font-size:11px; margin-bottom:8px;">

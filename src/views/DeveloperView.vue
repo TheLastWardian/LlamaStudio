@@ -29,7 +29,7 @@
           <span class="prefill-pct">{{ prefillProgress }}%</span>
         </div>
         <div v-if="generationTokens !== null && prefillProgress === null" class="gen-tokens">
-          <span style="color:#4af54a; font-size:11px;">{{ generationTokens }} tokens</span>
+          <span style="color:#4af54a; font-size:11px;">{{ generationTokens }} {{ t('developer.tokens') }}</span>
         </div>
         <span class="tag qwen" style="font-size:10px;">{{ loadedModel.arch }} {{ loadedModel.name }}</span>
         <div style="flex:1"></div>

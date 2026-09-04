@@ -7,11 +7,11 @@
       <template v-if="view === 'list'">
         <div class="modal-header">
           <input class="search-box" v-model="search" :placeholder="t('modal.filter')" autofocus />
-          <button class="modal-close" @click="$emit('close')">✕</button>
+          <button class="modal-close" @click="$emit('close')">{{ t('modal.close') }}</button>
         </div>
 
         <!-- Modelo cargado actualmente -->
-        <div v-if="loadedModel" class="modal-section-title">{{ t('modal.currentlyLoaded') }} (1)</div>
+        <div v-if="loadedModel" class="modal-section-title">{{ t('modal.currentlyLoaded', { count: 1 }) }}</div>
         <div v-if="loadedModel" class="modal-model-row loaded">
           <span class="pin-indicator" v-if="modelMeta[loadedModel.path]?.pinned">📌</span>
           <span class="modal-model-name">{{ modelDisplayNames[loadedModel.path] || loadedModel.name }}</span>
@@ -52,7 +52,7 @@
           <span style="color:#fff; font-size:13px; font-weight:600; flex:1; text-align:center;">
             {{ modelDisplayNames[configModel.path] || configModel.name }}
           </span>
-          <button class="modal-close" @click="$emit('close')">✕</button>
+          <button class="modal-close" @click="$emit('close')">{{ t('modal.close') }}</button>
         </div>
 
         <div class="modal-config-body">
@@ -132,9 +132,9 @@
             <div class="field">
               <label>{{ t('load.speculativeDecoding') }}</label>
               <select class="field-select" v-model="tempCfg.specType">
-                <option value="None">None</option>
-                <option value="MTP">MTP</option>
-                <option value="Draft">Draft Model</option>
+                <option value="None">{{ t('load.none') }}</option>
+                <option value="MTP">{{ t('load.mtp') }}</option>
+                <option value="Draft">{{ t('load.draftModel') }}</option>
               </select>
             </div>
             <template v-if="tempCfg.specType !== 'None'">
@@ -152,11 +152,11 @@
                   <div class="field">
                     <label>{{ t('load.draftType') }}</label>
                     <select class="field-select" v-model="tempCfg.draftSpecType">
-                      <option value="simple">Simple</option>
-                      <option value="mtp">MTP</option>
-                      <option value="dflash">DFlash</option>
-                      <option value="eagle3">EAGLE3</option>
-                      <option value="dspark">DSpark</option>
+                <option value="simple">{{ t('load.draftSimple') }}</option>
+                <option value="mtp">{{ t('load.mtp') }}</option>
+                <option value="dflash">{{ t('load.draftDflash') }}</option>
+                <option value="eagle3">{{ t('load.draftEagle3') }}</option>
+                <option value="dspark">{{ t('load.draftDspark') }}</option>
                     </select>
                   </div>
                 </template>
@@ -302,16 +302,16 @@
             <div class="field" v-if="configModel?.supports_thinking" :title="t('load.thinkingModeTooltip')">
               <label>{{ t('load.thinkingMode') }}</label>
               <select class="field-select" v-model="tempCfg.reasoning">
-                <option value="auto">Auto</option>
-                <option value="on">On</option>
-                <option value="off">Off (disabled)</option>
+          <option value="auto">{{ t('load.auto') }}</option>
+          <option value="on">{{ t('load.on') }}</option>
+          <option value="off">{{ t('load.off') }}</option>
               </select>
             </div>
             <div class="field">
               <label>{{ t('load.reasoningBudget') }}</label>
               <select class="field-select" v-model="tempCfg.reasoningBudget">
-                <option value="-1">Unrestricted (default)</option>
-                <option value="0">Off (disabled)</option>
+                <option value="-1">{{ t('load.unrestricted') }}</option>
+                <option value="0">{{ t('load.off') }}</option>
                 <option value="1024">1024 tokens</option>
                 <option value="4096">4096 tokens</option>
                 <option value="8192">8192 tokens</option>
@@ -325,7 +325,7 @@
             <div class="field" v-if="configModel?.supports_effort">
               <label>{{ t('load.reasoningEffort') }}</label>
               <select class="field-select" v-model="tempCfg.reasoningEffort">
-                <option v-for="lvl in effortOptions" :key="lvl" :value="lvl">{{ lvl }}</option>
+                <option v-for="lvl in effortOptions" :key="lvl" :value="lvl">{{ effortLabel(lvl) }}</option>
               </select>
             </div>
           </div>
@@ -335,13 +335,13 @@
             <div class="field">
               <label>{{ t('load.host') }}</label>
               <select class="field-select" v-model="tempCfg.host">
-                <option value="127.0.0.1">localhost (127.0.0.1)</option>
-                <option value="0.0.0.0">All interfaces (0.0.0.0)</option>
+            <option value="127.0.0.1">{{ t('load.localhost') }}</option>
+            <option value="0.0.0.0">{{ t('load.allInterfaces') }}</option>
               </select>
             </div>
             <div class="field">
               <label>{{ t('load.alias') }}</label>
-              <input type="text" v-model="tempCfg.alias" class="field-input" placeholder="optional" />
+              <input type="text" v-model="tempCfg.alias" class="field-input" :placeholder="t('load.optional')" />
             </div>
             <div class="field">
               <label>{{ t('load.httpThreads') }}</label>
@@ -362,8 +362,8 @@
             <div class="field">
               <label>{{ t('load.fit') }}</label>
               <select class="field-select" v-model="tempCfg.fit">
-                <option value="on">On</option>
-                <option value="off">Off</option>
+                <option value="on">{{ t('load.fitOn') }}</option>
+                <option value="off">{{ t('load.fitOff') }}</option>
               </select>
             </div>
           </div>
@@ -400,6 +400,11 @@ const effortOptions = computed(() => {
   if (levels && levels.length > 0) return ['default', ...levels]
   return ['default', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']
 })
+const effortLabel = (v: string) => {
+  const k = t('load.' + v)
+  return k.startsWith('load.') ? v : k
+}
+
 const tempCfg = ref<ModelConfig | null>(null)
 const emit = defineEmits(['close'])
 
@@ -473,7 +478,7 @@ const groupedFilteredModels = computed(() => {
     .sort(sortModel)
   
   if (ungrouped.length > 0) {
-    result.push({ groupName: groups.value.length > 0 ? 'Ungrouped' : 'Your Models', models: ungrouped })
+    result.push({ groupName: groups.value.length > 0 ? t('models.ungrouped') : t('models.yourModels'), models: ungrouped })
   }
 
   return result

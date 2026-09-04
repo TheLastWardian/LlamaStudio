@@ -10,7 +10,7 @@
       </template>
       <template v-else>
         <div style="flex:1"></div>
-        <button class="btn-load" style="width:auto; padding:5px 12px;" @click="showModal = true">+ Load Model</button>
+        <button class="btn-load" style="width:auto; padding:5px 12px;" @click="showModal = true">+ {{ t('chat.loadModelBtn') }}</button>
         <div style="flex:1"></div>
       </template>
     </div>
