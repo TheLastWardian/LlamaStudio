@@ -1479,7 +1479,9 @@ pub fn cancel_download(
 ) -> Result<JobView, String> {
     let core = state.0.clone();
     for (task_id, ts) in core.task_states(&job_id) {
-        if !matches!(ts, TaskState::Completed) {
+        // Las ya fallidas no se tocan: conservar su error original (un cancel
+        // sobre un job fallido no debe re-escribirlo como "cancelado")
+        if matches!(ts, TaskState::Downloading | TaskState::Queued | TaskState::Paused) {
             let key = format!("{job_id}/{task_id}");
             if let Some(flag) = locked(&core.active).get(&key) {
                 flag.store(true, Ordering::SeqCst);

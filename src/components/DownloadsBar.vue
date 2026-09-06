@@ -43,7 +43,7 @@
           <button v-else-if="r.job.state === 'paused'" class="dl-btn" :title="t('downloads.resume')" @click="onPauseResume(r.job)">
             <Play :size="14" />
           </button>
-          <button v-if="r.job.state !== 'completed'" class="dl-btn" :title="t('downloads.cancel')" @click="onCancel(r.job)">
+          <button v-if="r.job.state !== 'completed' && r.job.state !== 'failed'" class="dl-btn" :title="t('downloads.cancel')" @click="onCancel(r.job)">
             <X :size="14" />
           </button>
           <button class="dl-btn" :title="t('downloads.openFolder')" @click="onOpenFolder(r.job)">
