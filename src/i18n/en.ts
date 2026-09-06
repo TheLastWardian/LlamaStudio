@@ -51,6 +51,8 @@ export default {
       otherHelp: 'Repo files that are not model weights.',
     },
     selectAll: 'Select all in this group',
+    collapse: 'Collapse group',
+    expand: 'Expand group',
     possibleDraft: 'possible draft',
     inLibraryBadge: 'in library',
     total: 'Total',

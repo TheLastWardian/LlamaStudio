@@ -51,6 +51,8 @@ export default {
       otherHelp: 'Archivos del repo que no son pesos de modelo.',
     },
     selectAll: 'Seleccionar todo el grupo',
+    collapse: 'Contraer grupo',
+    expand: 'Expandir grupo',
     possibleDraft: 'posible draft',
     inLibraryBadge: 'en la librería',
     total: 'Total',

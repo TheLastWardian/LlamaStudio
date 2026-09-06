@@ -38,6 +38,14 @@
 
           <section v-for="g in groups" :key="g.key" class="file-group">
             <header class="file-group-head">
+              <button
+                class="group-chevron"
+                :class="{ open: !collapsed[g.key] }"
+                :title="collapsed[g.key] ? t('discover.expand') : t('discover.collapse')"
+                @click="toggleCollapsed(g.key)"
+              >
+                <ChevronRight :size="14" />
+              </button>
               <label class="group-check-label" :title="t('discover.selectAll')">
                 <input
                   type="checkbox"
@@ -51,6 +59,7 @@
               <span class="group-help" :title="t(g.helpKey)">?</span>
             </header>
 
+            <div v-show="!collapsed[g.key]">
             <div
               v-for="f in g.files"
               :key="f.path"
@@ -69,6 +78,7 @@
                   <span v-if="inLibrary(f)" class="tag tag-library">{{ t('discover.inLibraryBadge') }}</span>
                 </div>
               </div>
+            </div>
             </div>
           </section>
         </template>
@@ -92,7 +102,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { openUrl } from '@tauri-apps/plugin-opener'
-import { Download, ExternalLink, X } from '@lucide/vue'
+import { ChevronRight, Download, ExternalLink, X } from '@lucide/vue'
 import { t } from '../i18n'
 import { appConfig } from '../stores/config'
 import { allModels } from '../stores/selectedModel'
@@ -118,6 +128,8 @@ const readmeLoading = ref(false)
 const readmeError = ref<string | null>(null)
 const checked = ref<Record<string, boolean>>({})
 const downloading = ref(false)
+const collapsed = ref<Record<string, boolean>>({ other: true })
+function toggleCollapsed(key: string) { collapsed.value[key] = !collapsed.value[key] }
 
 const owner = computed(() => props.repo.id.split('/')[0] ?? '')
 const name = computed(() => {
@@ -495,6 +507,30 @@ async function download() {
   padding: 6px 8px;
   background: #1a1a2a;
   border-bottom: 1px solid #2a2a2a;
+}
+
+.group-chevron {
+  background: transparent;
+  border: none;
+  padding: 2px;
+  margin-left: -4px;
+  cursor: pointer;
+  color: #777;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.group-chevron:hover {
+  color: #d4d4d4;
+  background: #2a2a2a;
+}
+.group-chevron svg {
+  transition: transform 0.15s;
+}
+.group-chevron.open svg {
+  transform: rotate(90deg);
 }
 
 .group-check-label {
