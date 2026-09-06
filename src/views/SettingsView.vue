@@ -73,6 +73,19 @@
           </select>
         </div>
         <div class="settings-field">
+          <label :title="t('settings.chunksTooltip')">{{ t('settings.chunks') }}</label>
+          <select class="field-select" v-model.number="config.downloads.chunks">
+            <option :value="1">1</option>
+            <option :value="2">2</option>
+            <option :value="3">3</option>
+            <option :value="4">4</option>
+            <option :value="5">5</option>
+            <option :value="6">6</option>
+            <option :value="7">7</option>
+            <option :value="8">8</option>
+          </select>
+        </div>
+        <div class="settings-field">
           <label>{{ t('settings.autoRetry') }}</label>
           <input type="checkbox" v-model="config.downloads.autoRetry" class="toggle" />
         </div>
@@ -108,7 +121,7 @@ const config = ref<AppConfig>({
   port: 8080,
   minimizeToTray: false,
   language: 'en',
-  downloads: { parallelism: 2, autoRetry: true, maxRetries: 5, keepPartOnCancel: false },
+  downloads: { parallelism: 2, chunks: 4, autoRetry: true, maxRetries: 5, keepPartOnCancel: false },
 })
 
 const saved = ref(false)

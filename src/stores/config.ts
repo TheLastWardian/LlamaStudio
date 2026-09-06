@@ -224,7 +224,7 @@ export interface AppConfig {
   port: number
   minimizeToTray: boolean
   language: 'en' | 'es'
-  downloads: { parallelism: number; autoRetry: boolean; maxRetries: number; keepPartOnCancel: boolean }
+  downloads: { parallelism: number; chunks: number; autoRetry: boolean; maxRetries: number; keepPartOnCancel: boolean }
 }
 
 const defaults: AppConfig = {
@@ -235,7 +235,7 @@ const defaults: AppConfig = {
   port: 8080,
   minimizeToTray: false,
   language: 'en',
-  downloads: { parallelism: 2, autoRetry: true, maxRetries: 5, keepPartOnCancel: false },
+  downloads: { parallelism: 2, chunks: 4, autoRetry: true, maxRetries: 5, keepPartOnCancel: false },
 }
 
 // S5: copia del nested `downloads` (no compartir el objeto con `defaults`)

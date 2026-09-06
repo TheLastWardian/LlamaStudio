@@ -65,10 +65,6 @@ export const jobs = ref<JobView[]>([])
 
 let inited = false
 
-function findTask(jobId: string, taskId: string): TaskView | undefined {
-  return jobs.value.find(j => j.jobId === jobId)?.files.find(f => f.taskId === taskId)
-}
-
 function upsertJob(view: JobView): void {
   const i = jobs.value.findIndex(j => j.jobId === view.jobId)
   if (i === -1) jobs.value = [view, ...jobs.value]
@@ -129,12 +125,21 @@ export async function init(): Promise<void> {
 
   await listen<ProgressPayload>('download-progress', (event) => {
     const p = event.payload
-    const task = findTask(p.jobId, p.taskId)
+    const job = jobs.value.find(j => j.jobId === p.jobId)
+    const task = job?.files.find(f => f.taskId === p.taskId)
     if (task) {
+      // el evento solo lo emite un stream activo → la task está descargando
+      // (los snapshots de invoke pueden dejarla 'queued' tras start/resume)
+      task.state = 'downloading'
       task.downloadedBytes = p.downloadedBytes
       task.totalBytes = p.totalBytes
       task.speedBps = p.speedBps
       task.etaSec = p.etaSec
+    }
+    // El view/evento de resume puede llegar tarde con estado 'queued' y ocultar
+    // la velocidad para siempre; el progreso vivo corrige el estado del job.
+    if (job && job.state !== 'paused' && job.state !== 'completed') {
+      job.state = 'downloading'
     }
   })
 
@@ -151,6 +156,7 @@ export function startDownloads(args: { modelsPath: string; owner: string; repo: 
   return invoke<JobView>('start_downloads', {
     ...args,
     parallelism: d.parallelism,
+    chunks: d.chunks,
     autoRetry: d.autoRetry,
     maxRetries: d.maxRetries,
     keepPartOnCancel: d.keepPartOnCancel,
@@ -170,6 +176,7 @@ export function resume(jobId: string): Promise<JobView> {
     jobId,
     modelsPath: appConfig.value.modelsPath,
     parallelism: d.parallelism,
+    chunks: d.chunks,
     autoRetry: d.autoRetry,
     maxRetries: d.maxRetries,
     keepPartOnCancel: d.keepPartOnCancel,

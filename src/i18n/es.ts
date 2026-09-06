@@ -318,6 +318,8 @@ export default {
     downloads: 'Descargas',
     parallelism: 'Descargas en paralelo',
     parallelismTooltip: 'Archivos que se descargan a la vez (1-4). Aplica a jobs nuevos y reanudados.',
+    chunks: 'Chunks por archivo',
+    chunksTooltip: 'Los archivos ≥ 256 MB se dividen en N conexiones en paralelo (1-8). 1 = conexión única. Aplica a jobs nuevos y reanudados.',
     autoRetry: 'Reintentar ante errores de red',
     maxRetries: 'Máximo de reintentos',
     keepPartOnCancel: 'Conservar .part al cancelar',

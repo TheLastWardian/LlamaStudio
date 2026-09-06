@@ -318,6 +318,8 @@ export default {
     downloads: 'Downloads',
     parallelism: 'Parallel downloads',
     parallelismTooltip: 'Files downloaded at the same time (1-4). Applies to new and resuming jobs.',
+    chunks: 'Chunks per file',
+    chunksTooltip: 'Files ≥ 256 MB are split into N parallel connections (1-8). 1 = single connection. Applies to new and resuming jobs.',
     autoRetry: 'Retry on network errors',
     maxRetries: 'Max retries',
     keepPartOnCancel: 'Keep .part file on cancel',
