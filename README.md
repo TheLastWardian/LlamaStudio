@@ -93,6 +93,10 @@ src-tauri/
   src/downloads.rs# Resumable + chunked download engine
 ```
 
+## Credits
+
+- App icon: [ggml-org/llama.brand](https://github.com/ggml-org/llama.brand) (CC BY-NC 4.0)
+
 ## Status
 
 Early-stage project, actively in development.
