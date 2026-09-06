@@ -7,7 +7,7 @@ use serde::Serialize;
 use tauri::{Emitter, Manager, State, Runtime};
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use std::io::{BufRead, BufReader, Read};
+use std::io::{BufRead, BufReader};
 use std::thread;
 use std::collections::HashMap;
 use std::os::windows::process::CommandExt;
