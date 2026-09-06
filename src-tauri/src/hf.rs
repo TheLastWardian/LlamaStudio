@@ -326,6 +326,85 @@ fn mark_possible_drafts(files: &mut [RepoFile], speculative_tags: bool) {
     }
 }
 
+// ---------- hfimg: imágenes del README vía llamastudio.exe (webview sin internet) ----------
+// El webview pide http://hfimg.localhost/<url percent-encodiada>; el handler valida
+// (https + allowlist) y fetchea con el reqwest compartido. El socket lo abre llamastudio.exe.
+
+/// Hosts permitidos para servir imágenes del README (match exacto). No es proxy abierto.
+const IMG_HOSTS: [&str; 3] = [
+    "cdn.huggingface.co",
+    "huggingface.co",
+    "raw.githubusercontent.com",
+];
+/// Imagen > 5 MB es anómala; limita la memoria que un repo malicioso puede forzar (como README_MAX_BYTES).
+const IMG_MAX_BYTES: usize = 5 * 1024 * 1024;
+
+/// Decodifica un segmento de path percent-encodiado por `encodeURIComponent` de JS.
+fn percent_decode(s: &str) -> Option<String> {
+    let b = s.as_bytes();
+    let mut out: Vec<u8> = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        if b[i] == b'%' {
+            // Escape incompleto o no hex → inválido (como decodeURIComponent que tira).
+            if i + 2 >= b.len() {
+                return None;
+            }
+            let hi = (b[i + 1] as char).to_digit(16)?;
+            let lo = (b[i + 2] as char).to_digit(16)?;
+            out.push((hi * 16 + lo) as u8);
+            i += 3;
+        } else {
+            out.push(b[i]);
+            i += 1;
+        }
+    }
+    String::from_utf8(out).ok()
+}
+
+/// Política: decodifica el path y valida que el target sea https con host en IMG_HOSTS.
+fn resolve_image_target(path: &str) -> Result<String, ()> {
+    let url = percent_decode(path).ok_or(())?;
+    let rest = url.strip_prefix("https://").ok_or(())?;
+    let host = rest
+        .split('/')
+        .next()
+        .unwrap_or("")
+        .rsplit('@')
+        .next()
+        .unwrap_or("")
+        .split(':')
+        .next()
+        .unwrap_or("");
+    if !IMG_HOSTS.contains(&host) {
+        return Err(());
+    }
+    Ok(url)
+}
+
+/// Transporte: GET con cap de bytes. Devuelve (content-type, body).
+async fn fetch_image(url: &str, max_bytes: usize) -> Result<(Option<String>, Vec<u8>), ()> {
+    let resp = client().get(url).send().await.map_err(|_| ())?;
+    if !resp.status().is_success() {
+        return Err(());
+    }
+    // Content-Length es solo una pista (el servidor puede omitirlo o mentir); el
+    // chequeo real es post-`bytes()` abajo. `content_length()` devuelve u64.
+    if resp.content_length().unwrap_or(0) > max_bytes as u64 {
+        return Err(());
+    }
+    let ct = resp
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
+    let body = resp.bytes().await.map_err(|_| ())?;
+    if body.len() > max_bytes {
+        return Err(());
+    }
+    Ok((ct, body.to_vec()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -396,5 +475,85 @@ mod tests {
         let (owner, name) = repos[0].id.split_once('/').unwrap();
         let files = repo_files(owner, name, false).await.unwrap();
         assert!(files.iter().any(|f| f.size > 0));
+    }
+
+    // ---------- hfimg: política + transporte ----------
+
+    /// Equivalente de test a `encodeURIComponent` JS (solo para los chars que usamos).
+    fn enc(s: &str) -> String {
+        let mut out = String::new();
+        for b in s.bytes() {
+            match b {
+                b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' => {
+                    out.push(b as char)
+                }
+                _ => out.push_str(&format!("%{b:02X}")),
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn hfimg_percent_decode_roundtrip() {
+        assert_eq!(
+            percent_decode("%68ttps%3A%2F%2Fcdn.huggingface.co%2Fa%20b.png"),
+            Some("https://cdn.huggingface.co/a b.png".to_string())
+        );
+        assert_eq!(percent_decode("plain"), Some("plain".to_string()));
+        assert_eq!(percent_decode("bad%zz"), None);
+        assert_eq!(percent_decode("trunc%4"), None);
+    }
+
+    #[test]
+    fn hfimg_resolve_accepts_allowlisted_https() {
+        assert!(resolve_image_target(&enc("https://cdn.huggingface.co/img/x.png")).is_ok());
+        assert!(resolve_image_target(&enc("https://huggingface.co/a/b/raw/main/x.png")).is_ok());
+        assert!(resolve_image_target(&enc("https://raw.githubusercontent.com/o/r/main/x.png")).is_ok());
+    }
+
+    #[test]
+    fn hfimg_resolve_rejects_scheme_host_garbage() {
+        assert!(resolve_image_target(&enc("http://cdn.huggingface.co/x.png")).is_err());
+        assert!(resolve_image_target(&enc("https://evil.com/x.png")).is_err());
+        assert!(resolve_image_target(&enc("https://cdn.huggingface.co.evil.com/x.png")).is_err());
+        assert!(resolve_image_target(&enc("https://sub.cdn.huggingface.co/x.png")).is_err());
+        assert!(resolve_image_target(&enc("javascript:alert(1)")).is_err());
+        assert!(resolve_image_target("no percent encoding").is_err());
+        assert!(resolve_image_target("").is_err());
+    }
+
+    #[tokio::test]
+    async fn hfimg_fetch_returns_bytes_and_content_type() {
+        async fn serve_img() -> axum::response::Response {
+            axum::response::Response::builder()
+                .header("content-type", "image/png")
+                .body(axum::body::Body::from(vec![1u8, 2, 3]))
+                .unwrap()
+        }
+        let app = axum::Router::new().route("/img", axum::routing::get(serve_img));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            let _ = axum::serve(listener, app).await;
+        });
+        let (ct, bytes) = fetch_image(&format!("http://{addr}/img"), 1024)
+            .await
+            .expect("fetch ok");
+        assert_eq!(ct.as_deref(), Some("image/png"));
+        assert_eq!(bytes, vec![1u8, 2, 3]);
+    }
+
+    #[tokio::test]
+    async fn hfimg_fetch_enforces_size_cap() {
+        async fn serve_big() -> axum::body::Body {
+            axum::body::Body::from(vec![7u8; 4096])
+        }
+        let app = axum::Router::new().route("/big", axum::routing::get(serve_big));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            let _ = axum::serve(listener, app).await;
+        });
+        assert!(fetch_image(&format!("http://{addr}/big"), 1024).await.is_err());
     }
 }
