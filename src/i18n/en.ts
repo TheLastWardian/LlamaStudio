@@ -15,6 +15,8 @@ export default {
     searchPlaceholder: 'Search models on Hugging Face…',
     authorPlaceholder: 'Author (optional)',
     ggufOnly: 'GGUF only',
+    inLibraryOnly: 'In library only',
+    files: 'files',
     hint: 'Search runs when you stop typing',
     searching: 'Searching…',
     noResults: 'No results. Try another query or untick the format filter.',

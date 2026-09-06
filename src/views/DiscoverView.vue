@@ -10,6 +10,10 @@
         <input type="checkbox" class="discover-toggle" v-model="ggufOnly" />
         {{ t('discover.ggufOnly') }}
       </label>
+      <label class="discover-toggle-label">
+        <input type="checkbox" class="discover-toggle" v-model="inLibraryOnly" />
+        {{ t('discover.inLibraryOnly') }}
+      </label>
       <input class="discover-author" v-model="author" :placeholder="t('discover.authorPlaceholder')" />
       <span class="discover-hint">{{ t('discover.hint') }}</span>
     </div>
@@ -17,11 +21,11 @@
     <div class="content">
       <div v-if="error" class="discover-error">{{ error }}</div>
       <div v-if="loading && !repos.length" class="discover-status">{{ t('discover.searching') }}</div>
-      <div v-else-if="!repos.length && !error" class="discover-status">
+      <div v-else-if="!visibleRepos.length && !error" class="discover-status">
         {{ searched ? t('discover.noResults') : t('discover.empty') }}
       </div>
       <div
-        v-for="repo in repos"
+        v-for="repo in visibleRepos"
         :key="repo.id"
         class="repo-row"
         :class="{ selected: panelRepo?.id === repo.id }"
@@ -32,16 +36,17 @@
           <div class="repo-name">
             <span class="owner">{{ ownerOf(repo.id) }}/</span>{{ nameOf(repo.id) }}
           </div>
-          <div v-if="summaryOf(repo)" class="repo-desc">{{ summaryOf(repo) }}</div>
+          <div v-if="isLocalRepo(repo)" class="repo-desc">{{ repo.fileCount }} {{ t('discover.files') }} · {{ fmtBytes(repo.totalSize) }}</div>
+          <div v-else-if="summaryOf(repo)" class="repo-desc">{{ summaryOf(repo) }}</div>
           <div class="repo-tags">
             <span v-if="repo.tags.includes('gguf')" class="tag tag-gguf">GGUF</span>
             <span v-if="hasSpeculativeTag(repo)" class="tag tag-mtp">MTP</span>
             <span v-if="hasVisionTag(repo)" class="tag tag-vision">Vision</span>
             <span v-if="licenseOf(repo)" class="tag tag-license">{{ licenseOf(repo) }}</span>
-            <span v-if="libraryCount(repo.id) > 0" class="tag tag-library">✓ {{ libraryCount(repo.id) }} {{ t('discover.inLibrary') }}</span>
+            <span v-if="!isLocalRepo(repo) && libraryCount(repo.id) > 0" class="tag tag-library">✓ {{ libraryCount(repo.id) }} {{ t('discover.inLibrary') }}</span>
           </div>
         </div>
-        <div class="repo-stats">
+        <div v-if="!isLocalRepo(repo)" class="repo-stats">
           <div class="repo-stat"><span class="stat-downloads">↓ {{ fmtNum(repo.downloads) }}</span><span class="stat-likes"><span class="stat-star">★</span> {{ fmtNum(repo.likes) }}</span></div>
           <div class="repo-time">{{ relativeTime(repo.lastModified ?? repo.createdAt) || t('discover.now') }}</div>
         </div>
@@ -66,6 +71,15 @@ export interface HfRepo {
   library_name: string | null
   createdAt: string
   lastModified: string | null
+}
+
+// Repo local (ya en librería) para la vista "In library only": se sintetiza a partir
+// de allModels. Extiende HfRepo con tags=[] para que el row y el panel de descarga
+// rendericen igual; isLocal distingue la fuente (desc/stats propios).
+export interface LocalRepo extends HfRepo {
+  isLocal: true
+  fileCount: number
+  totalSize: number
 }
 
 export interface RepoFile {
@@ -125,6 +139,7 @@ const query = ref('')
 const author = ref('')
 const sort = ref('trendingScore')
 const ggufOnly = ref(true)
+const inLibraryOnly = ref(false)
 const repos = ref<HfRepo[]>([])
 const loading = ref(false)
 const searched = ref(false)
@@ -196,6 +211,52 @@ const libraryCounts = computed(() => {
 function libraryCount(id: string): number {
   return libraryCounts.value[id] ?? 0
 }
+
+// "In library only": la fuente es la librería local (allModels), NO el filtro de la
+// búsqueda de HF. Agrupa por repo {publisher}/{model_family} (los mismos campos que usa
+// el panel para marcar archivos "ya en librería") y sintetiza un HfRepo por repo.
+const libraryRepos = computed<LocalRepo[]>(() => {
+  const map = new Map<string, { fileCount: number, totalSize: number }>()
+  for (const m of allModels.value) {
+    if (!m.publisher || !m.model_family) continue
+    const id = m.publisher + '/' + m.model_family
+    const agg = map.get(id) ?? { fileCount: 0, totalSize: 0 }
+    agg.fileCount += 1
+    agg.totalSize += m.size_bytes
+    map.set(id, agg)
+  }
+  return [...map.entries()]
+    .map(([id, a]): LocalRepo => ({
+      id,
+      modelId: id,
+      likes: 0,
+      downloads: 0,
+      private: false,
+      tags: [],
+      pipeline_tag: null,
+      library_name: null,
+      createdAt: '',
+      lastModified: null,
+      isLocal: true,
+      fileCount: a.fileCount,
+      totalSize: a.totalSize,
+    }))
+    .sort((x, y) => x.id.localeCompare(y.id))
+})
+
+const visibleRepos = computed<(HfRepo | LocalRepo)[]>(() =>
+  inLibraryOnly.value ? libraryRepos.value : repos.value,
+)
+
+function isLocalRepo(r: HfRepo | LocalRepo): r is LocalRepo {
+  return (r as LocalRepo).isLocal === true
+}
+
+function fmtBytes(n: number): string {
+  if (n >= 1024 ** 3) return (n / 1024 ** 3).toFixed(1) + ' GB'
+  if (n >= 1024 ** 2) return Math.round(n / 1024 ** 2) + ' MB'
+  return Math.max(1, Math.round(n / 1024)) + ' KB'
+}
 function hasVisionTag(repo: HfRepo): boolean {
   return repo.tags.includes('image-text-to-text') || repo.tags.includes('vision')
 }
@@ -233,7 +294,7 @@ function avatarColor(id: string): string {
   return AVATAR_PALETTE[h % AVATAR_PALETTE.length]
 }
 
-function openPanel(repo: HfRepo) {
+function openPanel(repo: HfRepo | LocalRepo) {
   panelRepo.value = repo
 }
 </script>

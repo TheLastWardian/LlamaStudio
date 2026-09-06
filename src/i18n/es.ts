@@ -15,6 +15,8 @@ export default {
     searchPlaceholder: 'Buscar modelos en Hugging Face…',
     authorPlaceholder: 'Autor (opcional)',
     ggufOnly: 'Solo GGUF',
+    inLibraryOnly: 'Solo en la librería',
+    files: 'archivos',
     hint: 'La búsqueda corre al dejar de escribir',
     searching: 'Buscando…',
     noResults: 'Sin resultados. Probar con otra consulta o desactivar el filtro de formato.',
