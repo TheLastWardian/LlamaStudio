@@ -146,14 +146,25 @@ const updatedLabel = computed(() => {
   return rel ? t('discover.updatedAgo', { time: rel }) : t('discover.updatedJustNow')
 })
 
-// README → HTML (marked) → sanitizado (DOMPurify) antes de meterlo al DOM.
+// Imágenes del README: los hosts allowlistados van por el protocolo `hfimg` para que
+// el fetch lo haga llamastudio.exe (reqwest) y el webview no haga tráfico a internet.
+// Mantener en sync con IMG_HOSTS en src-tauri/src/hf.rs.
+const HFIMG_BASE = 'http://hfimg.localhost/'
+function routeReadmeImages(html: string): string {
+  return html.replace(
+    /(src\s*=\s*)(["'])(https:\/\/(?:cdn\.huggingface\.co|huggingface\.co|raw\.githubusercontent\.com)\/[^"']+)\2/gi,
+    (_m, pre: string, q: string, u: string) => `${pre}${q}${HFIMG_BASE}${encodeURIComponent(u)}${q}`,
+  )
+}
+
+// README → HTML (marked) → sanitizado (DOMPurify) → imgs por hfimg, antes de meterlo al DOM.
 const readmeHtml = computed(() => {
   if (!readme.value) return ''
   const md = readme.value.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '')
   const html = marked.parse(md, { async: false }) as string
   // Unwrap image-only anchors (markdown "[![x](img)](link)") so banner
   // images are not clickable and don't navigate the webview.
-  return DOMPurify.sanitize(html).replace(/<a\b[^>]*>(\s*<img\b[^>]*>\s*)<\/a>/gi, '$1')
+  return routeReadmeImages(DOMPurify.sanitize(html).replace(/<a\b[^>]*>(\s*<img\b[^>]*>\s*)<\/a>/gi, '$1'))
 })
 
 // Orden fijo de grupos (mockup): Main → MTP → Vision → Otros
