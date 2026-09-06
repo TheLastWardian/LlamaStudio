@@ -43,7 +43,7 @@ body {
 
 /* SIDEBAR */
 .sidebar {
-  width: 44px;
+  width: 52px;
   background: #111;
   display: flex;
   flex-direction: column;
@@ -54,8 +54,8 @@ body {
 }
 
 .sidebar-icon {
-  width: 32px;
-  height: 32px;
+  width: 38px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -66,8 +66,13 @@ body {
   transition: all 0.15s;
 }
 
-.sidebar-icon:hover { background: #2a2a2a; color: #aaa; }
-.sidebar-icon.active { background: #2a2a2a; color: #fff; }
+.sidebar-icon:hover { background: #2a2a2a; }
+.sidebar-icon.active { background: #2a2a2a; }
+.sidebar-icon.icon-models    { color: #c084fc; }
+.sidebar-icon.icon-chat      { color: #facc15; }
+.sidebar-icon.icon-developer { color: #4ade80; }
+.sidebar-icon.icon-discover  { color: #5a8af5; }
+.sidebar-icon.icon-settings  { color: #9ca3af; }
 .sidebar-spacer { flex: 1; }
 
 /* MAIN */
