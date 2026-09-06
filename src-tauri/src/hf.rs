@@ -405,6 +405,47 @@ async fn fetch_image(url: &str, max_bytes: usize) -> Result<(Option<String>, Vec
     Ok((ct, body.to_vec()))
 }
 
+/// Handler asíncrono del protocolo `hfimg` (corre en el proceso de la app).
+pub fn image_protocol_handler(
+    _ctx: tauri::UriSchemeContext<'_, tauri::Wry>,
+    request: tauri::http::Request<Vec<u8>>,
+    responder: tauri::UriSchemeResponder,
+) {
+    let path = request.uri().path().trim_start_matches('/').to_string();
+    let target = match resolve_image_target(&path) {
+        Ok(t) => t,
+        Err(()) => {
+            responder.respond(
+                tauri::http::Response::builder()
+                    .status(tauri::http::StatusCode::FORBIDDEN)
+                    .body(Vec::new())
+                    .expect("hfimg response"),
+            );
+            return;
+        }
+    };
+    tauri::async_runtime::spawn(async move {
+        match fetch_image(&target, IMG_MAX_BYTES).await {
+            Ok((ct, bytes)) => {
+                let mut builder =
+                    tauri::http::Response::builder().status(tauri::http::StatusCode::OK);
+                if let Some(t) = ct {
+                    builder = builder.header(tauri::http::header::CONTENT_TYPE, t);
+                }
+                responder.respond(builder.body(bytes).expect("hfimg response"));
+            }
+            Err(()) => {
+                responder.respond(
+                    tauri::http::Response::builder()
+                        .status(tauri::http::StatusCode::NOT_FOUND)
+                        .body(Vec::new())
+                        .expect("hfimg response"),
+                );
+            }
+        }
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
