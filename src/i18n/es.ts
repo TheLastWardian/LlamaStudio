@@ -90,6 +90,7 @@ export default {
       sha_mismatch: 'Checksum (sha256) inválido',
       network: 'Error de red',
       cancelled: 'Cancelado',
+      invalid_path: 'Ruta de archivo inválida',
     },
   },
   models: {

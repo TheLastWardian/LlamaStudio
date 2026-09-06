@@ -106,6 +106,7 @@ import { ChevronRight, Download, ExternalLink, X } from '@lucide/vue'
 import { t } from '../i18n'
 import { appConfig } from '../stores/config'
 import { allModels } from '../stores/selectedModel'
+import { startDownloads } from '../stores/downloads'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import {
@@ -299,7 +300,7 @@ async function download() {
   if (!modelsPath) return
   downloading.value = true
   try {
-    await invoke('start_downloads', {
+    await startDownloads({
       modelsPath,
       owner: owner.value,
       repo: name.value,

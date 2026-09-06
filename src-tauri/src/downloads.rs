@@ -287,7 +287,9 @@ impl ManagerCore {
             let mut jobs = self.jobs.lock().unwrap();
             for job in jobs.values_mut() {
                 for task in job.files.iter_mut() {
-                    let target = target_path(models_path, &job.repo_owner, &job.repo_name, &task.path_in_repo);
+                    let Some(target) = target_path(models_path, &job.repo_owner, &job.repo_name, &task.path_in_repo) else {
+                        continue;
+                    };
                     let complete = std::fs::metadata(&target).map(|m| m.len() == task.total_bytes).unwrap_or(false);
                     match task.state {
                         TaskState::Completed | TaskState::Failed => {
@@ -380,16 +382,33 @@ fn derive_state(tasks: &[DownloadTask]) -> JobState {
 
 // ---------- Rutas / URLs / helpers (puras, testeables) ----------
 
-pub fn target_path(models_path: &str, owner: &str, repo: &str, path_in_repo: &str) -> PathBuf {
+/// Un segmento de ruta del repo no debe poder escapar de models_path: sin
+/// `.`/`..` y sin chars reservados de Windows (cada uno o inyectaría un
+/// separador/drive si filtrara, o es imposible en un nombre de archivo real).
+fn safe_segment(seg: &str) -> bool {
+    !seg.is_empty()
+        && seg != "."
+        && seg != ".."
+        && !seg.contains(|c: char| matches!(c, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*'))
+}
+
+pub fn target_path(models_path: &str, owner: &str, repo: &str, path_in_repo: &str) -> Option<PathBuf> {
+    if !safe_segment(owner) || !safe_segment(repo) {
+        return None;
+    }
     let mut p = PathBuf::from(models_path);
     p.push(owner);
     p.push(repo);
     for seg in path_in_repo.split('/') {
-        if !seg.is_empty() {
-            p.push(seg);
+        if seg.is_empty() {
+            continue;
         }
+        if !safe_segment(seg) {
+            return None;
+        }
+        p.push(seg);
     }
-    p
+    Some(p)
 }
 
 pub fn part_path(target: &Path) -> PathBuf {
@@ -479,6 +498,7 @@ pub enum ErrorCode {
     ShaMismatch,
     Network,
     Cancelled,
+    InvalidPath,
 }
 
 impl ErrorCode {
@@ -491,6 +511,7 @@ impl ErrorCode {
             ErrorCode::ShaMismatch => "sha_mismatch",
             ErrorCode::Network => "network",
             ErrorCode::Cancelled => "cancelled",
+            ErrorCode::InvalidPath => "invalid_path",
         }
     }
 }
@@ -719,7 +740,13 @@ async fn run_task(
     let key = format!("{job_id}/{}", task.task_id);
     core.register_active(&key, Arc::clone(&stop));
 
-    let target = target_path(&models_path, &owner, &repo, &task.path_in_repo);
+    let Some(target) = target_path(&models_path, &owner, &repo, &task.path_in_repo) else {
+        let msg = "ruta inválida en owner/repo/path".to_string();
+        let st = core.set_task_state(&job_id, &task.task_id, TaskState::Failed, Some(msg.clone()), Some(ErrorCode::InvalidPath.as_str().to_string()));
+        emit_state(Some(&app), &job_id, st, Some(msg), None);
+        core.unregister_active(&key);
+        return;
+    };
     if let Some(parent) = target.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
@@ -870,6 +897,13 @@ pub fn start_downloads(
     let core = state.0.clone();
     if files.is_empty() {
         return Err("sin archivos para descargar".into());
+    }
+
+    // Validación de frontera: ninguna ruta debe poder escribir fuera de models_path.
+    for f in &files {
+        if target_path(&models_path, &owner, &repo, &f.path).is_none() {
+            return Err(format!("ruta inválida: {owner}/{repo}/{}", f.path));
+        }
     }
 
     // Dedup (la guarda single-file de S2 adaptada al batch): si un job activo
@@ -1162,9 +1196,15 @@ mod tests {
 
     #[test]
     fn path_and_url_helpers() {
-        let target = target_path("F:/models", "unsloth", "Qwen3.8-27B-GGUF", "MTP/mtp-Qwen3.8-27B-Q4_0.gguf");
+        let target = target_path("F:/models", "unsloth", "Qwen3.8-27B-GGUF", "MTP/mtp-Qwen3.8-27B-Q4_0.gguf").unwrap();
         let expected = Path::new("F:/models").join("unsloth").join("Qwen3.8-27B-GGUF").join("MTP").join("mtp-Qwen3.8-27B-Q4_0.gguf");
         assert_eq!(target, expected);
+        // Contención: ninguna ruta puede escapar de models_path
+        assert!(target_path("F:/models", "unsloth", "x", "a/../../evil.gguf").is_none());
+        assert!(target_path("F:/models", "unsloth", "x", "..").is_none());
+        assert!(target_path("F:/models", "C:\\evil", "x", "f.gguf").is_none());
+        assert!(target_path("F:/models", "unsloth", "x", "C:evil.gguf").is_none());
+        assert!(target_path("F:/models", "", "x", "f.gguf").is_none());
         assert!(part_path(&target).to_string_lossy().ends_with("mtp-Qwen3.8-27B-Q4_0.gguf.part"));
         assert_eq!(url_path("MTP/mtp-Q4.gguf"), "MTP/mtp-Q4.gguf");
         assert_eq!(url_path("a b/c d.gguf"), "a%20b/c%20d.gguf");
