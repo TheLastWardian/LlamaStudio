@@ -1,6 +1,9 @@
+use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 
 const HF_API: &str = "https://huggingface.co/api";
+/// Un README > 1 MB es anómalo; limita la memoria que un repo malicioso puede forzar.
+const README_MAX_BYTES: usize = 1024 * 1024;
 
 fn client() -> &'static reqwest::Client {
     static CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new();
@@ -206,7 +209,16 @@ pub async fn get_repo_readme(owner: &str, repo: &str) -> Result<String, String> 
     if !status.is_success() {
         return Err(format!("HF readme: HTTP {status}"));
     }
-    resp.text().await.map_err(|e| format!("HF readme text: {e}"))
+    let mut buf: Vec<u8> = Vec::new();
+    let mut stream = resp.bytes_stream();
+    while let Some(chunk) = stream.next().await {
+        let bytes = chunk.map_err(|e| format!("HF readme stream: {e}"))?;
+        if buf.len() + bytes.len() > README_MAX_BYTES {
+            return Err(format!("HF readme: demasiado grande (> {} KB)", README_MAX_BYTES / 1024));
+        }
+        buf.extend_from_slice(&bytes);
+    }
+    Ok(String::from_utf8_lossy(&buf).into())
 }
 
 // ---------- Clasificación de archivos (puras, testeables sin red) ----------
