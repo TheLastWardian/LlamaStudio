@@ -1,5 +1,11 @@
 <template>
-  <div class="panel-overlay" @click.self="closePanel">
+  <div class="panel-overlay">
+    <div class="readme-pane">
+      <div v-if="readmeLoading" class="readme-status">{{ t('discover.loadingReadme') }}</div>
+      <div v-else-if="readmeError" class="readme-status readme-status-error">{{ readmeError }}</div>
+      <div v-else-if="!readmeHtml" class="readme-status">{{ t('discover.noReadme') }}</div>
+      <div v-else class="readme-content" v-html="readmeHtml"></div>
+    </div>
     <aside class="panel" role="dialog" aria-modal="true">
       <header class="panel-header">
         <div class="panel-avatar">{{ avatarInitials }}</div>
@@ -90,6 +96,8 @@ import { Download, ExternalLink, X } from '@lucide/vue'
 import { t } from '../i18n'
 import { appConfig } from '../stores/config'
 import { allModels } from '../stores/selectedModel'
+import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 import {
   hasSpeculativeTag,
   licenseOf,
@@ -105,6 +113,9 @@ const emit = defineEmits<{ (e: 'close'): void }>()
 const files = ref<RepoFile[]>([])
 const filesLoading = ref(false)
 const filesError = ref<string | null>(null)
+const readme = ref('')
+const readmeLoading = ref(false)
+const readmeError = ref<string | null>(null)
 const checked = ref<Record<string, boolean>>({})
 const downloading = ref(false)
 
@@ -120,6 +131,14 @@ const updatedLabel = computed(() => {
   const iso = props.repo.lastModified ?? props.repo.createdAt
   const rel = relativeTime(iso)
   return rel ? t('discover.updatedAgo', { time: rel }) : t('discover.updatedJustNow')
+})
+
+// README → HTML (marked) → sanitizado (DOMPurify) antes de meterlo al DOM.
+const readmeHtml = computed(() => {
+  if (!readme.value) return ''
+  const md = readme.value.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '')
+  const html = marked.parse(md, { async: false }) as string
+  return DOMPurify.sanitize(html)
 })
 
 // Orden fijo de grupos (mockup): Main → MTP → Vision → Otros
@@ -226,8 +245,21 @@ async function loadFiles() {
   }
 }
 
+async function loadReadme() {
+  readmeLoading.value = true
+  readmeError.value = null
+  try {
+    readme.value = await invoke<string>('get_repo_readme', { owner: owner.value, repo: name.value })
+  } catch (e) {
+    readmeError.value = String(e)
+  } finally {
+    readmeLoading.value = false
+  }
+}
+
 onMounted(() => {
   void loadFiles()
+  void loadReadme()
   document.addEventListener('keydown', onKeydown)
 })
 
@@ -269,11 +301,52 @@ async function download() {
 .panel-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: #161616;
   z-index: 500;
   display: flex;
-  justify-content: flex-end;
 }
+
+.readme-pane {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 24px 32px;
+}
+
+.readme-status {
+  color: #666;
+  font-size: 13px;
+  padding: 12px 0;
+}
+.readme-status-error {
+  color: #f87171;
+}
+
+.readme-content {
+  color: #d4d4d4;
+  font-size: 14px;
+  line-height: 1.65;
+  word-wrap: break-word;
+}
+.readme-content :deep(h1) { font-size: 22px; color: #fff; margin: 18px 0 10px; }
+.readme-content :deep(h2) { font-size: 18px; color: #fff; margin: 16px 0 8px; }
+.readme-content :deep(h3) { font-size: 15px; color: #fff; margin: 14px 0 6px; }
+.readme-content :deep(a) { color: #5a8af5; text-decoration: none; }
+.readme-content :deep(a:hover) { text-decoration: underline; }
+.readme-content :deep(img) { max-width: 100%; height: auto; border-radius: 6px; }
+.readme-content :deep(p) { margin: 8px 0; }
+.readme-content :deep(ul),
+.readme-content :deep(ol) { margin: 8px 0; padding-left: 22px; }
+.readme-content :deep(li) { margin: 3px 0; }
+.readme-content :deep(blockquote) { border-left: 3px solid #333; margin: 10px 0; padding: 2px 14px; color: #999; }
+.readme-content :deep(hr) { border: none; border-top: 1px solid #2a2a2a; margin: 18px 0; }
+.readme-content :deep(table) { border-collapse: collapse; margin: 12px 0; }
+.readme-content :deep(th),
+.readme-content :deep(td) { border: 1px solid #2a2a2a; padding: 6px 10px; }
+.readme-content :deep(th) { background: #222; }
+.readme-content :deep(code) { background: #262626; padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+.readme-content :deep(pre) { background: #0d0d0d; border: 1px solid #2a2a2a; border-radius: 8px; padding: 12px; overflow-x: auto; margin: 12px 0; }
+.readme-content :deep(pre code) { background: none; padding: 0; }
 
 .panel {
   width: 420px;

@@ -17,6 +17,8 @@ export default {
     ggufOnly: 'Solo GGUF',
     inLibraryOnly: 'Solo en la librería',
     files: 'archivos',
+    loadingReadme: 'Cargando README…',
+    noReadme: 'Este repo no tiene README.',
     hint: 'La búsqueda corre al dejar de escribir',
     searching: 'Buscando…',
     noResults: 'Sin resultados. Probar con otra consulta o desactivar el filtro de formato.',

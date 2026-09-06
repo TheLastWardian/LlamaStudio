@@ -854,6 +854,11 @@ async fn get_repo_files(owner: String, repo: String, speculative_tags: Option<bo
     hf::repo_files(&owner, &repo, speculative_tags.unwrap_or(false)).await
 }
 
+#[tauri::command]
+async fn get_repo_readme(owner: String, repo: String) -> Result<String, String> {
+    hf::get_repo_readme(&owner, &repo).await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -904,7 +909,7 @@ pub fn run() {
         })
         .manage(ServerProcess(Mutex::new(None)))
         .manage(downloads::DownloadManager::new())
-        .invoke_handler(tauri::generate_handler![scan_models, load_model, stop_model, save_window_state, load_window_state, get_cpu_threads, get_system_ram, get_gpu_memory, get_file_size, search_hf_models, get_repo_files, downloads::start_downloads, downloads::pause_download, downloads::resume_download, downloads::cancel_download, downloads::list_downloads, downloads::remove_download])
+        .invoke_handler(tauri::generate_handler![scan_models, load_model, stop_model, save_window_state, load_window_state, get_cpu_threads, get_system_ram, get_gpu_memory, get_file_size, search_hf_models, get_repo_files, get_repo_readme, downloads::start_downloads, downloads::pause_download, downloads::resume_download, downloads::cancel_download, downloads::list_downloads, downloads::remove_download])
         .build(tauri::generate_context!())
         .and_then(|app| {
             app.run(|app_handle, event| {

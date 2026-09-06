@@ -191,6 +191,24 @@ pub async fn repo_files(owner: &str, repo: &str, speculative_tags: bool) -> Resu
     Ok(files)
 }
 
+// README.md crudo del repo (endpoint raw de HF; /api/models/{id}/readme no existe).
+// 404 (sin README) → Ok("") para que el frontend muestre un fallback en vez de error.
+pub async fn get_repo_readme(owner: &str, repo: &str) -> Result<String, String> {
+    let resp = client()
+        .get(format!("https://huggingface.co/{owner}/{repo}/raw/main/README.md"))
+        .send()
+        .await
+        .map_err(|e| format!("HF readme: {e}"))?;
+    let status = resp.status();
+    if status.as_u16() == 404 {
+        return Ok(String::new());
+    }
+    if !status.is_success() {
+        return Err(format!("HF readme: HTTP {status}"));
+    }
+    resp.text().await.map_err(|e| format!("HF readme text: {e}"))
+}
+
 // ---------- Clasificación de archivos (puras, testeables sin red) ----------
 
 pub fn classify_file(path: &str) -> (FileGroup, Option<String>) {
