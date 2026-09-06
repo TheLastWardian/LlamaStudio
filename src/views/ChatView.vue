@@ -18,11 +18,10 @@
     <div v-if="!loadedModel" class="chat-empty">
       <p>{{ t('chat.noModel') }}</p>
     </div>
-    <iframe 
+    <iframe
       v-else
       :src="chatUrl"
       class="chat-frame"
-      sandbox="allow-scripts allow-same-origin allow-forms"
     />
 
     <LoadModelModal v-if="showModal" @close="showModal = false" />
