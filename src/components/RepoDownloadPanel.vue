@@ -20,10 +20,10 @@
         </div>
         <div class="panel-actions">
           <button class="icon-btn" :title="t('discover.openInBrowser')" @click="openInBrowser">
-            <ExternalLink :size="15" />
+            <ExternalLink :size="16" />
           </button>
-          <button class="icon-btn" :title="t('discover.close')" @click="closePanel">
-            <X :size="16" />
+          <button class="icon-btn icon-btn-close" :title="t('discover.close')" @click="closePanel">
+            <X :size="17" />
           </button>
         </div>
       </header>
@@ -138,7 +138,9 @@ const readmeHtml = computed(() => {
   if (!readme.value) return ''
   const md = readme.value.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '')
   const html = marked.parse(md, { async: false }) as string
-  return DOMPurify.sanitize(html)
+  // Unwrap image-only anchors (markdown "[![x](img)](link)") so banner
+  // images are not clickable and don't navigate the webview.
+  return DOMPurify.sanitize(html).replace(/<a\b[^>]*>(\s*<img\b[^>]*>\s*)<\/a>/gi, '$1')
 })
 
 // Orden fijo de grupos (mockup): Main → MTP → Vision → Otros
@@ -410,25 +412,39 @@ async function download() {
 
 .panel-actions {
   display: flex;
-  gap: 4px;
+  gap: 8px;
 }
 
 .icon-btn {
-  background: #2a2a2a;
-  border: 1px solid #333;
-  border-radius: 6px;
-  color: #aaa;
-  width: 28px;
-  height: 28px;
+  background: rgba(90, 138, 245, 0.12);
+  border: 1px solid rgba(90, 138, 245, 0.4);
+  border-radius: 7px;
+  color: #85aef9;
+  width: 30px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  transition: all 0.15s;
 }
 
 .icon-btn:hover {
-  color: #fff;
+  background: rgba(90, 138, 245, 0.25);
   border-color: #5a8af5;
+  color: #c0d6ff;
+}
+
+.icon-btn.icon-btn-close {
+  background: rgba(255, 107, 107, 0.12);
+  border-color: rgba(255, 107, 107, 0.4);
+  color: #ff8f8f;
+}
+
+.icon-btn.icon-btn-close:hover {
+  background: rgba(255, 107, 107, 0.25);
+  border-color: #ff6b6b;
+  color: #ffc2c2;
 }
 
 .panel-body {
