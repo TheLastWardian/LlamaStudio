@@ -9,6 +9,9 @@
     <div class="sidebar-icon" :class="{ active: currentView === 'developer' }" @click="$emit('navigate', 'developer')" :title="t('sidebar.developer')">
       <Zap :size="18" />
     </div>
+    <div class="sidebar-icon" :class="{ active: currentView === 'discover' }" @click="$emit('navigate', 'discover')" :title="t('sidebar.discover')">
+      <Download :size="18" />
+    </div>
     <div class="sidebar-spacer"></div>
     <div class="sidebar-icon" :class="{ active: currentView === 'settings' }" 
       @click="$emit('navigate', currentView === 'settings' ? previousView : 'settings')" 
@@ -19,7 +22,7 @@
 </template>
 
 <script setup lang="ts">
-import { LayoutGrid, MessageSquare, Zap, Settings } from '@lucide/vue'
+import { LayoutGrid, MessageSquare, Zap, Settings, Download } from '@lucide/vue'
 import { t } from '../i18n'
 
 defineProps<{ currentView: string, previousView: string }>()

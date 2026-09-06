@@ -61,6 +61,31 @@
         </div>
       </div>
 
+      <div class="settings-section">
+        <div class="section-title">{{ t('settings.downloads') }}</div>
+        <div class="settings-field">
+          <label :title="t('settings.parallelismTooltip')">{{ t('settings.parallelism') }}</label>
+          <select class="field-select" v-model.number="config.downloads.parallelism">
+            <option :value="1">1</option>
+            <option :value="2">2</option>
+            <option :value="3">3</option>
+            <option :value="4">4</option>
+          </select>
+        </div>
+        <div class="settings-field">
+          <label>{{ t('settings.autoRetry') }}</label>
+          <input type="checkbox" v-model="config.downloads.autoRetry" class="toggle" />
+        </div>
+        <div class="settings-field">
+          <label>{{ t('settings.maxRetries') }}</label>
+          <input type="number" v-model.number="config.downloads.maxRetries" min="0" max="10" class="field-input" />
+        </div>
+        <div class="settings-field">
+          <label>{{ t('settings.keepPartOnCancel') }}</label>
+          <input type="checkbox" v-model="config.downloads.keepPartOnCancel" class="toggle" />
+        </div>
+      </div>
+
       <div class="settings-footer">
         <button class="btn-load" style="width:auto; padding: 6px 24px;" @click="save">{{ t('settings.save') }}</button>
         <span v-if="saved" style="color:#4af54a; font-size:12px;">{{ t('settings.saved') }}</span>
@@ -83,6 +108,7 @@ const config = ref<AppConfig>({
   port: 8080,
   minimizeToTray: false,
   language: 'en',
+  downloads: { parallelism: 2, autoRetry: true, maxRetries: 5, keepPartOnCancel: false },
 })
 
 const saved = ref(false)

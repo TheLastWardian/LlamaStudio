@@ -11,10 +11,12 @@
       <ModelsView v-if="currentView === 'models'" />
       <ChatView v-show="currentView === 'chat'" />
       <DeveloperView v-if="currentView === 'developer'" />
+      <DiscoverView v-if="currentView === 'discover'" />
       <SettingsView v-if="currentView === 'settings'" />
+      <DownloadsBar />
     </div>
-    <div v-if="(currentView !== 'developer' && currentView !== 'chat') || loadedModel" class="resize-handle" @mousedown="startResize"></div>
-    <RightPanel v-if="(currentView !== 'developer' && currentView !== 'chat') || loadedModel" :style="{ width: rightPanelWidth + 'px' }" :currentView="currentView" />
+    <div v-if="currentView !== 'discover' && ((currentView !== 'developer' && currentView !== 'chat') || loadedModel)" class="resize-handle" @mousedown="startResize"></div>
+    <RightPanel v-if="currentView !== 'discover' && ((currentView !== 'developer' && currentView !== 'chat') || loadedModel)" :style="{ width: rightPanelWidth + 'px' }" :currentView="currentView" />
   </div>
 </template>
 
@@ -31,8 +33,11 @@ import Sidebar from './components/Sidebar.vue'
 import ModelsView from './views/ModelsView.vue'
 import ChatView from './views/ChatView.vue'
 import DeveloperView from './views/DeveloperView.vue'
+import DiscoverView from './views/DiscoverView.vue'
 import SettingsView from './views/SettingsView.vue'
+import DownloadsBar from './components/DownloadsBar.vue'
 import RightPanel from './components/RightPanel.vue'
+import { init as initDownloads } from './stores/downloads'
 
 const currentView = ref('models')
 const previousView = ref('models')
@@ -116,6 +121,8 @@ function fmtLogTime(t: string): string {
 onMounted(async () => {
   const config = await loadConfig()
   setLang(config.language)
+  // suscribe download-progress/download-state una sola vez + carga jobs persistidos
+  initDownloads()
   const win = getCurrentWindow()
   await loadGroups()
   await invoke('load_window_state').catch(() => {})

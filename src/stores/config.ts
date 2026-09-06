@@ -224,6 +224,7 @@ export interface AppConfig {
   port: number
   minimizeToTray: boolean
   language: 'en' | 'es'
+  downloads: { parallelism: number; autoRetry: boolean; maxRetries: number; keepPartOnCancel: boolean }
 }
 
 const defaults: AppConfig = {
@@ -234,9 +235,11 @@ const defaults: AppConfig = {
   port: 8080,
   minimizeToTray: false,
   language: 'en',
+  downloads: { parallelism: 2, autoRetry: true, maxRetries: 5, keepPartOnCancel: false },
 }
 
-export const appConfig = ref<AppConfig>({ ...defaults })
+// S5: copia del nested `downloads` (no compartir el objeto con `defaults`)
+export const appConfig = ref<AppConfig>({ ...defaults, downloads: { ...defaults.downloads } })
 
 export async function loadConfig(): Promise<AppConfig> {
   const store = await getStore()
@@ -248,8 +251,13 @@ export async function loadConfig(): Promise<AppConfig> {
     port: await store.get<number>('port') ?? defaults.port,
     minimizeToTray: await store.get<boolean>('minimizeToTray') ?? defaults.minimizeToTray,
     language: await store.get<'en' | 'es'>('language') ?? defaults.language,
+    // S5: merge sobre defaults (tolerante a configs viejas sin la clave)
+    downloads: {
+      ...defaults.downloads,
+      ...((await store.get<Partial<AppConfig['downloads']>>('downloads')) ?? {}),
+    },
   }
-  return { ...appConfig.value }
+  return { ...appConfig.value, downloads: { ...appConfig.value.downloads } }
 }
 
 export async function saveConfig(config: AppConfig): Promise<void> {
@@ -261,6 +269,7 @@ export async function saveConfig(config: AppConfig): Promise<void> {
   await store.set('port', config.port)
   await store.set('minimizeToTray', config.minimizeToTray)
   await store.set('language', config.language)
+  await store.set('downloads', config.downloads)
   await store.save()
-  appConfig.value = { ...config }
+  appConfig.value = { ...config, downloads: { ...config.downloads } }
 }

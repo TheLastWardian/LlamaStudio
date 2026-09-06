@@ -12,6 +12,9 @@ use std::thread;
 use std::collections::HashMap;
 use std::os::windows::process::CommandExt;
 
+mod hf;
+mod downloads;
+
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 #[derive(Serialize)]
@@ -834,6 +837,23 @@ fn get_file_size(path: String) -> Option<u64> {
     fs::metadata(&path).ok().map(|m| m.len())
 }
 
+#[tauri::command]
+async fn search_hf_models(
+    query: String,
+    sort: String,
+    limit: Option<u32>,
+    author: Option<String>,
+    gguf_only: Option<bool>,
+) -> Result<Vec<hf::HfRepo>, String> {
+    hf::search_models(&query, &sort, limit.unwrap_or(50), author.as_deref(), gguf_only.unwrap_or(false))
+        .await
+}
+
+#[tauri::command]
+async fn get_repo_files(owner: String, repo: String, speculative_tags: Option<bool>) -> Result<Vec<hf::RepoFile>, String> {
+    hf::repo_files(&owner, &repo, speculative_tags.unwrap_or(false)).await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -875,10 +895,16 @@ pub fn run() {
                     }
                 })
                 .build(app)?;
+            let manager = app.state::<downloads::DownloadManager>();
+            if let Ok(data_dir) = app.path().app_data_dir() {
+                let _ = std::fs::create_dir_all(&data_dir);
+                manager.0.init_path(data_dir);
+            }
             Ok(())
         })
         .manage(ServerProcess(Mutex::new(None)))
-        .invoke_handler(tauri::generate_handler![scan_models, load_model, stop_model, save_window_state, load_window_state, get_cpu_threads, get_system_ram, get_gpu_memory, get_file_size])
+        .manage(downloads::DownloadManager::new())
+        .invoke_handler(tauri::generate_handler![scan_models, load_model, stop_model, save_window_state, load_window_state, get_cpu_threads, get_system_ram, get_gpu_memory, get_file_size, search_hf_models, get_repo_files, downloads::start_downloads, downloads::pause_download, downloads::resume_download, downloads::cancel_download, downloads::list_downloads, downloads::remove_download])
         .build(tauri::generate_context!())
         .and_then(|app| {
             app.run(|app_handle, event| {

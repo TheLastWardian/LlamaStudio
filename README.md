@@ -13,6 +13,8 @@ Entirely inspired by [LM Studio](https://lmstudio.ai/) — with modifications th
 ## Features
 
 - **Model library** — scans a folder of `.gguf` models (publisher/family layout) and parses GGUF metadata directly (architecture, parameter count, max context length)
+- **Model discovery** — search Hugging Face (trending / most downloaded / most likes / recently updated / recently created, GGUF-only filter), browse a repo's files grouped (main GGUF / MTP-draft / vision-mmproj / other) and pick exactly which files to download
+- **Resumable parallel downloads** — downloads resume from `.part` (HTTP Range), configurable parallelism (1-4) and retries (auto-retry with exponential backoff, visible countdown on 429 rate limit), global downloads bar with per-job pause / resume / cancel
 - **Organization** — search, groups, pinning, and drag & drop reordering
 - **One-click server launch** — spawns `llama-server` with rich options: GPU offload, context length, eval/physical batches, flash attention, speculative decoding (MTP / draft model), sampling parameters, KV cache quantization, KV unified/offload, cache RAM, load mode (mmap/mlock), reasoning budget & effort, seed, model alias, sleep-when-idle
 - **Live log console** — streams server output with log levels, in real time
@@ -69,6 +71,7 @@ Application settings are persisted via `tauri-plugin-store` (`config.json`):
 | `llamaPath` | Path to `llama-server` | *(none)* |
 | `port` | Server port | `8080` |
 | `minimizeToTray` | Minimize to tray instead of closing | `false` |
+| `downloads` | Download settings: `parallelism` (1-4), `autoRetry`, `maxRetries`, `keepPartOnCancel` | `parallelism: 2, autoRetry: true, maxRetries: 5, keepPartOnCancel: false` |
 | `language` | App language (`en` / `es`) | `en` |
 
 Each model additionally stores its own inference configuration (context, offload, batches, speculative decoding, reasoning, cache quantization, etc.) keyed by model path.
