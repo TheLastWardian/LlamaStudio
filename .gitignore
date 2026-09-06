@@ -12,6 +12,8 @@ dist
 dist-ssr
 *.local
 docs/auditoria-2026-08-25.md
+docs/plans.md
+docs/plan-downloads.md
 
 # Editor directories and files
 .vscode/*
