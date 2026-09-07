@@ -97,6 +97,7 @@ export interface ModelConfig {
   expertsPerToken: number
   visionEnabled: boolean
   mmprojPath: string
+  imageMinTokens1024: boolean
   seed: number
   temp: number
   topP: number
@@ -158,6 +159,7 @@ const modelDefaults: ModelConfig = {
   expertsPerToken: 0,
   visionEnabled: false,
   mmprojPath: '',
+  imageMinTokens1024: false,
   seed: -1,
   temp: 0.8,
   topP: 0.95,

@@ -515,6 +515,7 @@ fn load_model(
     experts_per_token: i32,
     vision_enabled: bool,
     mmproj_path: String,
+    image_min_tokens_1024: bool,
     seed: i32,
     temp: f64,
     top_p: f64,
@@ -700,6 +701,9 @@ fn load_model(
 
     if vision_enabled && !mmproj_path.is_empty() {
         cmd.arg("--mmproj").arg(&mmproj_path);
+        if image_min_tokens_1024 {
+            cmd.arg("--image-min-tokens").arg("1024");
+        }
     }
 
     let cuda_graph_opt = cuda_graph_opt.trim();

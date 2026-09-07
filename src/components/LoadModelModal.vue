@@ -305,6 +305,10 @@
                   </option>
                 </select>
               </div>
+              <div class="field" v-if="tempCfg.visionEnabled" :title="t('load.imageMinTokens1024Hint')">
+                <label>{{ t('load.imageMinTokens1024') }}</label>
+                <input type="checkbox" v-model="tempCfg.imageMinTokens1024" class="toggle" />
+              </div>
             </div>
           </template>
 
@@ -637,6 +641,7 @@ async function invokeLoad(modelPath: string, cfg: ModelConfig) {
     expertsPerToken: numOrDefault(cfg.expertsPerToken, 0),
     visionEnabled: cfg.visionEnabled ?? false,
     mmprojPath: cfg.mmprojPath ?? '',
+    imageMinTokens1024: cfg.imageMinTokens1024 ?? false,
     mmap: cfg.mmap ?? false,
     kvUnified: cfg.kvUnified ?? false,
     kvOffload: cfg.kvOffload ?? false,

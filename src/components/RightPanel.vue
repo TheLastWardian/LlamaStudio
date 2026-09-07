@@ -301,6 +301,10 @@
               </option>
             </select>
           </div>
+          <div class="field" v-if="modelCfg.visionEnabled" :title="t('load.imageMinTokens1024Hint')">
+            <label>{{ t('load.imageMinTokens1024') }}</label>
+            <input type="checkbox" v-model="modelCfg.imageMinTokens1024" class="toggle" />
+          </div>
         </div>
       </template>
 
@@ -488,7 +492,7 @@ const hasUnsavedChanges = computed(() => {
     'ctxCheckpoints', 'checkpointMinStep',
     'reasoning', 'reasoningBudget', 'reasoningBudgetCustom', 'reasoningEffort', 'parallel', 'mlock', 'nCpuMoe', 'expertsPerToken',
     'mmap', 'kvUnified', 'seed', 'draftModelPath', 'threadsHttp', 'alias',
-    'host', 'noWarmup', 'sleepIdle', 'reasoningPreserve', 'fit', 'visionEnabled', 'mmprojPath',
+    'host', 'noWarmup', 'sleepIdle', 'reasoningPreserve', 'fit', 'visionEnabled', 'mmprojPath', 'imageMinTokens1024',
     'kvOffload', 'cacheRam', 'temp', 'topP', 'topK', 'minP', 'repeatPenalty'
   ]
 
@@ -560,6 +564,7 @@ const modelCfg = ref<ModelConfig>({
   expertsPerToken: 0,
   visionEnabled: false,
   mmprojPath: '',
+  imageMinTokens1024: false,
   seed: -1,
   temp: 0.8,
   topP: 0.95,
@@ -779,6 +784,7 @@ async function loadModel() {
       expertsPerToken: numOrDefault(cfg.expertsPerToken, 0),
       visionEnabled: cfg.visionEnabled ?? false,
       mmprojPath: cfg.mmprojPath ?? '',
+      imageMinTokens1024: cfg.imageMinTokens1024 ?? false,
       seed: numOrDefault(cfg.seed, -1),
       temp: numOrDefault(cfg.temp, 0.8),
       topP: numOrDefault(cfg.topP, 0.95),

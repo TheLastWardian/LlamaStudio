@@ -223,6 +223,8 @@ export default {
     visionTooltip: 'Activa el modelo de visión para procesar imágenes.',
     visionLabel: 'Visión (mmproj)',
     mmprojModel: 'Modelo mmproj',
+    imageMinTokens1024: 'Tokens mínimos de imagen: 1024',
+    imageMinTokens1024Hint: 'Usa 1024 en vez del default (512). Recomendado para Qwen; puede fallar con modelos no compatibles.',
     visionNeedsMmproj: 'La visión requiere un modelo mmproj.',
     reasoning: 'Razonamiento',
     thinkingMode: 'Modo de razonamiento',
