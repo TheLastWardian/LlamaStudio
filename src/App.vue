@@ -28,6 +28,7 @@ import { listen } from '@tauri-apps/api/event'
 import { serverLogs, launchCmd, launchSpec, modelLoading, selectedModel, loadedModel, loadingModel, loadedModelConfig, loadedServerPort, prefillProgress, generationTokens, type ModelFile } from './stores/selectedModel'
 import { appConfig, loadConfig, loadModelConfig } from './stores/config'
 import { loadGroups } from './stores/groups'
+import { loadColumnWidths } from './stores/columnWidths'
 import { setLang, t } from './i18n'
 import Sidebar from './components/Sidebar.vue'
 import ModelsView from './views/ModelsView.vue'
@@ -125,6 +126,7 @@ onMounted(async () => {
   initDownloads()
   const win = getCurrentWindow()
   await loadGroups()
+  await loadColumnWidths()
   await invoke('load_window_state').catch(() => {})
   await win.show()
 

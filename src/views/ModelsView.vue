@@ -74,7 +74,6 @@
               <span class="tag quant">{{ model.name.split('-').pop()?.replace('.gguf','').replace('.GGUF','') }}</span>
             </div>
             <div class="col-cell" :style="{ width: columns[5].width + 'px' }">{{ formatSize(model.size_bytes) }}</div>
-            <div class="col-cell" :style="{ width: columns[6].width + 'px' }">···</div>
           </div>
           </template>
         </template>
@@ -171,6 +170,7 @@ import { revealItemInDir, openPath, openUrl } from '@tauri-apps/plugin-opener'
 import { selectedModel, allModels, loadedModel } from '../stores/selectedModel'
 import { loadConfig, deleteModelConfig } from '../stores/config'
 import { groups, modelMeta, modelDisplayNames, createGroup, deleteGroup, moveModelToGroup, togglePin, saveGroups, collapsedGroups } from '../stores/groups'
+import { columnWidths, saveColumnWidths } from '../stores/columnWidths'
 import type { ModelFile } from '../stores/selectedModel'
 import DeleteModelDialog from '../components/DeleteModelDialog.vue'
 import { t } from '../i18n'
@@ -183,8 +183,15 @@ const columns = ref([
   { key: 'llm', labelKey: 'models.llm', width: 400 },
   { key: 'quant', labelKey: 'models.quant', width: 90 },
   { key: 'size', labelKey: 'models.size', width: 80 },
-  { key: 'actions', labelKey: 'models.actions', width: 60 },
 ])
+
+// Los anchos guardados cargan tras el mount (App.vue los espera); el watch los aplica al llegar
+watch(columnWidths, () => {
+  for (const col of columns.value) {
+    const w = columnWidths[col.key]
+    if (typeof w === 'number' && w >= 50) col.width = w
+  }
+})
 
 // Context menu
 const ctxMenu = ref<{ x: number, y: number, type: 'model' | 'empty' | 'group', modelPath?: string, groupId?: string } | null>(null)
@@ -405,6 +412,8 @@ function startColResize(e: MouseEvent, col: typeof columns.value[0]) {
     window.removeEventListener('mouseup', cleanup)
     const i = activeCleanups.indexOf(cleanup)
     if (i !== -1) activeCleanups.splice(i, 1)
+    columnWidths[col.key] = col.width
+    saveColumnWidths()
   }
   activeCleanups.push(cleanup)
   window.addEventListener('mousemove', onMove)
