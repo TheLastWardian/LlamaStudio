@@ -455,7 +455,11 @@ fn scan_models(models_path: String) -> Vec<ModelFile> {
     models
 }
 
-pub struct ServerProcess(pub Mutex<Option<(std::process::Child, Arc<AtomicBool>)>>);
+fn parse_port(p: i32) -> Result<u16, String> {
+    if (1..=65535).contains(&p) { Ok(p as u16) } else { Err(format!("invalid port: {}", p)) }
+}
+
+pub struct ServerProcess(pub Mutex<HashMap<u16, (std::process::Child, Arc<AtomicBool>)>>);
 
 #[tauri::command]
 fn load_model(
@@ -523,9 +527,11 @@ fn load_model(
     min_p: f64,
     repeat_penalty: f64,
 ) -> Result<String, String> {
-    let mut child_lock = state.0.lock().unwrap();
+    let port_u16 = parse_port(port)?;
 
-    if let Some((mut child, stop_flag)) = child_lock.take() {
+    let mut map_lock = state.0.lock().unwrap();
+
+    if let Some((mut child, stop_flag)) = map_lock.remove(&port_u16) {
         stop_flag.store(true, Ordering::SeqCst);
         let _ = child.kill();
         thread::spawn(move || { let _ = child.wait(); });
@@ -717,7 +723,7 @@ fn load_model(
     let args: Vec<String> = cmd.get_args().map(|a| a.to_string_lossy().to_string()).collect();
     let cmd_str = format!("CMD: {} {}", program, args.join(" "));
     println!("{}", cmd_str);
-    let _ = app.emit("llama-log", cmd_str);
+    let _ = app.emit("llama-log", serde_json::json!({ "port": port_u16, "line": cmd_str }));
 
     if spec_type != "None" {
         let main = if spec_type == "MTP" {
@@ -752,7 +758,7 @@ fn load_model(
         }
         let spec_str = format!("SPEC: {}", spec_parts.join(" + "));
         println!("{}", spec_str);
-        let _ = app.emit("llama-log", spec_str);
+        let _ = app.emit("llama-log", serde_json::json!({ "port": port_u16, "line": spec_str }));
     }
 
     let mut child = cmd
@@ -768,22 +774,23 @@ fn load_model(
         let reader = BufReader::new(stderr);
         for line in reader.lines() {
             if let Ok(line) = line {
-                let _ = app_handle.emit("llama-log", line);
+                let _ = app_handle.emit("llama-log", serde_json::json!({ "port": port_u16, "line": line }));
             }
         }
         if !flag.load(Ordering::SeqCst) {
-            let _ = app_handle.emit("llama-exited", ());
+            let _ = app_handle.emit("llama-exited", serde_json::json!({ "port": port_u16 }));
         }
     });
 
-    *child_lock = Some((child, stop_flag));
+    map_lock.insert(port_u16, (child, stop_flag));
     Ok(format!("Started: {}", model_path))
 }
 
 #[tauri::command]
-fn stop_model(state: State<ServerProcess>) -> Result<(), String> {
-    let mut child_lock = state.0.lock().unwrap();
-    if let Some((mut child, stop_flag)) = child_lock.take() {
+fn stop_model(state: State<ServerProcess>, port: i32) -> Result<(), String> {
+    let port_u16 = parse_port(port)?;
+    let mut map_lock = state.0.lock().unwrap();
+    if let Some((mut child, stop_flag)) = map_lock.remove(&port_u16) {
         stop_flag.store(true, Ordering::SeqCst);
         child.kill().map_err(|e| e.to_string())?;
         thread::spawn(move || { let _ = child.wait(); });
@@ -943,7 +950,7 @@ pub fn run() {
             }
             Ok(())
         })
-        .manage(ServerProcess(Mutex::new(None)))
+        .manage(ServerProcess(Mutex::new(HashMap::new())))
         .manage(downloads::DownloadManager::new())
         .invoke_handler(tauri::generate_handler![scan_models, delete_models, load_model, stop_model, save_window_state, load_window_state, get_cpu_threads, get_system_ram, get_gpu_memory, get_file_size, search_hf_models, get_repo_files, get_repo_readme, downloads::start_downloads, downloads::pause_download, downloads::resume_download, downloads::cancel_download, downloads::list_downloads, downloads::remove_download])
         .build(tauri::generate_context!())
@@ -952,9 +959,11 @@ pub fn run() {
                 if let tauri::RunEvent::Exit = event {
                     if let Some(state) = app_handle.try_state::<ServerProcess>() {
                         let mut lock = state.0.lock().unwrap();
-                        if let Some((mut child, _stop_flag)) = lock.take() {
+                        for (_port, (mut child, _stop_flag)) in lock.drain() {
                             let _ = child.kill();
-                            let _ = child.wait();
+                            // wait en thread separado: con hasta 10 servers, un wait
+                            // secuencial bloqueante puede colgar el cierre (Windows)
+                            thread::spawn(move || { let _ = child.wait(); });
                         }
                     }
                 }
@@ -966,7 +975,16 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{analyze_chat_template, read_gguf_metadata, scan_models, delete_models, ModelFile};
+    #[test]
+    fn parse_port_bounds() {
+        assert_eq!(parse_port(8080), Ok(8080));
+        assert_eq!(parse_port(1), Ok(1));
+        assert_eq!(parse_port(65535), Ok(65535));
+        assert!(parse_port(0).is_err());
+        assert!(parse_port(65536).is_err());
+        assert!(parse_port(-1).is_err());
+    }
+    use super::{analyze_chat_template, parse_port, read_gguf_metadata, scan_models, delete_models, ModelFile};
     use std::collections::HashMap;
     use std::fs;
 
