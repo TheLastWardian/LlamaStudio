@@ -97,7 +97,7 @@ export interface ModelConfig {
   expertsPerToken: number
   visionEnabled: boolean
   mmprojPath: string
-  imageMinTokens1024: boolean
+  imageMinTokens: number
   seed: number
   temp: number
   topP: number
@@ -159,7 +159,7 @@ const modelDefaults: ModelConfig = {
   expertsPerToken: 0,
   visionEnabled: false,
   mmprojPath: '',
-  imageMinTokens1024: false,
+  imageMinTokens: 0,
   seed: -1,
   temp: 0.8,
   topP: 0.95,
@@ -183,6 +183,8 @@ export async function loadModelConfig(modelPath: string): Promise<ModelConfig> {
   const saved = await store.get<Partial<ModelConfig> & LegacyDraftFields>(key)
   const cfg: ModelConfig = { ...modelDefaults, ...(saved ?? {}) }
   if (!saved) cfg.gpuOffload = 999
+  // migración del antiguo toggle (imageMinTokens1024: true → 1024)
+  if ((saved as Record<string, unknown>)?.imageMinTokens1024 === true) cfg.imageMinTokens = 1024
 
   const hasLegacy = !saved?.draftParams
   const legacy: DraftParams = {
