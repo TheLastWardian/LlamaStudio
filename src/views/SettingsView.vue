@@ -2,6 +2,8 @@
   <div class="settings-view">
     <div class="topbar">
       <span class="topbar-title">{{ t('topbar.settings') }}</span>
+      <button class="btn-load" style="width:auto; padding: 6px 24px;" @click="save">{{ t('settings.save') }}</button>
+      <span v-if="saved" style="color:#4af54a; font-size:12px;">{{ t('settings.saved') }}</span>
     </div>
 
     <div class="settings-content">
@@ -35,33 +37,13 @@
         </div>
       </div>
 
+      <div class="settings-grid">
+      <div class="settings-col">
       <div class="settings-section">
         <div class="section-title">{{ t('settings.server') }}</div>
         <div class="settings-field">
           <label>{{ t('settings.defaultPort') }}</label>
           <input type="number" v-model.number="config.port" class="field-input" />
-        </div>
-      </div>
-
-      <div class="settings-section">
-        <div class="section-title">{{ t('settings.behavior') }}</div>
-        <div class="settings-field">
-          <label>{{ t('settings.minimizeToTray') }}</label>
-          <input type="checkbox" v-model="config.minimizeToTray" class="toggle" />
-        </div>
-        <div class="settings-field">
-          <label :title="t('settings.trashDeleteTooltip')">{{ t('settings.trashDelete') }}</label>
-          <input type="checkbox" v-model="config.trashDelete" class="toggle" />
-        </div>
-      </div>
-
-      <div class="settings-section">
-        <div class="section-title">{{ t('settings.language') }}</div>
-        <div class="settings-field">
-          <select class="field-select" v-model="config.language" @change="onLanguageChange">
-            <option value="en">English</option>
-            <option value="es">Español</option>
-          </select>
         </div>
       </div>
 
@@ -102,10 +84,31 @@
           <input type="checkbox" v-model="config.downloads.keepPartOnCancel" class="toggle" />
         </div>
       </div>
+      </div>
 
-      <div class="settings-footer">
-        <button class="btn-load" style="width:auto; padding: 6px 24px;" @click="save">{{ t('settings.save') }}</button>
-        <span v-if="saved" style="color:#4af54a; font-size:12px;">{{ t('settings.saved') }}</span>
+      <div class="settings-col">
+      <div class="settings-section">
+        <div class="section-title">{{ t('settings.behavior') }}</div>
+        <div class="settings-field">
+          <label>{{ t('settings.minimizeToTray') }}</label>
+          <input type="checkbox" v-model="config.minimizeToTray" class="toggle" />
+        </div>
+        <div class="settings-field">
+          <label :title="t('settings.trashDeleteTooltip')">{{ t('settings.trashDelete') }}</label>
+          <input type="checkbox" v-model="config.trashDelete" class="toggle" />
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="section-title">{{ t('settings.language') }}</div>
+        <div class="settings-field">
+          <select class="field-select" v-model="config.language" @change="onLanguageChange">
+            <option value="en">English</option>
+            <option value="es">Español</option>
+          </select>
+        </div>
+      </div>
+      </div>
       </div>
     </div>
   </div>
