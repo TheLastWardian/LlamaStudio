@@ -180,11 +180,14 @@ type LegacyDraftFields = {
 export async function loadModelConfig(modelPath: string): Promise<ModelConfig> {
   const store = await getStore()
   const key = 'model:' + modelPath.replace(/[\\/]/g, '_')
-  const saved = await store.get<Partial<ModelConfig> & LegacyDraftFields>(key)
-  const cfg: ModelConfig = { ...modelDefaults, ...(saved ?? {}) }
+  const saved = await store.get<Partial<ModelConfig> & LegacyDraftFields & { imageMinTokens1024?: boolean }>(key)
+  const legacy1024 = saved?.imageMinTokens1024 === true
+  const rest = { ...(saved ?? {}) }
+  delete rest.imageMinTokens1024
+  const cfg: ModelConfig = { ...modelDefaults, ...rest }
   if (!saved) cfg.gpuOffload = 999
-  // migración del antiguo toggle (imageMinTokens1024: true → 1024)
-  if ((saved as Record<string, unknown>)?.imageMinTokens1024 === true) cfg.imageMinTokens = 1024
+  // migración del antiguo toggle (imageMinTokens1024: true → 1024), solo si el campo nuevo no existe
+  if (legacy1024 && saved?.imageMinTokens == null) cfg.imageMinTokens = 1024
 
   const hasLegacy = !saved?.draftParams
   const legacy: DraftParams = {
