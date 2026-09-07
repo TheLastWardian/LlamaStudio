@@ -1,10 +1,10 @@
 <template>
   <div class="sidebar">
-    <div class="sidebar-icon icon-models" :class="{ active: currentView === 'models' }" @click="$emit('navigate', 'models')" :title="t('sidebar.models')">
-      <Layers :size="20" />
-    </div>
     <div class="sidebar-icon icon-chat" :class="{ active: currentView === 'chat' }" @click="$emit('navigate', 'chat')" :title="t('sidebar.chat')">
       <Bot :size="20" />
+    </div>
+    <div class="sidebar-icon icon-models" :class="{ active: currentView === 'models' }" @click="$emit('navigate', 'models')" :title="t('sidebar.models')">
+      <Layers :size="20" />
     </div>
     <div class="sidebar-icon icon-developer" :class="{ active: currentView === 'developer' }" @click="$emit('navigate', 'developer')" :title="t('sidebar.developer')">
       <Cpu :size="20" />
