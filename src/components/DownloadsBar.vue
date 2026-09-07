@@ -14,7 +14,8 @@
     </div>
 
     <div v-show="!collapsed" class="dl-list">
-      <div v-for="r in rows" :key="r.job.jobId" class="dl-row">
+      <div v-for="r in rows" :key="r.job.jobId" class="dl-row"
+           :class="{ dismissible: r.job.state === 'completed' || r.job.state === 'failed' }">
         <div class="dl-row-main">
           <div class="dl-row-top">
             <span class="dl-repo">{{ r.job.repoOwner }}/{{ r.job.repoName }}</span>
@@ -36,21 +37,22 @@
             <template v-if="r.job.state === 'failed'"> · {{ firstErrorMsg(r.job) }}</template>
           </div>
         </div>
+        <button v-if="r.job.state === 'completed' || r.job.state === 'failed'"
+                class="dl-dismiss" :title="t('downloads.remove')" @click.stop="onRemove(r.job)">
+          <X :size="11" />
+        </button>
         <div class="dl-actions" @click.stop>
-          <button v-if="r.job.state === 'downloading' || r.job.state === 'queued'" class="dl-btn" :title="t('downloads.pause')" @click="onPauseResume(r.job)">
+          <button v-if="r.job.state === 'downloading' || r.job.state === 'queued'" class="dl-btn dl-btn-pause" :title="t('downloads.pause')" @click="onPauseResume(r.job)">
             <Pause :size="14" />
           </button>
-          <button v-else-if="r.job.state === 'paused'" class="dl-btn" :title="t('downloads.resume')" @click="onPauseResume(r.job)">
+          <button v-else-if="r.job.state === 'paused'" class="dl-btn dl-btn-resume" :title="t('downloads.resume')" @click="onPauseResume(r.job)">
             <Play :size="14" />
           </button>
-          <button v-if="r.job.state !== 'completed' && r.job.state !== 'failed'" class="dl-btn" :title="t('downloads.cancel')" @click="onCancel(r.job)">
+          <button v-if="r.job.state !== 'completed' && r.job.state !== 'failed'" class="dl-btn dl-btn-cancel" :title="t('downloads.cancel')" @click="onCancel(r.job)">
             <X :size="14" />
           </button>
-          <button class="dl-btn" :title="t('downloads.openFolder')" @click="onOpenFolder(r.job)">
+          <button class="dl-btn dl-btn-folder" :title="t('downloads.openFolder')" @click="onOpenFolder(r.job)">
             <FolderOpen :size="14" />
-          </button>
-          <button v-if="r.job.state === 'completed' || r.job.state === 'failed'" class="dl-btn" :title="t('downloads.remove')" @click="onRemove(r.job)">
-            <Trash2 :size="14" />
           </button>
         </div>
       </div>
@@ -61,7 +63,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { openPath } from '@tauri-apps/plugin-opener'
-import { Pause, Play, X, FolderOpen, Trash2 } from '@lucide/vue'
+import { Pause, Play, X, FolderOpen } from '@lucide/vue'
 import { t } from '../i18n'
 import { appConfig } from '../stores/config'
 import { jobs, jobTotals, pause, resume, cancel, remove, firstErrorMsg, type JobView, type JobState } from '../stores/downloads'
@@ -209,11 +211,41 @@ function onOpenFolder(job: JobView): void {
 }
 
 .dl-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 8px 12px;
   border-bottom: 1px solid #2a2a2a;
+}
+
+.dl-row.dismissible .dl-row-top {
+  padding-right: 30px;
+}
+
+.dl-row.dismissible .dl-actions {
+  margin-right: 14px;
+}
+
+.dl-dismiss {
+  position: absolute;
+  top: 4px;
+  right: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: #888;
+  cursor: pointer;
+}
+
+.dl-dismiss:hover {
+  background: #2a2a2a;
+  color: #fff;
 }
 
 .dl-row:last-child { border-bottom: none; }
@@ -254,6 +286,7 @@ function onOpenFolder(job: JobView): void {
 .glyph-failed { color: #f55a5a; }
 
 .dl-track {
+  width: 99%;
   height: 4px;
   background: #2a2a2a;
   border-radius: 2px;
@@ -298,5 +331,10 @@ function onOpenFolder(job: JobView): void {
   cursor: pointer;
 }
 
-.dl-btn:hover { background: #2a2a2a; color: #fff; border-color: #5a8af5; }
+.dl-btn:hover { background: #2a2a2a; border-color: #555; }
+
+.dl-btn-pause { color: #5a8af5; }
+.dl-btn-resume { color: #4af54a; }
+.dl-btn-cancel { color: #f55a5a; }
+.dl-btn-folder { color: #f5d04a; }
 </style>
