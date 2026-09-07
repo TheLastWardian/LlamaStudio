@@ -810,6 +810,33 @@ body {
   padding-right: 8px;
 }
 
+.dev-launch {
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  background: #14141c;
+  border: 1px solid #2a2a3a;
+  border-radius: 6px;
+  font-family: 'Consolas', monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.dev-launch-label {
+  color: #666;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.dev-launch-line {
+  color: #9ab;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
 .dev-logs {
   flex: 1;
   overflow-y: auto;

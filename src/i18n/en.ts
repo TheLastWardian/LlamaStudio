@@ -316,6 +316,7 @@ export default {
     noModelLoaded: 'No model loaded.',
     noLogs: 'No logs yet.',
     logs: 'Logs',
+    launch: 'Launch',
     clearLogs: 'Clear logs',
     tokens: 'tokens',
     eject: '⏏ Eject',

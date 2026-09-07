@@ -48,6 +48,11 @@
       <span style="color:#666; font-size:11px; text-transform:uppercase;">{{ t('developer.logs') }}</span>
       <button class="btn-clear-logs" @click="clearLogs">🗑 {{ t('developer.clearLogs') }}</button>
     </div>
+      <div v-if="launchCmd" ref="launchEl" class="dev-launch" tabindex="-1" @keydown.ctrl.a.prevent="selectAllLaunch" @keydown.meta.a.prevent="selectAllLaunch">
+        <div class="dev-launch-label">{{ t('developer.launch') }}</div>
+        <div class="dev-launch-line">{{ launchCmd }}</div>
+        <div v-if="launchSpec" class="dev-launch-line">{{ launchSpec }}</div>
+      </div>
       <div class="dev-logs" ref="logsEl" tabindex="-1" @scroll.passive="onLogsScroll" @keydown.ctrl.a.prevent="selectAllLogs" @keydown.meta.a.prevent="selectAllLogs">
         <div v-for="(log, i) in displayLogs" :key="i" class="log-line">
           <span class="log-time">{{ log.time }}</span>
@@ -62,13 +67,14 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick, computed, onMounted, onUnmounted } from 'vue'
-import { serverLogs, loadedModel, modelLoading, loadedServerPort, prefillProgress, generationTokens } from '../stores/selectedModel'
+import { serverLogs, launchCmd, launchSpec, loadedModel, modelLoading, loadedServerPort, prefillProgress, generationTokens } from '../stores/selectedModel'
 import { invoke } from '@tauri-apps/api/core'
 import { appConfig } from '../stores/config'
 import LoadModelModal from '../components/LoadModelModal.vue'
 import { t } from '../i18n'
 
 const logsEl = ref<HTMLElement>()
+const launchEl = ref<HTMLElement>()
 const logs = serverLogs
 const showModal = ref(false)
 const port = computed(() => loadedServerPort.value ?? appConfig.value.port)
@@ -228,6 +234,8 @@ async function eject() {
   modelLoading.value = false
   prefillProgress.value = null
   generationTokens.value = null
+  launchCmd.value = ''
+  launchSpec.value = ''
 }
 
 function selectAllLogs() {
@@ -235,6 +243,19 @@ function selectAllLogs() {
   if (!el) return
   const range = document.createRange()
   range.selectNodeContents(el)
+  const sel = window.getSelection()
+  sel?.removeAllRanges()
+  sel?.addRange(range)
+}
+
+function selectAllLaunch() {
+  const el = launchEl.value
+  if (!el) return
+  const lines = el.querySelectorAll<HTMLElement>('.dev-launch-line')
+  if (lines.length === 0) return
+  const range = document.createRange()
+  range.setStartBefore(lines[0])
+  range.setEndAfter(lines[lines.length - 1])
   const sel = window.getSelection()
   sel?.removeAllRanges()
   sel?.addRange(range)

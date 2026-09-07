@@ -316,6 +316,7 @@ export default {
     noModelLoaded: 'No hay modelo cargado.',
     noLogs: 'Sin logs aún.',
     logs: 'Logs',
+    launch: 'Lanzamiento',
     clearLogs: 'Limpiar logs',
     tokens: 'tokens',
     eject: '⏏ Expulsar',

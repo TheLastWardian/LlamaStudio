@@ -44,6 +44,10 @@ export const loadingModel = ref<ModelFile | null>(null)
 
 export const serverLogs = ref<{time: string, level: string, msg: string}[]>([])
 
+export const launchCmd = ref('')
+
+export const launchSpec = ref('')
+
 export const loadedModel = ref<ModelFile | null>(null)
 
 export const loadedModelConfig = ref<Record<string, any> | null>(null)

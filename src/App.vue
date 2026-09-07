@@ -25,7 +25,7 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { listen } from '@tauri-apps/api/event'
-import { serverLogs, modelLoading, selectedModel, loadedModel, loadingModel, loadedModelConfig, loadedServerPort, prefillProgress, generationTokens, type ModelFile } from './stores/selectedModel'
+import { serverLogs, launchCmd, launchSpec, modelLoading, selectedModel, loadedModel, loadingModel, loadedModelConfig, loadedServerPort, prefillProgress, generationTokens, type ModelFile } from './stores/selectedModel'
 import { appConfig, loadConfig, loadModelConfig } from './stores/config'
 import { loadGroups } from './stores/groups'
 import { setLang, t } from './i18n'
@@ -133,6 +133,8 @@ onMounted(async () => {
   unlistenLogs = await listen<string>('llama-log', (event) => {
     const line = event.payload
     const clean = line.replace(/\x1B\[[0-9;]*m/g, '')
+    if (clean.startsWith('CMD:')) launchCmd.value = clean
+    else if (clean.startsWith('SPEC:')) launchSpec.value = clean
     const match = clean.match(/^(\S+)\s+([IWED])\s+(.+)$/)
     const levelMap: Record<string, string> = { I: 'info', W: 'warn', E: 'error', D: 'debug' }
     serverLogs.value.push(
@@ -189,6 +191,8 @@ onMounted(async () => {
     modelLoading.value = false
     prefillProgress.value = null
     generationTokens.value = null
+    launchCmd.value = ''
+    launchSpec.value = ''
   })
 
   await win.listen('tauri://close-requested', async () => {
