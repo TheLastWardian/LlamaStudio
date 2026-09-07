@@ -14,6 +14,7 @@ dist-ssr
 docs/auditoria-2026-08-25.md
 docs/plans.md
 docs/plan-*.md
+docs/multi-model/
 
 # Editor directories and files
 .vscode/*
