@@ -27,6 +27,8 @@ export async function loadGroups() {
   Object.assign(modelMeta, saved)
   const savedNames = await store.get<Record<string, string>>('modelDisplayNames') ?? {}
   Object.assign(modelDisplayNames, savedNames)
+  const savedCollapsed = await store.get<Record<string, boolean>>('collapsedGroups') ?? {}
+  Object.assign(collapsedGroups, savedCollapsed)
 }
 
 export async function saveGroups() {
@@ -34,6 +36,7 @@ export async function saveGroups() {
   await store.set('groups', groups.value)
   await store.set('modelMeta', { ...modelMeta })
   await store.set('modelDisplayNames', { ...modelDisplayNames })
+  await store.set('collapsedGroups', { ...collapsedGroups })
   await store.save()
 }
 

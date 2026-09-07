@@ -432,6 +432,7 @@ const dropPosition = ref<'before' | 'after' | null>(null)
 
 function toggleCollapse(groupId: string) {
   collapsedGroups[groupId] = !collapsedGroups[groupId]
+  saveGroups()
 }
 
 function onGroupMouseDown(e: MouseEvent, groupId: string) {
