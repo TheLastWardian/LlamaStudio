@@ -216,6 +216,15 @@ export async function saveModelConfig(modelPath: string, config: ModelConfig): P
   await store.save()
 }
 
+export async function deleteModelConfig(modelPath: string): Promise<void> {
+  const store = await getStore()
+  const key = 'model:' + modelPath.replace(/[\\/]/g, '_')
+  if (await store.get(key) !== undefined) {
+    await store.delete(key)
+    await store.save()
+  }
+}
+
 export interface AppConfig {
   modelsPath: string
   llamaPath: string
@@ -223,6 +232,7 @@ export interface AppConfig {
   logVerbosity: number
   port: number
   minimizeToTray: boolean
+  trashDelete: boolean
   language: 'en' | 'es'
   downloads: { parallelism: number; chunks: number; autoRetry: boolean; maxRetries: number; keepPartOnCancel: boolean }
 }
@@ -234,6 +244,7 @@ const defaults: AppConfig = {
   logVerbosity: 3,
   port: 8080,
   minimizeToTray: false,
+  trashDelete: false,
   language: 'en',
   downloads: { parallelism: 2, chunks: 4, autoRetry: true, maxRetries: 5, keepPartOnCancel: false },
 }
@@ -250,6 +261,7 @@ export async function loadConfig(): Promise<AppConfig> {
     logVerbosity: await store.get<number>('logVerbosity') ?? defaults.logVerbosity,
     port: await store.get<number>('port') ?? defaults.port,
     minimizeToTray: await store.get<boolean>('minimizeToTray') ?? defaults.minimizeToTray,
+    trashDelete: await store.get<boolean>('trashDelete') ?? defaults.trashDelete,
     language: await store.get<'en' | 'es'>('language') ?? defaults.language,
     // S5: merge sobre defaults (tolerante a configs viejas sin la clave)
     downloads: {
@@ -268,6 +280,7 @@ export async function saveConfig(config: AppConfig): Promise<void> {
   await store.set('logVerbosity', config.logVerbosity)
   await store.set('port', config.port)
   await store.set('minimizeToTray', config.minimizeToTray)
+  await store.set('trashDelete', config.trashDelete)
   await store.set('language', config.language)
   await store.set('downloads', config.downloads)
   await store.save()

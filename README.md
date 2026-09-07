@@ -72,6 +72,7 @@ Application settings are persisted via `tauri-plugin-store` (`config.json`):
 | `llamaPath` | Path to `llama-server` | *(none)* |
 | `port` | Server port | `8080` |
 | `minimizeToTray` | Minimize to tray instead of closing | `false` |
+| `trashDelete` | Deleted models go to the Windows Recycle Bin instead of being erased permanently | `false` |
 | `cudaGraphOpt` | `GGML_CUDA_GRAPH_OPT` value passed to llama-server (optional) | *(none)* |
 | `logVerbosity` | Server log verbosity (`-lv`, 1=error … 5=debug) | `3` |
 | `downloads` | Download settings: `parallelism` (1-4), `chunks` (1-8, intra-file parallelism for files ≥256 MB), `autoRetry`, `maxRetries`, `keepPartOnCancel` | `parallelism: 2, chunks: 4, autoRetry: true, maxRetries: 5, keepPartOnCancel: false` |

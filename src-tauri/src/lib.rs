@@ -230,6 +230,37 @@ fn analyze_chat_template(tmpl: &str) -> (bool, bool, Vec<String>) {
     (supports_thinking, supports_effort, levels)
 }
 
+fn validate_deletion_targets(paths: &[String], models_path: &str) -> Result<Vec<PathBuf>, String> {
+    let root = std::fs::canonicalize(models_path)
+        .map_err(|e| format!("models path inválido: {e}"))?;
+    paths.iter().map(|p| {
+        let canon = std::fs::canonicalize(p)
+            .map_err(|_| format!("no existe: {p}"))?;
+        if !canon.starts_with(&root) {
+            return Err(format!("fuera de la carpeta de modelos: {p}"));
+        }
+        if !canon.is_file() {
+            return Err(format!("no es un archivo: {p}"));
+        }
+        Ok(canon)
+    }).collect()
+}
+
+#[tauri::command]
+fn delete_models(paths: Vec<String>, models_path: String, use_trash: bool) -> Result<Vec<String>, String> {
+    let targets = validate_deletion_targets(&paths, &models_path)?;
+    let mut deleted = Vec::new();
+    for t in &targets {
+        if use_trash {
+            trash::delete(t).map_err(|e| format!("papelera falló: {e}"))?;
+        } else {
+            std::fs::remove_file(t).map_err(|e| format!("borrado falló: {e}"))?;
+        }
+        deleted.push(t.to_string_lossy().to_string());
+    }
+    Ok(deleted)
+}
+
 #[tauri::command]
 fn scan_models(models_path: String) -> Vec<ModelFile> {
     let base = PathBuf::from(&models_path);
@@ -910,7 +941,7 @@ pub fn run() {
         })
         .manage(ServerProcess(Mutex::new(None)))
         .manage(downloads::DownloadManager::new())
-        .invoke_handler(tauri::generate_handler![scan_models, load_model, stop_model, save_window_state, load_window_state, get_cpu_threads, get_system_ram, get_gpu_memory, get_file_size, search_hf_models, get_repo_files, get_repo_readme, downloads::start_downloads, downloads::pause_download, downloads::resume_download, downloads::cancel_download, downloads::list_downloads, downloads::remove_download])
+        .invoke_handler(tauri::generate_handler![scan_models, delete_models, load_model, stop_model, save_window_state, load_window_state, get_cpu_threads, get_system_ram, get_gpu_memory, get_file_size, search_hf_models, get_repo_files, get_repo_readme, downloads::start_downloads, downloads::pause_download, downloads::resume_download, downloads::cancel_download, downloads::list_downloads, downloads::remove_download])
         .build(tauri::generate_context!())
         .and_then(|app| {
             app.run(|app_handle, event| {
@@ -931,7 +962,7 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{analyze_chat_template, read_gguf_metadata, scan_models, ModelFile};
+    use super::{analyze_chat_template, read_gguf_metadata, scan_models, delete_models, ModelFile};
     use std::collections::HashMap;
     use std::fs;
 
@@ -1030,6 +1061,86 @@ mod tests {
         assert_eq!(d.publisher, "pub");
         assert_eq!(d.model_family, "deep");
         assert!(d.mmproj_paths.is_empty());
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    fn del_test_root(tag: &str) -> std::path::PathBuf {
+        let root = std::env::temp_dir().join(format!("llamastudio-del-{tag}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        root
+    }
+
+    #[test]
+    fn delete_models_rejects_path_outside_root() {
+        let root = del_test_root("outside");
+        let outside = std::env::temp_dir().join(format!("llamastudio-del-outside-file-{}", std::process::id()));
+        fs::write(&outside, b"").unwrap();
+
+        let err = delete_models(vec![outside.to_string_lossy().to_string()], root.to_string_lossy().to_string(), false).unwrap_err();
+        assert!(err.contains("fuera de la carpeta de modelos"), "got: {err}");
+        assert!(outside.exists(), "el archivo afuera no debe tocarse");
+
+        let _ = fs::remove_file(&outside);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn delete_models_rejects_nonexistent() {
+        let root = del_test_root("ghost");
+        let ghost = root.join("ghost.gguf");
+
+        let err = delete_models(vec![ghost.to_string_lossy().to_string()], root.to_string_lossy().to_string(), false).unwrap_err();
+        assert!(err.contains("no existe"), "got: {err}");
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn delete_models_rejects_directory() {
+        let root = del_test_root("dir");
+        fs::create_dir_all(root.join("sub")).unwrap();
+
+        let err = delete_models(vec![root.join("sub").to_string_lossy().to_string()], root.to_string_lossy().to_string(), false).unwrap_err();
+        assert!(err.contains("no es un archivo"), "got: {err}");
+        assert!(root.join("sub").exists());
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn delete_models_deletes_inside_root() {
+        let root = del_test_root("del");
+        fs::create_dir_all(root.join("sub")).unwrap();
+        fs::write(root.join("a.gguf"), b"").unwrap();
+        fs::write(root.join("sub/b.gguf"), b"").unwrap();
+
+        let deleted = delete_models(
+            vec![root.join("a.gguf").to_string_lossy().to_string(), root.join("sub/b.gguf").to_string_lossy().to_string()],
+            root.to_string_lossy().to_string(),
+            false,
+        ).unwrap();
+
+        assert_eq!(deleted.len(), 2);
+        assert!(!root.join("a.gguf").exists());
+        assert!(!root.join("sub/b.gguf").exists());
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn validate_deletion_targets_validates_all_before_deleting() {
+        let root = del_test_root("failfast");
+        fs::write(root.join("ok.gguf"), b"").unwrap();
+
+        let err = delete_models(
+            vec![root.join("ok.gguf").to_string_lossy().to_string(), root.join("ghost.gguf").to_string_lossy().to_string()],
+            root.to_string_lossy().to_string(),
+            false,
+        ).unwrap_err();
+        assert!(err.contains("no existe"), "got: {err}");
+        assert!(root.join("ok.gguf").exists(), "fail-fast: nada debe borrarse si un target es inválido");
 
         let _ = fs::remove_dir_all(&root);
     }

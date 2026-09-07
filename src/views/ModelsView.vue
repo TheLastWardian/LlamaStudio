@@ -139,6 +139,8 @@
             📁 {{ g.name }}
           </div>
         </div>
+        <div class="ctx-divider"></div>
+        <div class="ctx-item danger" @click="startDeleteModel(ctxMenu.modelPath!)">{{ t('modelList.deleteModel') }}</div>
       </template>
 
       <!-- Menú para grupo -->
@@ -149,16 +151,27 @@
       </template>
     </div>
   </div>
+
+  <DeleteModelDialog
+    v-if="deleteTarget"
+    :main="{ path: deleteTarget.path, name: modelDisplayNames[deleteTarget.path] || deleteTarget.name, sizeBytes: deleteTarget.size_bytes }"
+    :related="deleteRelated"
+    :use-trash="trashDelete"
+    :is-loaded="loadedModel?.path === deleteTarget.path"
+    @close="deleteTarget = null"
+    @confirm="confirmDelete"
+  />
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { revealItemInDir, openPath } from '@tauri-apps/plugin-opener'
-import { selectedModel, allModels } from '../stores/selectedModel'
-import { loadConfig } from '../stores/config'
+import { selectedModel, allModels, loadedModel } from '../stores/selectedModel'
+import { loadConfig, deleteModelConfig } from '../stores/config'
 import { groups, modelMeta, modelDisplayNames, createGroup, deleteGroup, moveModelToGroup, togglePin, saveGroups, collapsedGroups } from '../stores/groups'
 import type { ModelFile } from '../stores/selectedModel'
+import DeleteModelDialog from '../components/DeleteModelDialog.vue'
 import { t } from '../i18n'
 
 const search = ref('')
@@ -204,7 +217,57 @@ async function rescanModels() {
   }
 }
 
-onMounted(() => { rescanModels() })
+const deleteTarget = ref<ModelFile | null>(null)
+const deleteRelated = ref<{ path: string, name: string, sizeBytes: number, kind: 'vision' | 'draft' }[]>([])
+const trashDelete = ref(false)
+
+function dirPrefix(p: string): string {
+  const n = p.replace(/\\/g, '/')
+  return n.slice(0, n.lastIndexOf('/') + 1)
+}
+
+async function buildRelated(m: ModelFile) {
+  const dir = dirPrefix(m.path)
+  const vision: { path: string, name: string, sizeBytes: number, kind: 'vision' | 'draft' }[] = []
+  for (const p of m.mmproj_paths) {
+    const size = await invoke<number | null>('get_file_size', { path: p })
+    vision.push({ path: p, name: p.split(/[\\/]/).pop() ?? p, sizeBytes: size ?? 0, kind: 'vision' })
+  }
+  const drafts = allModels.value
+    .filter(x => x.is_draft && x.path.replace(/\\/g, '/').startsWith(dir))
+    .map(d => ({ path: d.path, name: d.name, sizeBytes: d.size_bytes, kind: 'draft' as const }))
+  return [...vision, ...drafts]
+}
+
+async function startDeleteModel(path: string) {
+  closeCtxMenu()
+  const m = models.value.find(x => x.path === path)
+  if (!m) return
+  deleteTarget.value = m
+  deleteRelated.value = await buildRelated(m)
+}
+
+async function confirmDelete(paths: string[]) {
+  const m = deleteTarget.value
+  if (!m) return
+  deleteTarget.value = null
+  try {
+    await invoke('delete_models', { paths, modelsPath: modelsPath.value, useTrash: trashDelete.value })
+  } catch (e) {
+    console.error('delete_models failed:', e)
+    return
+  }
+  for (const p of paths) { delete modelMeta[p]; delete modelDisplayNames[p] }
+  saveGroups()
+  await deleteModelConfig(m.path)
+  if (selectedModel.value?.path === m.path) selectedModel.value = null
+  await rescanModels()
+}
+
+onMounted(async () => {
+  trashDelete.value = (await loadConfig()).trashDelete
+  rescanModels()
+})
 
 // Modelos agrupados y ordenados
 const groupedModels = computed(() => {

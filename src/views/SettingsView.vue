@@ -49,6 +49,10 @@
           <label>{{ t('settings.minimizeToTray') }}</label>
           <input type="checkbox" v-model="config.minimizeToTray" class="toggle" />
         </div>
+        <div class="settings-field">
+          <label :title="t('settings.trashDeleteTooltip')">{{ t('settings.trashDelete') }}</label>
+          <input type="checkbox" v-model="config.trashDelete" class="toggle" />
+        </div>
       </div>
 
       <div class="settings-section">
@@ -120,6 +124,7 @@ const config = ref<AppConfig>({
   logVerbosity: 3,
   port: 8080,
   minimizeToTray: false,
+  trashDelete: false,
   language: 'en',
   downloads: { parallelism: 2, chunks: 4, autoRetry: true, maxRetries: 5, keepPartOnCancel: false },
 })
