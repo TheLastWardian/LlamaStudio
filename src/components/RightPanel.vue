@@ -549,6 +549,8 @@ const modelCfg = ref<ModelConfig>({
   reasoningEffort: 'default',
   draftModelPath: '',
   host: '127.0.0.1',
+  portMode: 'auto',
+  serverPort: 0,
   alias: '',
   threadsHttp: 2,
   noWarmup: false,

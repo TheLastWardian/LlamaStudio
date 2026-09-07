@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { load, type Store } from '@tauri-apps/plugin-store'
+import { normalizeServerConfig, type SlotsFullMode } from '../lib/serverConfig'
 
 const STORE_FILE = 'config.json'
 
@@ -81,6 +82,8 @@ export interface ModelConfig {
   reasoningEffort: string
   draftModelPath: string
   host: string
+  portMode: 'auto' | 'manual'
+  serverPort: number
   alias: string
   threadsHttp: number
   noWarmup: boolean
@@ -143,6 +146,8 @@ const modelDefaults: ModelConfig = {
   reasoningEffort: 'default',
   draftModelPath: '',
   host: '127.0.0.1',
+  portMode: 'auto',
+  serverPort: 0,
   alias: '',
   threadsHttp: 2,
   noWarmup: false,
@@ -238,6 +243,10 @@ export interface AppConfig {
   cudaGraphOpt: string
   logVerbosity: number
   port: number
+  serverCount: number
+  ports: number[]
+  chatPort: number
+  onSlotsFull: SlotsFullMode
   minimizeToTray: boolean
   trashDelete: boolean
   language: 'en' | 'es'
@@ -250,23 +259,35 @@ const defaults: AppConfig = {
   cudaGraphOpt: '',
   logVerbosity: 3,
   port: 8080,
+  serverCount: 1,
+  ports: [8080],
+  chatPort: 8080,
+  onSlotsFull: 'replace_first',
   minimizeToTray: false,
   trashDelete: false,
   language: 'en',
   downloads: { parallelism: 2, chunks: 4, autoRetry: true, maxRetries: 5, keepPartOnCancel: false },
 }
 
-// S5: copia del nested `downloads` (no compartir el objeto con `defaults`)
-export const appConfig = ref<AppConfig>({ ...defaults, downloads: { ...defaults.downloads } })
+// S5: copias propias de arrays/objetos anidados (no compartir con `defaults`)
+export const appConfig = ref<AppConfig>({ ...defaults, ports: [...defaults.ports], downloads: { ...defaults.downloads } })
 
 export async function loadConfig(): Promise<AppConfig> {
   const store = await getStore()
+  const server = normalizeServerConfig({
+    port: await store.get<number>('port'),
+    serverCount: await store.get<number>('serverCount'),
+    ports: await store.get<number[]>('ports'),
+    chatPort: await store.get<number>('chatPort'),
+    onSlotsFull: await store.get<SlotsFullMode>('onSlotsFull'),
+  })
   appConfig.value = {
     modelsPath: await store.get<string>('modelsPath') ?? defaults.modelsPath,
     llamaPath: await store.get<string>('llamaPath') ?? defaults.llamaPath,
     cudaGraphOpt: await store.get<string>('cudaGraphOpt') ?? defaults.cudaGraphOpt,
     logVerbosity: await store.get<number>('logVerbosity') ?? defaults.logVerbosity,
-    port: await store.get<number>('port') ?? defaults.port,
+    port: server.ports[0],
+    ...server,
     minimizeToTray: await store.get<boolean>('minimizeToTray') ?? defaults.minimizeToTray,
     trashDelete: await store.get<boolean>('trashDelete') ?? defaults.trashDelete,
     language: await store.get<'en' | 'es'>('language') ?? defaults.language,
@@ -276,7 +297,7 @@ export async function loadConfig(): Promise<AppConfig> {
       ...((await store.get<Partial<AppConfig['downloads']>>('downloads')) ?? {}),
     },
   }
-  return { ...appConfig.value, downloads: { ...appConfig.value.downloads } }
+  return { ...appConfig.value, ports: [...appConfig.value.ports], downloads: { ...appConfig.value.downloads } }
 }
 
 export async function saveConfig(config: AppConfig): Promise<void> {
@@ -285,11 +306,30 @@ export async function saveConfig(config: AppConfig): Promise<void> {
   await store.set('llamaPath', config.llamaPath)
   await store.set('cudaGraphOpt', config.cudaGraphOpt)
   await store.set('logVerbosity', config.logVerbosity)
-  await store.set('port', config.port)
+  await store.set('serverCount', config.serverCount)
+  await store.set('ports', config.ports)
+  await store.set('chatPort', config.chatPort)
+  await store.set('onSlotsFull', config.onSlotsFull)
   await store.set('minimizeToTray', config.minimizeToTray)
   await store.set('trashDelete', config.trashDelete)
   await store.set('language', config.language)
   await store.set('downloads', config.downloads)
   await store.save()
-  appConfig.value = { ...config, downloads: { ...config.downloads } }
+  appConfig.value = { ...config, ports: [...config.ports], downloads: { ...config.downloads } }
+}
+
+export async function setChatPort(port: number): Promise<void> {
+  const store = await getStore()
+  appConfig.value.chatPort = port
+  await store.set('chatPort', port)
+  await store.save()
+}
+
+export async function setPortAt(index: number, port: number): Promise<void> {
+  const store = await getStore()
+  const ports = [...appConfig.value.ports]
+  ports[index] = port
+  appConfig.value.ports = ports
+  await store.set('ports', ports)
+  await store.save()
 }
