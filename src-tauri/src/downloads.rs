@@ -1025,7 +1025,9 @@ async fn download_chunked(
         return o;
     }
 
-    // 3) concat en orden → target (truncate: un crash a medias se reescribe)
+    // 3) concat en orden → target (truncate: un crash a medias se reescribe).
+    //    El sha256 se calcula DURANTE el copy: una sola lectura de los parts
+    //    (antes, sha256_file re-leía el archivo completo después del copy).
     let mut out_f = match std::fs::OpenOptions::new().create(true).write(true).truncate(true).open(target) {
         Ok(f) => f,
         Err(e) => {
@@ -1033,6 +1035,9 @@ async fn download_chunked(
             return TaskOutcome::Permanent { code: ErrorCode::DiskFull, msg: format!("no se pudo abrir el destino: {e}") };
         }
     };
+    let mut hasher = Sha256::new();
+    let mut buf = vec![0u8; 1024 * 1024];
+    use std::io::Read;
     for (i, _) in ranges.iter().enumerate() {
         let part = chunk_part_path(target, i as u32, ranges.len() as u32);
         let mut part_f = match std::fs::File::open(&part) {
@@ -1043,25 +1048,34 @@ async fn download_chunked(
                 return TaskOutcome::Permanent { code: ErrorCode::Network, msg: format!("falta el part del chunk {i}: {e}") };
             }
         };
-        if let Err(e) = std::io::copy(&mut part_f, &mut out_f) {
-            let _ = std::fs::remove_file(target);
-            remove_all_parts(target);
-            return TaskOutcome::Permanent { code: ErrorCode::DiskFull, msg: format!("error al concatenar chunks: {e}") };
-        }
-    }
-    let _ = out_f.flush();
-    drop(out_f);
-
-    // 4) sha256 del archivo final
-    if let Some(sha) = &task.sha256 {
-        let actual = match sha256_file(target) {
-            Some(h) => h,
-            None => {
+        loop {
+            let n = match part_f.read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => n,
+                Err(e) => {
+                    let _ = std::fs::remove_file(target);
+                    remove_all_parts(target);
+                    return TaskOutcome::Permanent { code: ErrorCode::DiskFull, msg: format!("error al concatenar chunks: {e}") };
+                }
+            };
+            hasher.update(&buf[..n]);
+            if let Err(e) = out_f.write_all(&buf[..n]) {
                 let _ = std::fs::remove_file(target);
                 remove_all_parts(target);
-                return TaskOutcome::Permanent { code: ErrorCode::ShaMismatch, msg: "no se pudo calcular el sha256 final".into() };
+                return TaskOutcome::Permanent { code: ErrorCode::DiskFull, msg: format!("error al concatenar chunks: {e}") };
             }
-        };
+        }
+    }
+    if let Err(e) = out_f.flush() {
+        let _ = std::fs::remove_file(target);
+        remove_all_parts(target);
+        return TaskOutcome::Permanent { code: ErrorCode::DiskFull, msg: format!("error al concatenar chunks: {e}") };
+    }
+    drop(out_f);
+
+    // 4) comparar el sha256 calculado durante el copy (mismos bytes, un solo pase)
+    if let Some(sha) = &task.sha256 {
+        let actual = hex_lower(hasher.finalize());
         if actual != *sha {
             let _ = std::fs::remove_file(target);
             remove_all_parts(target);
