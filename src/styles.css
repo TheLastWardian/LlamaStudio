@@ -191,6 +191,7 @@ body {
 .model-row:hover { background: #222; }
 .model-row.selected { background: #252525; border-left: 2px solid #4a7acc; }
 .model-row.drop-target { border-top: 2px solid #5a8af5; }
+.model-row.drop-target-after { border-bottom: 2px solid #5a8af5; }
 
 .group-header {
   display: flex;

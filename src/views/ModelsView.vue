@@ -33,7 +33,7 @@
             <span>📁 {{ section.group.name }}</span>
             <span style="color:#555; font-size:11px; margin-left:auto;">{{ section.models.length }} {{ t('models.modelsCount') }}</span>
           </div>
-          <div v-else-if="groupedModels.length > 1" class="group-header ungrouped" data-group-id="ungrouped">
+          <div v-else-if="groupedModels.length > 1" class="group-header ungrouped" :class="{ 'drop-group-target': dropGroupTarget === 'ungrouped' }" data-group-id="ungrouped">
             <span class="group-collapse-icon" @click="toggleCollapse('ungrouped')">
               {{ collapsedGroups['ungrouped'] ? '▶' : '▼' }}
             </span>
@@ -49,7 +49,7 @@
             class="model-row"
             :data-group-id="section.group?.id ?? 'ungrouped'"
             :data-model-path="model.path"
-            :class="{ selected: selectedModel?.path === model.path, 'drop-target': dropTarget !== null && dragging?.modelPath !== model.path && dropModelPath === model.path }"
+            :class="{ selected: selectedModel?.path === model.path, 'drop-target': dropModelPath === model.path && dropPosition === 'before', 'drop-target-after': dropModelPath === model.path && dropPosition === 'after' }"
             @click="selectedModel = model"
             @contextmenu="onRightClickModel($event, model.path)"
             @mousedown="onModelMouseDown($event, model.path)"
@@ -428,6 +428,7 @@ const renamingPath = ref<string | null>(null)
 const renameValue = ref('')
 const draggingGroup = ref<string | null>(null)
 const dropGroupTarget = ref<string | null>(null)
+const dropPosition = ref<'before' | 'after' | null>(null)
 
 function toggleCollapse(groupId: string) {
   collapsedGroups[groupId] = !collapsedGroups[groupId]
@@ -535,7 +536,18 @@ function onModelMouseDown(e: MouseEvent, modelPath: string) {
       const el = document.elementFromPoint(e.clientX, e.clientY)
       const groupEl = el?.closest('[data-group-id]')
       dropTarget.value = groupEl?.getAttribute('data-group-id') ?? null
-      dropModelPath.value = groupEl?.getAttribute('data-model-path') ?? null
+      const rowEl = el?.closest<HTMLElement>('[data-model-path]')
+      const rowPath = rowEl?.getAttribute('data-model-path') ?? null
+      dropModelPath.value = rowPath
+      if (rowEl && rowPath && rowPath !== modelPath) {
+        const rect = rowEl.getBoundingClientRect()
+        dropPosition.value = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after'
+      } else {
+        dropPosition.value = null
+      }
+      // feedback de grupo vacío/sección: sobre el header sin ningún modelo debajo
+      const ownGroup = modelMeta[modelPath]?.groupId ?? 'ungrouped'
+      dropGroupTarget.value = rowPath ? null : (dropTarget.value && dropTarget.value !== ownGroup ? dropTarget.value : null)
     }
   }
 
@@ -563,14 +575,14 @@ function onModelMouseDown(e: MouseEvent, modelPath: string) {
         }
 
         const fromIdx = groupModels.findIndex(m => m.path === modelPath)
-        const toIdx = groupModels.findIndex(m => m.path === dropModelPath.value)
+        const targetIdx = groupModels.findIndex(m => m.path === dropModelPath.value)
 
-
-
-        if (fromIdx !== -1 && toIdx !== -1) {
+        if (fromIdx !== -1 && targetIdx !== -1) {
           const arr = [...groupModels]
           const [moved] = arr.splice(fromIdx, 1)
-          arr.splice(toIdx, 0, moved)
+          let insertIdx = fromIdx < targetIdx ? targetIdx - 1 : targetIdx
+          if (dropPosition.value === 'after') insertIdx++
+          arr.splice(insertIdx, 0, moved)
           arr.forEach((m, i) => {
             newMeta[m.path] = { ...(newMeta[m.path] ?? { groupId: targetGroupId, pinned: false }), order: i }
           })
@@ -586,6 +598,8 @@ function onModelMouseDown(e: MouseEvent, modelPath: string) {
     dragging.value = null
     dropTarget.value = null
     dropModelPath.value = null
+    dropPosition.value = null
+    dropGroupTarget.value = null
     window.removeEventListener('mousemove', onMove)
     window.removeEventListener('mouseup', cleanup)
     document.removeEventListener('mouseleave', cleanup)
