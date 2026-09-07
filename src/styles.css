@@ -209,7 +209,6 @@ body {
 
 .group-header.ungrouped {
   background: var(--bg-base);
-  color: var(--text-muted);
 }
 
 .pin-icon {
