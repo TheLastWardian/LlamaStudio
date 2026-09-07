@@ -723,6 +723,15 @@ async function loadModel() {
     modelLoading.value = false
     return
   }
+  if (model?.arch === 'gemma4' && modelCfg.value.visionEnabled) {
+    const req = Math.max(512, numOrDefault(modelCfg.value.imageMinTokens, 0))
+    const ub = numOrDefault(modelCfg.value.physicalBatch, 512)
+    if (ub < req) {
+      error.value = t('load.gemmaUbatch', { ub, n: req })
+      modelLoading.value = false
+      return
+    }
+  }
 
   try {
     const config = await loadConfig()

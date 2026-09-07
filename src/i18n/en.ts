@@ -227,6 +227,7 @@ export default {
     imageMinTokensPlaceholder: '512 (default)',
     imageMinTokensGemma: 'Gemma: only 70, 140, 280, 560 or 1120 are allowed.',
     visionNeedsMmproj: 'Vision requires an mmproj model.',
+    gemmaUbatch: 'Gemma 4: raise the physical batch (now {ub}) to ≥ {n} ({n} image tokens).',
     reasoning: 'Reasoning',
     thinkingMode: 'Thinking Mode',
     thinkingModeTooltip: 'Thinking switch: auto = template default, on = force thinking, off = no thinking (Qwen3: /no_think). Sent as --reasoning plus the template variable enable_thinking.',

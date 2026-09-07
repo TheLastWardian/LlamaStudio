@@ -417,6 +417,11 @@ const error = ref('')
 function validateCfg(cfg: ModelConfig): string {
   if (cfg.specType === 'Draft' && !(cfg.draftModelPath ?? '').trim()) return t('load.draftNeedsModel')
   if (cfg.visionEnabled && !(cfg.mmprojPath ?? '').trim()) return t('load.visionNeedsMmproj')
+  if (configModel.value?.arch === 'gemma4' && cfg.visionEnabled) {
+    const req = Math.max(512, numOrDefault(cfg.imageMinTokens, 0))
+    const ub = numOrDefault(cfg.physicalBatch, 512)
+    if (ub < req) return t('load.gemmaUbatch', { ub, n: req })
+  }
   return ''
 }
 
