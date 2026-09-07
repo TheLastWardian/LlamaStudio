@@ -119,6 +119,7 @@ export default {
     unpin: '📌 Unpin',
     rename: '✏ Rename',
     revealInFolder: '📂 Open Location',
+    openHfPage: '🔗 Open Hugging Face page',
     moveToGroup: '📁 Move to group ▶',
     deleteGroup: '🗑 Delete Group',
     deleteModel: '🗑 Delete Model',

@@ -122,6 +122,7 @@
         </div>
         <div class="ctx-item" @click="startRename(ctxMenu.modelPath!)">{{ t('modelList.rename') }}</div>
         <div class="ctx-item" @click="revealModelLocation(ctxMenu.modelPath!)">{{ t('modelList.revealInFolder') }}</div>
+        <div v-if="ctxModel && ctxModel.publisher && ctxModel.model_family" class="ctx-item" @click="openModelHfPage">{{ t('modelList.openHfPage') }}</div>
         <div class="ctx-divider"></div>
         <div class="ctx-item" @click="moveToGroupMenu = !moveToGroupMenu">
           {{ t('modelList.moveToGroup') }}
@@ -166,7 +167,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
-import { revealItemInDir, openPath } from '@tauri-apps/plugin-opener'
+import { revealItemInDir, openPath, openUrl } from '@tauri-apps/plugin-opener'
 import { selectedModel, allModels, loadedModel } from '../stores/selectedModel'
 import { loadConfig, deleteModelConfig } from '../stores/config'
 import { groups, modelMeta, modelDisplayNames, createGroup, deleteGroup, moveModelToGroup, togglePin, saveGroups, collapsedGroups } from '../stores/groups'
@@ -190,6 +191,10 @@ const ctxMenu = ref<{ x: number, y: number, type: 'model' | 'empty' | 'group', m
 const showGroupInput = ref(false)
 const newGroupName = ref('')
 const moveToGroupMenu = ref(false)
+
+const ctxModel = computed(() => ctxMenu.value?.type === 'model' && ctxMenu.value.modelPath
+  ? models.value.find(m => m.path === ctxMenu.value!.modelPath) ?? null
+  : null)
 
 const models = ref<ModelFile[]>([])
 
@@ -369,6 +374,13 @@ async function revealModelLocation(modelPath: string) {
   } catch (e) {
     console.error('Failed to reveal model in folder:', e)
   }
+}
+
+function openModelHfPage() {
+  const m = ctxModel.value
+  closeCtxMenu()
+  if (!m || !m.publisher || !m.model_family) return
+  void openUrl('https://huggingface.co/' + m.publisher + '/' + m.model_family)
 }
 
 async function openModelsFolder() {
