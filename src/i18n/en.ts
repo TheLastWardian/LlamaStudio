@@ -81,6 +81,8 @@ export default {
     openFolder: 'Open folder',
     remove: 'Remove record',
     eta: 'ETA {time}',
+    consolidating: 'assembling…',
+    consolidatingHint: 'This can take several minutes',
     retryIn: 'retrying in {n}s',
     errors: {
       rate_limited: 'Rate limited by Hugging Face (429)',

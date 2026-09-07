@@ -30,8 +30,13 @@
           <div class="dl-meta">
             {{ fmtSize(r.doneBytes) }} / {{ fmtSize(r.totalBytes) }}
             <template v-if="r.job.state === 'downloading'">
-              · {{ fmtSpeed(r.speedBps) }}
-              <template v-if="r.etaSec !== null"> · {{ t('downloads.eta', { time: fmtEta(r.etaSec) }) }}</template>
+              <template v-if="r.consolidating">
+                · <span class="dl-consolidating" :title="t('downloads.consolidatingHint')">{{ t('downloads.consolidating') }}</span>
+              </template>
+              <template v-else>
+                · {{ fmtSpeed(r.speedBps) }}
+                <template v-if="r.etaSec !== null"> · {{ t('downloads.eta', { time: fmtEta(r.etaSec) }) }}</template>
+              </template>
             </template>
             <template v-if="r.retryIn > 0"> · {{ t('downloads.retryIn', { n: r.retryIn }) }}</template>
             <template v-if="r.job.state === 'failed'"> · {{ firstErrorMsg(r.job) }}</template>
@@ -78,6 +83,7 @@ interface Row {
   activeCount: number
   pct: number
   etaSec: number | null
+  consolidating: boolean
   // S5: countdown mayor de la job (0 = sin backoff pendiente)
   retryIn: number
 }
@@ -91,7 +97,7 @@ const rows = computed<Row[]>(() =>
       .map(f => f.etaSec)
       .filter((e): e is number => typeof e === 'number' && e >= 0)
     const retries = job.files.filter(f => f.retryInSec > 0).map(f => f.retryInSec)
-    return { job, ...tot, pct, etaSec: etas.length ? Math.max(...etas) : null, retryIn: retries.length ? Math.max(...retries) : 0 }
+    return { job, ...tot, pct, etaSec: etas.length ? Math.max(...etas) : null, consolidating: job.files.some(f => f.consolidating), retryIn: retries.length ? Math.max(...retries) : 0 }
   }))
 
 const nActive = computed(() => jobs.value.filter(j => j.state === 'downloading' || j.state === 'queued').length)
@@ -225,6 +231,10 @@ function onOpenFolder(job: JobView): void {
 
 .dl-row.dismissible .dl-actions {
   margin-right: 14px;
+}
+
+.dl-consolidating {
+  color: #5a8af5;
 }
 
 .dl-dismiss {

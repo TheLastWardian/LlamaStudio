@@ -81,6 +81,8 @@ export default {
     openFolder: 'Abrir carpeta',
     remove: 'Quitar registro',
     eta: 'ETA {time}',
+    consolidating: 'ensamblando…',
+    consolidatingHint: 'Puede tardar varios minutos',
     retryIn: 'reintentando en {n}s',
     errors: {
       rate_limited: 'Rate limit de Hugging Face (429)',

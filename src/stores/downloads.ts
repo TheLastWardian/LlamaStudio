@@ -23,6 +23,8 @@ export interface TaskView {
   errorCode: string | null
   // S5: countdown de backoff en segundos; -1 = sin retry pendiente
   retryInSec: number
+  // true mientras la task ensambla los chunks (post-descarga, pre-sha)
+  consolidating?: boolean
   // solo los llena el evento download-progress (no existen en JobView de Rust)
   speedBps?: number
   etaSec?: number
@@ -44,6 +46,7 @@ interface ProgressPayload {
   totalBytes: number
   speedBps: number
   etaSec: number
+  consolidating: boolean
 }
 
 interface StatePayload {
@@ -90,6 +93,8 @@ function onState(payload: StatePayload): void {
     return
   }
   job.state = payload.state
+  // cambio de estado = fin de la fase de ensamble (si estaba en curso)
+  for (const f of job.files) f.consolidating = false
   if (payload.error) {
     const t = job.files.find(f => f.state !== 'completed')
     if (t) t.error = payload.error
@@ -135,6 +140,7 @@ export async function init(): Promise<void> {
       task.totalBytes = p.totalBytes
       task.speedBps = p.speedBps
       task.etaSec = p.etaSec
+      task.consolidating = p.consolidating
     }
     // El view/evento de resume puede llegar tarde con estado 'queued' y ocultar
     // la velocidad para siempre; el progreso vivo corrige el estado del job.

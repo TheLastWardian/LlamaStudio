@@ -73,6 +73,7 @@ pub struct TaskView {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code: Option<String>,
     pub retry_in_sec: i64,
+    pub consolidating: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -95,6 +96,7 @@ struct ProgressEvent {
     total_bytes: u64,
     speed_bps: u64,
     eta_sec: i64,
+    consolidating: bool,
 }
 
 #[derive(Serialize, Clone)]
@@ -129,6 +131,8 @@ pub struct ProgressState {
     pub downloaded: AtomicU64,
     pub speed_bps: AtomicU64,
     pub retry_in_sec: AtomicI64,
+    // true entre "todos los chunks completos" y "concat+sha terminados"
+    pub consolidating: AtomicBool,
 }
 
 // Campos Arc<Mutex<..>> para clonar un handle (Arc<ManagerCore>) hacia la tokio task
@@ -360,6 +364,7 @@ impl ManagerCore {
                     retry_count: t.retry_count,
                     error_code: t.error_code.clone(),
                     retry_in_sec: -1,
+                    consolidating: false,
                 })
                 .collect(),
             created_at: job.created_at,
@@ -376,6 +381,7 @@ fn view_live(view: JobView, progress: &HashMap<String, Arc<ProgressState>>) -> J
         if let Some(ps) = progress.get(&format!("{}/{}", view.job_id, f.task_id)) {
             f.downloaded_bytes = ps.downloaded.load(Ordering::Relaxed);
             f.retry_in_sec = ps.retry_in_sec.load(Ordering::Relaxed);
+            f.consolidating = ps.consolidating.load(Ordering::Relaxed);
         }
     }
     JobView { files, ..view }
@@ -777,11 +783,12 @@ async fn do_stream(
                     ProgressEvent {
                         job_id: job_id.to_string(),
                         task_id: task.task_id.clone(),
-                        downloaded_bytes: downloaded,
-                        total_bytes: task.total_bytes,
-                        speed_bps: ema_speed as u64,
-                        eta_sec: eta,
-                    },
+                            downloaded_bytes: downloaded,
+                            total_bytes: task.total_bytes,
+                            speed_bps: ema_speed as u64,
+                            eta_sec: eta,
+                            consolidating: false,
+                        },
                 );
             }
         }
@@ -958,6 +965,7 @@ async fn stream_chunk(
                             total_bytes: task.total_bytes,
                             speed_bps: ema_speed as u64,
                             eta_sec: eta,
+                            consolidating: false,
                         },
                     );
                 }
@@ -1023,6 +1031,30 @@ async fn download_chunked(
     }
     if let Some(o) = first_transient {
         return o;
+    }
+
+    // 2.5) Notificar a la UI la fase de ensamble: sin red no hay ticks de
+    //      progreso, así que se emite un solo evento con consolidating=true
+    //      (la barra muestra "ensamblando" en vez de una velocidad vencida).
+    {
+        let key = format!("{job_id}/{}", task.task_id);
+        if let Some(ps) = locked(&core.progress).get(&key) {
+            ps.consolidating.store(true, Ordering::Relaxed);
+            if let Some(app) = app {
+                let _ = app.emit(
+                    "download-progress",
+                    ProgressEvent {
+                        job_id: job_id.to_string(),
+                        task_id: task.task_id.clone(),
+                        downloaded_bytes: task.total_bytes,
+                        total_bytes: task.total_bytes,
+                        speed_bps: 0,
+                        eta_sec: -1,
+                        consolidating: true,
+                    },
+                );
+            }
+        }
     }
 
     // 3) concat en orden → target (truncate: un crash a medias se reescribe).
@@ -1134,6 +1166,7 @@ async fn run_task(
         downloaded: AtomicU64::new(initial),
         speed_bps: AtomicU64::new(0),
         retry_in_sec: AtomicI64::new(-1),
+        consolidating: AtomicBool::new(false),
     }));
 
     let mut retry = 0u32;
