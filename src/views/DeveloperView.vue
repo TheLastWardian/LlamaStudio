@@ -49,12 +49,12 @@
       <button class="btn-clear-logs" @click="clearLogs">🗑 {{ t('developer.clearLogs') }}</button>
     </div>
       <div class="dev-logs" ref="logsEl" tabindex="-1" @scroll.passive="onLogsScroll" @keydown.ctrl.a.prevent="selectAllLogs" @keydown.meta.a.prevent="selectAllLogs">
-        <div v-for="(log, i) in logs" :key="i" class="log-line">
+        <div v-for="(log, i) in displayLogs" :key="i" class="log-line">
           <span class="log-time">{{ log.time }}</span>
           <span :class="'log-level-' + log.level">{{ log.level.toUpperCase() }}</span>
           <span class="log-msg" v-html="highlightLog(log.msg, log.level)"></span>
         </div>
-        <div v-if="logs.length === 0" style="color:#444; padding:8px;">{{ t('developer.noLogs') }}</div>
+        <div v-if="displayLogs.length === 0" style="color:#444; padding:8px;">{{ t('developer.noLogs') }}</div>
       </div>
     </div>
   </div>
@@ -74,8 +74,16 @@ const showModal = ref(false)
 const port = computed(() => loadedServerPort.value ?? appConfig.value.port)
 
 const AUTO_SCROLL_PAUSE_MS = 15000
-let autoScrollPaused = false
+const autoScrollPaused = ref(false)
+const frozenLogs = ref<{time: string, level: string, msg: string}[]>([])
 let resumeTimer: number | undefined
+
+// Mientras el usuario está leyendo (alejado del fondo) la vista renderiza un
+// snapshot fijo: el store sigue recopilando (y recortando a 1000) pero el DOM
+// no se mueve, así que leer/copiar no se desplaza. Al reanudar vuelve al array vivo.
+const displayLogs = computed(() =>
+  autoScrollPaused.value ? frozenLogs.value : logs.value
+)
 
 function scrollLogsToBottom() {
   const el = logsEl.value
@@ -86,28 +94,36 @@ function isNearBottom(el: HTMLElement, threshold = 48): boolean {
   return el.scrollHeight - el.scrollTop - el.clientHeight < threshold
 }
 
+function resumeAutoScroll() {
+  if (resumeTimer !== undefined) {
+    clearTimeout(resumeTimer)
+    resumeTimer = undefined
+  }
+  frozenLogs.value = []
+  autoScrollPaused.value = false
+  scrollLogsToBottom()
+}
+
 function onLogsScroll() {
   const el = logsEl.value
   if (!el) return
   if (isNearBottom(el)) {
-    if (resumeTimer !== undefined) {
-      clearTimeout(resumeTimer)
-      resumeTimer = undefined
-    }
-    autoScrollPaused = false
+    resumeAutoScroll()
     return
   }
-  autoScrollPaused = true
+  if (!autoScrollPaused.value) {
+    frozenLogs.value = [...logs.value]
+    autoScrollPaused.value = true
+  }
   if (resumeTimer !== undefined) clearTimeout(resumeTimer)
   resumeTimer = window.setTimeout(() => {
     resumeTimer = undefined
-    autoScrollPaused = false
-    scrollLogsToBottom()
+    resumeAutoScroll()
   }, AUTO_SCROLL_PAUSE_MS)
 }
 
-watch(logs, () => {
-  if (autoScrollPaused) return
+watch(displayLogs, () => {
+  if (autoScrollPaused.value) return
   nextTick(scrollLogsToBottom)
 }, { deep: true })
 
