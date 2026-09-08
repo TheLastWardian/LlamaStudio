@@ -363,6 +363,18 @@
               </select>
             </div>
             <div class="field">
+              <label>{{ t('load.port') }}</label>
+              <input
+                v-if="tempCfg.portMode === 'manual'"
+                class="field-input" type="number" min="1" max="65535" step="1"
+                v-model.number="tempCfg.serverPort"
+              />
+              <select class="field-select" v-model="tempCfg.portMode">
+                <option value="auto">{{ t('load.portAuto') }}</option>
+                <option value="manual">{{ t('load.portManual') }}</option>
+              </select>
+            </div>
+            <div class="field">
               <label>{{ t('load.alias') }}</label>
               <input type="text" v-model="tempCfg.alias" class="field-input" :placeholder="t('load.optional')" />
             </div>
@@ -427,6 +439,7 @@ const configModel = ref<ModelFile | null>(null)
 const error = ref('')
 
 function validateCfg(cfg: ModelConfig): string {
+  if (cfg.portMode === 'manual' && (cfg.serverPort < 1 || cfg.serverPort > 65535)) return t('load.portInvalid')
   if (cfg.specType === 'Draft' && !(cfg.draftModelPath ?? '').trim()) return t('load.draftNeedsModel')
   if (cfg.visionEnabled && !(cfg.mmprojPath ?? '').trim()) return t('load.visionNeedsMmproj')
   if (configModel.value?.arch === 'gemma4' && cfg.visionEnabled) {
