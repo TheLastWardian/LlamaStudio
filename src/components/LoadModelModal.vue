@@ -137,6 +137,10 @@
             <div v-else-if="cacheRamWarning === 'warning'" style="color:#f5a55a; font-size:11px; margin-bottom:8px;">
               {{ t('load.cacheRamWarning', { pct: cacheRamPct }) }}
             </div>
+            <div class="field" :title="t('load.seedTooltip')">
+              <label>{{ t('load.seed') }}</label>
+              <input type="number" v-model.number="tempCfg.seed" class="field-input" />
+            </div>
             <div class="field" v-if="configModel?.is_moe" :title="t('load.numExpertsTooltip')">
               <label>{{ t('load.numExperts') }}</label>
               <input type="number" v-model.number="tempCfg.expertsPerToken" class="field-input" min="0" :max="configModel?.expert_count || undefined" :placeholder="configModel?.expert_used_count > 0 ? String(configModel?.expert_used_count) : ''" />
