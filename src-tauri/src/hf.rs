@@ -19,7 +19,8 @@ fn client() -> &'static reqwest::Client {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HfRepo {
     pub id: String,
-    #[serde(rename = "modelId")]
+    /// No es expandible: ausente cuando la búsqueda usa expand[] (y el app no lo usa).
+    #[serde(rename = "modelId", default)]
     pub model_id: String,
     #[serde(default)]
     pub likes: u64,
@@ -33,11 +34,22 @@ pub struct HfRepo {
     pub pipeline_tag: Option<String>,
     #[serde(default)]
     pub library_name: Option<String>,
-    #[serde(rename = "createdAt")]
+    #[serde(rename = "createdAt", default)]
     pub created_at: String,
     /// Solo presente en la respuesta cuando sort=lastModified
     #[serde(rename = "lastModified", default)]
     pub last_modified: Option<String>,
+    /// Archivos del repo vía `expand[]=siblings`; solo nombres, sin sizes.
+    #[serde(default)]
+    pub siblings: Vec<Sibling>,
+    /// Derivado post-deserialización: ¿el repo trae algún GGUF con quant Q4_K_M?
+    #[serde(skip_deserializing)]
+    pub has_q4_k_m: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Sibling {
+    pub rfilename: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -134,10 +146,19 @@ async fn do_search(
     author: Option<&str>,
     gguf_only: bool,
 ) -> Result<Vec<HfRepo>, String> {
+    // Con `expand[]` la API responde SOLO con los campos expandidos: hay que listar
+    // todos los que usa el app (sin expand[] vienen por defecto, menos `modelId`).
+    const EXPAND: [&str; 9] = [
+        "siblings", "likes", "downloads", "private", "tags",
+        "pipeline_tag", "library_name", "createdAt", "lastModified",
+    ];
     let mut req = client()
         .get(format!("{HF_API}/models"))
         .query(&[("sort", sort), ("direction", "-1")])
         .query(&[("limit", limit.to_string())]);
+    for e in EXPAND {
+        req = req.query(&[("expand[]", e)]);
+    }
     if !query.is_empty() {
         req = req.query(&[("search", query)]);
     }
@@ -153,12 +174,15 @@ async fn do_search(
     if !status.is_success() {
         return Err(format!("HF search: HTTP {status}"));
     }
-    resp.json::<Vec<HfRepo>>()
+    let mut repos: Vec<HfRepo> = resp
+        .json::<Vec<HfRepo>>()
         .await
-        .map_err(|e| format!("HF search JSON: {e}"))
+        .map_err(|e| format!("HF search JSON: {e}"))?;
+    derive_q4k_flags(&mut repos);
+    Ok(repos)
 }
 
-pub async fn repo_files(owner: &str, repo: &str, speculative_tags: bool) -> Result<Vec<RepoFile>, String> {
+async fn fetch_tree(owner: &str, repo: &str) -> Result<Vec<TreeItem>, String> {
     let resp = client()
         .get(format!("{HF_API}/models/{owner}/{repo}/tree/main"))
         .query(&[("recursive", "true")])
@@ -169,10 +193,11 @@ pub async fn repo_files(owner: &str, repo: &str, speculative_tags: bool) -> Resu
     if !status.is_success() {
         return Err(format!("HF tree: HTTP {status}"));
     }
-    let items: Vec<TreeItem> = resp
-        .json()
-        .await
-        .map_err(|e| format!("HF tree JSON: {e}"))?;
+    resp.json().await.map_err(|e| format!("HF tree JSON: {e}"))
+}
+
+pub async fn repo_files(owner: &str, repo: &str, speculative_tags: bool) -> Result<Vec<RepoFile>, String> {
+    let items = fetch_tree(owner, repo).await?;
 
     let mut files: Vec<RepoFile> = items
         .into_iter()
@@ -192,6 +217,27 @@ pub async fn repo_files(owner: &str, repo: &str, speculative_tags: bool) -> Resu
 
     mark_possible_drafts(&mut files, speculative_tags);
     Ok(files)
+}
+
+/// Peso total (bytes) de los GGUF main con quant Q4_K_M del repo; los splits se suman.
+/// None si no existe. Misma limitación de paginación que repo_files.
+pub async fn q4k_size(owner: &str, repo: &str) -> Result<Option<u64>, String> {
+    let items = fetch_tree(owner, repo).await?;
+    let total: u64 = items
+        .iter()
+        .filter(|it| it.kind == "file")
+        .filter_map(|it| {
+            let (group, quant) = classify_file(&it.path);
+            if group == FileGroup::Gguf
+                && quant.as_deref().is_some_and(|q| q.eq_ignore_ascii_case("Q4_K_M"))
+            {
+                Some(it.lfs.as_ref().and_then(|l| l.size).or(it.size).unwrap_or(0))
+            } else {
+                None
+            }
+        })
+        .sum();
+    Ok((total > 0).then_some(total))
 }
 
 // README.md crudo del repo (endpoint raw de HF; /api/models/{id}/readme no existe).
@@ -222,6 +268,22 @@ pub async fn get_repo_readme(owner: &str, repo: &str) -> Result<String, String> 
 }
 
 // ---------- Clasificación de archivos (puras, testeables sin red) ----------
+
+/// Deriva has_q4_k_m de siblings (llega vía expand[]=siblings en la búsqueda).
+pub fn derive_q4k_flags(repos: &mut [HfRepo]) {
+    for r in repos.iter_mut() {
+        r.has_q4_k_m = siblings_has_q4k(&r.siblings);
+    }
+}
+
+/// ¿Alguna entrada `siblings` es un GGUF con quant Q4_K_M (case-insensitive)?
+pub fn siblings_has_q4k(siblings: &[Sibling]) -> bool {
+    siblings.iter().any(|s| {
+        extract_quant(&s.rfilename)
+            .as_deref()
+            .is_some_and(|q| q.eq_ignore_ascii_case("Q4_K_M"))
+    })
+}
 
 pub fn classify_file(path: &str) -> (FileGroup, Option<String>) {
     let lower = path.to_ascii_lowercase();
@@ -470,6 +532,31 @@ mod tests {
         );
         assert_eq!(extract_quant("Qwen3.8-27B-Q2_K.gguf").as_deref(), Some("Q2_K"));
         assert_eq!(extract_quant("Qwen3.8-27B-Q5_K_M.gguf").as_deref(), Some("Q5_K_M"));
+    }
+
+    // Respuesta real de /api/models con expand[] (capturada 2026-09, recortada).
+    // Con expand[] la API omite `modelId` y a veces `pipeline_tag`: el struct debe
+    // deserializar igual y derivar has_q4_k_m de siblings.
+    #[test]
+    fn search_response_with_expands_deserializes() {
+        let json = r#"[{"_id":"6a9e7e1cb1f1e4eb39556d8a","id":"neonoodles/Qwen3.8-27B-Wildthing-ARA-MTP-GGUF","lastModified":"2026-09-08T22:20:58.000Z","likes":0,"private":false,"downloads":6,"tags":["gguf","mtp"],"pipeline_tag":"text-generation","library_name":"gguf","siblings":[{"rfilename":".gitattributes"},{"rfilename":"Qwen3.8-27B-Wildthing-Q8_0.gguf"}],"createdAt":"2026-09-07T09:04:28.000Z"},{"_id":"6a89b39c39eb84b2b2421a0d","id":"mradermacher/Qwen3.8-27B-abliterated-GGUF","lastModified":"2026-09-08T21:47:30.000Z","likes":0,"private":false,"downloads":1795,"tags":["gguf"],"library_name":"transformers","siblings":[{"rfilename":".gitattributes"},{"rfilename":"Qwen3.8-27B-Abliterated.Q3_K_M.gguf"},{"rfilename":"Qwen3.8-27B-Abliterated.Q4_K_M.gguf"}],"createdAt":"2026-08-22T14:35:08.000Z"}]"#;
+        let mut repos: Vec<HfRepo> = serde_json::from_str(json).expect("search JSON deserializa");
+        derive_q4k_flags(&mut repos);
+        assert_eq!(repos.len(), 2);
+        assert!(!repos[0].has_q4_k_m);
+        assert!(repos[1].has_q4_k_m);
+        assert_eq!(repos[0].model_id, "");
+        assert_eq!(repos[1].pipeline_tag, None);
+        assert_eq!(repos[1].downloads, 1795);
+    }
+
+    #[test]
+    fn siblings_q4k_detection() {
+        let sib = |rf: &str| Sibling { rfilename: rf.into() };
+        assert!(siblings_has_q4k(&[sib(".gitattributes"), sib("Qwen3.8-4B-Q4_K_M.gguf")]));
+        assert!(siblings_has_q4k(&[sib("model-q4_k_m.gguf")]));
+        assert!(!siblings_has_q4k(&[sib("model-Q8_0.gguf"), sib("model-Q4_0.gguf")]));
+        assert!(!siblings_has_q4k(&[]));
     }
 
     #[test]

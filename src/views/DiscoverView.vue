@@ -46,6 +46,10 @@
             <span v-if="!isLocalRepo(repo) && libraryCount(repo.id) > 0" class="tag tag-library">✓ {{ libraryCount(repo.id) }} {{ t('discover.inLibrary') }}</span>
           </div>
         </div>
+        <div v-if="hasQ4(repo)" class="repo-q4k">
+          <span class="q4k-quant">Q4_K_M</span>
+          <span v-if="q4Size(repo) !== null" class="q4k-size">{{ fmtBytes(q4Size(repo)!) }}</span>
+        </div>
         <div v-if="!isLocalRepo(repo)" class="repo-stats">
           <div class="repo-stat"><span class="stat-downloads">↓ {{ fmtNum(repo.downloads) }}</span><span class="stat-likes"><span class="stat-star">★</span> {{ fmtNum(repo.likes) }}</span></div>
           <div class="repo-time">{{ relativeTime(repo.lastModified ?? repo.createdAt) || t('discover.now') }}</div>
@@ -71,6 +75,7 @@ export interface HfRepo {
   library_name: string | null
   createdAt: string
   lastModified: string | null
+  has_q4_k_m: boolean
 }
 
 // Repo local (ya en librería) para la vista "In library only": se sintetiza a partir
@@ -129,7 +134,7 @@ export function fmtNum(n: number): string {
 </script>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { allModels } from '../stores/selectedModel'
 import { t } from '../i18n'
@@ -179,6 +184,8 @@ async function doSearch() {
     if (seq !== searchSeq) return
     repos.value = result
     searched.value = true
+    q4Queue.length = 0
+    scheduleQ4Sizes(result)
   } catch (e) {
     if (seq !== searchSeq) return
     error.value = String(e)
@@ -212,6 +219,56 @@ function libraryCount(id: string): number {
   return libraryCounts.value[id] ?? 0
 }
 
+// Badge Q4_K_M: los repos locales se calculan de allModels (sin red); los remotos se
+// detectan con has_q4_k_m (la búsqueda trae expand[]=siblings) y el peso se fetchea
+// del tree de forma progresiva (concurrencia limitada + caché por sesión por repo id).
+const localQ4 = computed(() => {
+  const map: Record<string, number> = {}
+  for (const m of allModels.value) {
+    if (!/q4_k_m\.gguf$/i.test(m.name)) continue
+    if (!m.publisher || !m.model_family) continue
+    const id = m.publisher + '/' + m.model_family
+    map[id] = (map[id] ?? 0) + m.size_bytes
+  }
+  return map
+})
+
+const q4Sizes = reactive<Record<string, number | null>>({})
+const q4Queue: string[] = []
+const Q4_CONCURRENCY = 4
+let q4InFlight = 0
+
+function hasQ4(repo: HfRepo | LocalRepo): boolean {
+  return localQ4.value[repo.id] !== undefined || repo.has_q4_k_m
+}
+
+function q4Size(repo: HfRepo | LocalRepo): number | null {
+  return localQ4.value[repo.id] ?? q4Sizes[repo.id] ?? null
+}
+
+function scheduleQ4Sizes(list: HfRepo[]) {
+  for (const r of list) {
+    if (!r.has_q4_k_m || r.id in q4Sizes || localQ4.value[r.id] !== undefined) continue
+    q4Queue.push(r.id)
+  }
+  pumpQ4()
+}
+
+function pumpQ4() {
+  while (q4InFlight < Q4_CONCURRENCY && q4Queue.length > 0) {
+    const id = q4Queue.shift()!
+    q4InFlight++
+    const [owner, repo] = id.split('/')
+    invoke<number | null>('q4k_size', { owner, repo })
+      .then(size => { q4Sizes[id] = size ?? null })
+      .catch(() => { q4Sizes[id] = null })
+      .finally(() => {
+        q4InFlight--
+        pumpQ4()
+      })
+  }
+}
+
 // "In library only": la fuente es la librería local (allModels), NO el filtro de la
 // búsqueda de HF. Agrupa por repo {publisher}/{model_family} (los mismos campos que usa
 // el panel para marcar archivos "ya en librería") y sintetiza un HfRepo por repo.
@@ -237,6 +294,7 @@ const libraryRepos = computed<LocalRepo[]>(() => {
       library_name: null,
       createdAt: '',
       lastModified: null,
+      has_q4_k_m: false,
       isLocal: true,
       fileCount: a.fileCount,
       totalSize: a.totalSize,
@@ -469,6 +527,7 @@ function openPanel(repo: HfRepo | LocalRepo) {
   flex-direction: column;
   align-items: flex-end;
   gap: 4px;
+  width: 165px;
   flex-shrink: 0;
 }
 
@@ -482,6 +541,18 @@ function openPanel(repo: HfRepo | LocalRepo) {
 .stat-star { color: #d4af37; }
 .stat-likes { color: #f5d77b; }
 .stat-downloads { color: #d4d4d4; }
+
+.repo-q4k {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 150px;
+  margin-right: 8px;
+  flex-shrink: 0;
+  font-size: 13px;
+}
+.q4k-quant { color: #d4d4d4; }
+.q4k-size { color: #7ee787; }
 
 .repo-time {
   color: #d4d4d4;
