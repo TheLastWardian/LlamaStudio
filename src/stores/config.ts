@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { load, type Store } from '@tauri-apps/plugin-store'
 import { normalizeServerConfig, type SlotsFullMode } from '../lib/serverConfig'
+import type { ModelFile } from './selectedModel'
 
 const STORE_FILE = 'config.json'
 
@@ -234,6 +235,20 @@ export async function deleteModelConfig(modelPath: string): Promise<void> {
   if (await store.get(key) !== undefined) {
     await store.delete(key)
     await store.save()
+  }
+}
+
+// El config guardado puede referenciar un mmproj que ya no existe en disco
+// (archivo eliminado/renombrado fuera de la app). Sin esto, visionEnabled queda
+// true apuntando a un path muerto y cada carga falla en el servidor.
+export async function reconcileStaleVisionConfigs(models: ModelFile[]): Promise<void> {
+  for (const m of models) {
+    const cfg = await loadModelConfig(m.path)
+    if (cfg.visionEnabled && cfg.mmprojPath && !m.mmproj_paths.includes(cfg.mmprojPath)) {
+      cfg.visionEnabled = false
+      cfg.mmprojPath = ''
+      await saveModelConfig(m.path, cfg)
+    }
   }
 }
 

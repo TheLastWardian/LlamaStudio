@@ -168,7 +168,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { revealItemInDir, openPath, openUrl } from '@tauri-apps/plugin-opener'
 import { selectedModel, allModels, loadedModels } from '../stores/selectedModel'
-import { loadConfig, deleteModelConfig } from '../stores/config'
+import { loadConfig, deleteModelConfig, reconcileStaleVisionConfigs } from '../stores/config'
 import { groups, modelMeta, modelDisplayNames, createGroup, deleteGroup, moveModelToGroup, togglePin, saveGroups, collapsedGroups } from '../stores/groups'
 import { columnWidths, saveColumnWidths } from '../stores/columnWidths'
 import type { ModelFile } from '../stores/selectedModel'
@@ -221,6 +221,7 @@ async function rescanModels() {
     modelsPath.value = config.modelsPath
     models.value = await invoke('scan_models', { modelsPath: config.modelsPath })
     allModels.value = models.value
+    await reconcileStaleVisionConfigs(models.value)
     if (models.value.length > 0 && !selectedModel.value) {
       selectedModel.value = models.value.find(m => !m.is_draft) ?? models.value[0]
     }

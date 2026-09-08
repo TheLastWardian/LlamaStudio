@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
-import { appConfig } from './config'
+import { appConfig, reconcileStaleVisionConfigs } from './config'
 import { allModels, type ModelFile } from './selectedModel'
 import { t } from '../i18n'
 
@@ -81,6 +81,7 @@ async function rescanModels(): Promise<void> {
   if (!modelsPath) return
   try {
     allModels.value = await invoke<ModelFile[]>('scan_models', { modelsPath })
+    await reconcileStaleVisionConfigs(allModels.value)
   } catch {
     // ModelsView re-escanea al mostrarse; no romper la barra
   }
