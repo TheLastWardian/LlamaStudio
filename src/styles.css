@@ -752,6 +752,47 @@ body {
   background: #222;
   padding: 8px 12px;
   border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.dev-model-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.dev-model-row.active {
+  background: rgba(90, 138, 245, 0.12);
+  outline: 1px solid rgba(90, 138, 245, 0.45);
+}
+.dev-model-row.loading {
+  opacity: 0.7;
+  cursor: default;
+}
+.badge-loading {
+  background: #1a2a3a;
+  border: 1px solid #5a8af5;
+  color: #5a8af5;
+  padding: 1px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.row-host {
+  font-size: 11px;
+  color: #888;
+  cursor: copy;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+.row-host:hover {
+  color: #ccc;
+  background: rgba(255, 255, 255, 0.06);
+}
+.row-host.copied {
+  color: #4af54a;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 .badge-ready {

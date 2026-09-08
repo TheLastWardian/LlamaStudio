@@ -8,7 +8,7 @@
       </div>
       <div style="flex:1"></div>
       <span style="color:#555; font-size:12px;">{{ t('developer.reachableAt') }}</span>
-      <span style="color:#5a8af5; font-size:12px; margin: 0 8px;">http://127.0.0.1:{{ port }}</span>
+      <span style="color:#5a8af5; font-size:12px; margin: 0 8px;">{{ topbarUrl }}</span>
       <button class="btn-load" style="width:auto; padding: 5px 12px;" @click="showModal = true">+ {{ t('developer.loadModel') }}</button>
     </div>
     <!-- resto existente -->
@@ -22,22 +22,34 @@
     <div class="dev-loaded-section">
       <div style="color:#666; font-size:11px; text-transform:uppercase; margin-bottom:8px;">{{ t('developer.loadedModels') }}</div>
       
-      <div v-if="activeLoadedModel" class="dev-model-row">
-        <span class="badge-ready">{{ t('developer.ready') }}</span>
-        <div v-if="gen.prefill !== null" class="prefill-progress">
-          <div class="prefill-bar"><div class="prefill-fill" :style="{ width: gen.prefill + '%' }"></div></div>
-          <span class="prefill-pct">{{ gen.prefill }}%</span>
+      <div
+        v-for="row in rows"
+        :key="row.port"
+        class="dev-model-row"
+        :class="{ active: !row.loading && row.port === appConfig.chatPort, loading: row.loading }"
+        @click="!row.loading && selectRow(row.port)"
+      >
+        <span v-if="row.loading" class="badge-loading">{{ t('developer.loading') }}</span>
+        <span v-else class="badge-ready">{{ t('developer.ready') }}</span>
+
+        <div v-if="!row.loading && genState[row.port]?.prefill !== null" class="prefill-progress">
+          <div class="prefill-bar"><div class="prefill-fill" :style="{ width: genState[row.port]!.prefill + '%' }"></div></div>
+          <span class="prefill-pct">{{ genState[row.port]!.prefill }}%</span>
         </div>
-        <div v-if="gen.tokens !== null && gen.prefill === null" class="gen-tokens">
-          <span style="color:#4af54a; font-size:11px;">{{ gen.tokens }} {{ t('developer.tokens') }}</span>
+        <div v-if="!row.loading && genState[row.port]?.tokens !== null && genState[row.port]?.prefill === null" class="gen-tokens">
+          <span style="color:#4af54a; font-size:11px;">{{ genState[row.port]!.tokens }} {{ t('developer.tokens') }}</span>
         </div>
-        <span class="tag qwen" style="font-size:10px;">{{ activeLoadedModel.arch }} {{ activeLoadedModel.name }}</span>
+
+        <span class="tag qwen" style="font-size:10px;">{{ row.model.arch }} {{ row.model.name }}</span>
+        <span class="row-host" :class="{ copied: copiedPort === row.port }" :title="t('developer.copyUrl')" @click.stop="copyUrl(row.port, row.model)">
+          {{ copiedPort === row.port ? t('developer.copied') : (hostByPath[row.model.path] ?? '127.0.0.1') + ':' + row.port }}
+        </span>
         <div style="flex:1"></div>
-        <span style="color:#555; font-size:11px;">{{ (activeLoadedModel.size_bytes / 1024 / 1024 / 1024).toFixed(2) }} GB</span>
-        <button class="btn-eject" @click="eject">{{ t('developer.eject') }}</button>
+        <span style="color:#555; font-size:11px;">{{ (row.model.size_bytes / 1024 / 1024 / 1024).toFixed(2) }} GB</span>
+        <button v-if="!row.loading" class="btn-eject" @click.stop="ejectRow(row.port)">{{ t('developer.eject') }}</button>
       </div>
-      
-      <div v-else style="color:#444; font-size:12px; padding:8px 0;">
+
+      <div v-if="rows.length === 0" style="color:#444; font-size:12px; padding:8px 0;">
         {{ t('developer.noModelLoaded') }}
       </div>
     </div>
@@ -67,9 +79,9 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick, computed, onMounted, onUnmounted } from 'vue'
-import { serverLogsByPort, launchCmdByPort, launchSpecByPort, activeLoadedModel, activeGen, modelLoading, removeLoaded, genState, type LogLine } from '../stores/selectedModel'
+import { serverLogsByPort, launchCmdByPort, launchSpecByPort, activeLoadedModel, modelLoading, loadedModels, loadingModelFull, genState, removeLoaded, type ModelFile, type LogLine } from '../stores/selectedModel'
 import { invoke } from '@tauri-apps/api/core'
-import { appConfig } from '../stores/config'
+import { appConfig, setChatPort, loadModelConfig } from '../stores/config'
 import LoadModelModal from '../components/LoadModelModal.vue'
 import { t } from '../i18n'
 
@@ -79,8 +91,61 @@ const showModal = ref(false)
 const logs = computed<LogLine[]>(() => serverLogsByPort.value[appConfig.value.chatPort] ?? [])
 const launchCmd = computed(() => launchCmdByPort.value[appConfig.value.chatPort] ?? '')
 const launchSpec = computed(() => launchSpecByPort.value[appConfig.value.chatPort] ?? '')
-const port = computed(() => appConfig.value.chatPort)
-const gen = computed(() => activeGen())
+const topbarUrl = computed(() =>
+  activeLoadedModel.value
+    ? `http://${hostByPath.value[activeLoadedModel.value.path] ?? '127.0.0.1'}:${appConfig.value.chatPort}`
+    : String(appConfig.value.chatPort)
+)
+
+interface DevRow { port: number; model: ModelFile; loading: boolean }
+
+const rows = computed<DevRow[]>(() => {
+  const list: DevRow[] = Object.entries(loadedModels.value)
+    .map(([p, m]) => ({ port: Number(p), model: m, loading: false }))
+    .sort((a, b) => a.port - b.port)
+  const lf = loadingModelFull.value
+  if (lf && loadedModels.value[lf.port] === undefined) {
+    list.push({ port: lf.port, model: lf.model, loading: true })
+  }
+  return list
+})
+
+// host por path (lazy cache: ModelConfig se lee una vez por modelo)
+const hostByPath = ref<Record<string, string>>({})
+watch(loadedModels, async (models) => {
+  for (const m of Object.values(models)) {
+    if (hostByPath.value[m.path] === undefined) {
+      const cfg = await loadModelConfig(m.path)
+      hostByPath.value[m.path] = cfg.host
+    }
+  }
+}, { immediate: true })
+
+const copiedPort = ref<number | null>(null)
+let copyTimer: number | undefined
+async function copyUrl(port: number, m: ModelFile) {
+  const host = hostByPath.value[m.path] ?? '127.0.0.1'
+  try {
+    await navigator.clipboard.writeText(`http://${host}:${port}`)
+    copiedPort.value = port
+    if (copyTimer !== undefined) clearTimeout(copyTimer)
+    copyTimer = window.setTimeout(() => { copiedPort.value = null }, 1500)
+  } catch { /* clipboard bloqueado: sin feedback */ }
+}
+
+function selectRow(port: number) {
+  setChatPort(port)
+}
+
+async function ejectRow(port: number) {
+  await invoke('stop_model', { port })
+  removeLoaded(port)
+  const gs = genState.value
+  if (gs[port]) {
+    gs[port] = { prefill: null, tokens: null }
+  }
+  if (appConfig.value.chatPort === port) modelLoading.value = false
+}
 
 const AUTO_SCROLL_PAUSE_MS = 15000
 const autoScrollPaused = ref(false)
@@ -233,12 +298,7 @@ function highlightLog(msg: string, level: string): string {
   return result
 }
 
-async function eject() {
-  const port = appConfig.value.chatPort
-  await invoke('stop_model', { port })
-  removeLoaded(port)
-  modelLoading.value = false
-}
+
 
 function selectAllLogs() {
   const el = logsEl.value

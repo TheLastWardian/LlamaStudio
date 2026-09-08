@@ -320,6 +320,8 @@ export default {
     clearLogs: 'Limpiar logs',
     tokens: 'tokens',
     eject: '⏏ Expulsar',
+    copyUrl: 'Copiar URL del server',
+    copied: 'Copiado',
   },
   settings: {
     paths: 'Rutas',
