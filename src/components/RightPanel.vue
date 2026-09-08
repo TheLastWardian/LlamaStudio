@@ -352,7 +352,7 @@
           </select>
         </div>
         <div class="field">
-          <label>→ {{ t('load.portPreview', { port: previewPort }) }}</label>
+          <label>{{ t('load.port') }}</label>
           <input
             v-if="modelCfg.portMode === 'manual'"
             class="field-input" type="number" min="1" max="65535" step="1"
@@ -513,14 +513,6 @@ const serverUrl = computed(() => {
   return `http://${host}:${port}`
 })
 
-const previewPort = computed<number>(() => {
-  const m = activeModel.value
-  if (!m) return 0
-  const loaded = portOfModel(m)
-  if (loaded !== null) return loaded
-  if (modelCfg.value.portMode === 'manual') return modelCfg.value.serverPort
-  return appConfig.value.ports.find(p => loadedModels.value[p] === undefined) ?? 0
-})
 
 const loadedCfg = ref<Record<string, any> | null>(null)
 watch(activeLoadedModel, async (m) => {
