@@ -160,7 +160,7 @@ body {
 .col-header {
   position: relative;
   flex-shrink: 0;
-  padding-right: 8px;
+  padding: 0 8px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -178,6 +178,11 @@ body {
 
 .col-resize-handle:hover {
   background: #5a8af5;
+}
+
+/* La última columna no separa nada: sin línea ni agarre */
+.model-list-header .col-header:last-child .col-resize-handle {
+  display: none;
 }
 
 .model-row {
@@ -284,7 +289,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  padding-right: 8px;
+  padding: 0 8px;
   font-size: 12px;
 }
 
