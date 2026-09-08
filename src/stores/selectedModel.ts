@@ -1,4 +1,5 @@
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { appConfig } from './config'
 
 export interface ModelFile {
   name: string
@@ -34,26 +35,51 @@ export interface ModelFile {
   is_draft: boolean
 }
 
+export interface LogLine { time: string; level: string; msg: string }
+export interface GenState { prefill: number | null; tokens: number | null }
+
 export const selectedModel = ref<ModelFile | null>(null)
-
 export const allModels = ref<ModelFile[]>([])
-
 export const modelLoading = ref(false)
 
-export const loadingModel = ref<ModelFile | null>(null)
+// Estado por puerto
+export const loadedModels = ref<Record<number, ModelFile>>({})
+export const loadingModelFull = ref<{ port: number; model: ModelFile } | null>(null)
+export const serverLogsByPort = ref<Record<number, LogLine[]>>({})
+export const launchCmdByPort = ref<Record<number, string>>({})
+export const launchSpecByPort = ref<Record<number, string>>({})
+export const genState = ref<Record<number, GenState>>({})
 
-export const serverLogs = ref<{time: string, level: string, msg: string}[]>([])
+// El modelo activo = el cargado en chatPort (decisión 3)
+export const activeLoadedModel = computed(() => loadedModels.value[appConfig.value.chatPort] ?? null)
+export const activeGen = (): GenState => genState.value[appConfig.value.chatPort] ?? { prefill: null, tokens: null }
 
-export const launchCmd = ref('')
+export function portOfModel(model: ModelFile): number | null {
+  for (const [p, m] of Object.entries(loadedModels.value)) {
+    if (m.path === model.path) return Number(p)
+  }
+  return null
+}
 
-export const launchSpec = ref('')
+export function setLoaded(port: number, model: ModelFile) {
+  loadedModels.value = { ...loadedModels.value, [port]: model }
+  if (!genState.value[port]) genState.value = { ...genState.value, [port]: { prefill: null, tokens: null } }
+}
 
-export const loadedModel = ref<ModelFile | null>(null)
+// Marca el inicio de carga y garantiza que `genState[port]` exista desde el
+// primer evento (un print_timing temprano no se pierde por `if (gs)`)
+export function setLoading(port: number, model: ModelFile) {
+  loadingModelFull.value = { port, model }
+  if (!genState.value[port]) genState.value = { ...genState.value, [port]: { prefill: null, tokens: null } }
+}
 
-export const loadedModelConfig = ref<Record<string, any> | null>(null)
-
-export const loadedServerPort = ref<number | null>(null)
-
-export const prefillProgress = ref<number | null>(null)
-
-export const generationTokens = ref<number | null>(null)
+export function removeLoaded(port: number) {
+  const next = { ...loadedModels.value }
+  delete next[port]
+  loadedModels.value = next
+  const gs = { ...genState.value }
+  delete gs[port]
+  genState.value = gs
+  const cmd = { ...launchCmdByPort.value }; delete cmd[port]; launchCmdByPort.value = cmd
+  const spec = { ...launchSpecByPort.value }; delete spec[port]; launchSpecByPort.value = spec
+}

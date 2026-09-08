@@ -3,8 +3,8 @@
     <!-- Topbar -->
     <div class="topbar">
       <div class="dev-status">
-        <span class="status-dot" :class="loadedModel ? 'running' : 'stopped'"></span>
-        <span class="status-text">{{ loadedModel ? t('developer.running') : t('developer.stopped') }}</span>
+        <span class="status-dot" :class="activeLoadedModel ? 'running' : 'stopped'"></span>
+        <span class="status-text">{{ activeLoadedModel ? t('developer.running') : t('developer.stopped') }}</span>
       </div>
       <div style="flex:1"></div>
       <span style="color:#555; font-size:12px;">{{ t('developer.reachableAt') }}</span>
@@ -22,18 +22,18 @@
     <div class="dev-loaded-section">
       <div style="color:#666; font-size:11px; text-transform:uppercase; margin-bottom:8px;">{{ t('developer.loadedModels') }}</div>
       
-      <div v-if="loadedModel" class="dev-model-row">
+      <div v-if="activeLoadedModel" class="dev-model-row">
         <span class="badge-ready">{{ t('developer.ready') }}</span>
-        <div v-if="prefillProgress !== null" class="prefill-progress">
-          <div class="prefill-bar"><div class="prefill-fill" :style="{ width: prefillProgress + '%' }"></div></div>
-          <span class="prefill-pct">{{ prefillProgress }}%</span>
+        <div v-if="gen.prefill !== null" class="prefill-progress">
+          <div class="prefill-bar"><div class="prefill-fill" :style="{ width: gen.prefill + '%' }"></div></div>
+          <span class="prefill-pct">{{ gen.prefill }}%</span>
         </div>
-        <div v-if="generationTokens !== null && prefillProgress === null" class="gen-tokens">
-          <span style="color:#4af54a; font-size:11px;">{{ generationTokens }} {{ t('developer.tokens') }}</span>
+        <div v-if="gen.tokens !== null && gen.prefill === null" class="gen-tokens">
+          <span style="color:#4af54a; font-size:11px;">{{ gen.tokens }} {{ t('developer.tokens') }}</span>
         </div>
-        <span class="tag qwen" style="font-size:10px;">{{ loadedModel.arch }} {{ loadedModel.name }}</span>
+        <span class="tag qwen" style="font-size:10px;">{{ activeLoadedModel.arch }} {{ activeLoadedModel.name }}</span>
         <div style="flex:1"></div>
-        <span style="color:#555; font-size:11px;">{{ (loadedModel.size_bytes / 1024 / 1024 / 1024).toFixed(2) }} GB</span>
+        <span style="color:#555; font-size:11px;">{{ (activeLoadedModel.size_bytes / 1024 / 1024 / 1024).toFixed(2) }} GB</span>
         <button class="btn-eject" @click="eject">{{ t('developer.eject') }}</button>
       </div>
       
@@ -67,7 +67,7 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick, computed, onMounted, onUnmounted } from 'vue'
-import { serverLogs, launchCmd, launchSpec, loadedModel, modelLoading, loadedServerPort, prefillProgress, generationTokens } from '../stores/selectedModel'
+import { serverLogsByPort, launchCmdByPort, launchSpecByPort, activeLoadedModel, activeGen, modelLoading, removeLoaded, genState, type LogLine } from '../stores/selectedModel'
 import { invoke } from '@tauri-apps/api/core'
 import { appConfig } from '../stores/config'
 import LoadModelModal from '../components/LoadModelModal.vue'
@@ -75,9 +75,12 @@ import { t } from '../i18n'
 
 const logsEl = ref<HTMLElement>()
 const launchEl = ref<HTMLElement>()
-const logs = serverLogs
 const showModal = ref(false)
-const port = computed(() => loadedServerPort.value ?? appConfig.value.port)
+const logs = computed<LogLine[]>(() => serverLogsByPort.value[appConfig.value.chatPort] ?? [])
+const launchCmd = computed(() => launchCmdByPort.value[appConfig.value.chatPort] ?? '')
+const launchSpec = computed(() => launchSpecByPort.value[appConfig.value.chatPort] ?? '')
+const port = computed(() => appConfig.value.chatPort)
+const gen = computed(() => activeGen())
 
 const AUTO_SCROLL_PAUSE_MS = 15000
 const autoScrollPaused = ref(false)
@@ -109,6 +112,9 @@ function resumeAutoScroll() {
   autoScrollPaused.value = false
   scrollLogsToBottom()
 }
+
+// Cambiar de chatPort cambia el buffer de logs visible: reanudar el auto-scroll
+watch(() => appConfig.value.chatPort, resumeAutoScroll)
 
 function onLogsScroll() {
   const el = logsEl.value
@@ -228,14 +234,10 @@ function highlightLog(msg: string, level: string): string {
 }
 
 async function eject() {
-  await invoke('stop_model')
-  loadedModel.value = null
-  loadedServerPort.value = null
+  const port = appConfig.value.chatPort
+  await invoke('stop_model', { port })
+  removeLoaded(port)
   modelLoading.value = false
-  prefillProgress.value = null
-  generationTokens.value = null
-  launchCmd.value = ''
-  launchSpec.value = ''
 }
 
 function selectAllLogs() {
@@ -262,8 +264,11 @@ function selectAllLaunch() {
 }
 
 function clearLogs() {
-  serverLogs.value = []
-  prefillProgress.value = null
-  generationTokens.value = null
+  const port = appConfig.value.chatPort
+  const logs = serverLogsByPort.value
+  logs[port] = []
+  serverLogsByPort.value = { ...logs }
+  const gs = genState.value[port]
+  if (gs) { gs.prefill = null; gs.tokens = null }
 }
 </script>

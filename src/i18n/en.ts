@@ -364,4 +364,8 @@ export default {
     load: '⬆ Load',
     eject: '⏏ Eject',
   },
+  replace: {
+    title: 'No room — replace a model',
+    cancel: 'Cancel',
+  },
 }

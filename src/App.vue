@@ -15,8 +15,8 @@
       <SettingsView v-if="currentView === 'settings'" />
       <DownloadsBar />
     </div>
-    <div v-if="currentView !== 'discover' && ((currentView !== 'developer' && currentView !== 'chat') || loadedModel)" class="resize-handle" @mousedown="startResize"></div>
-    <RightPanel v-if="currentView !== 'discover' && ((currentView !== 'developer' && currentView !== 'chat') || loadedModel)" :style="{ width: rightPanelWidth + 'px' }" :currentView="currentView" />
+    <div v-if="currentView !== 'discover' && ((currentView !== 'developer' && currentView !== 'chat') || activeLoadedModel)" class="resize-handle" @mousedown="startResize"></div>
+    <RightPanel v-if="currentView !== 'discover' && ((currentView !== 'developer' && currentView !== 'chat') || activeLoadedModel)" :style="{ width: rightPanelWidth + 'px' }" :currentView="currentView" />
   </div>
 </template>
 
@@ -25,8 +25,8 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { listen } from '@tauri-apps/api/event'
-import { serverLogs, launchCmd, launchSpec, modelLoading, selectedModel, loadedModel, loadingModel, loadedModelConfig, loadedServerPort, prefillProgress, generationTokens, type ModelFile } from './stores/selectedModel'
-import { appConfig, loadConfig, loadModelConfig } from './stores/config'
+import { serverLogsByPort, launchCmdByPort, launchSpecByPort, modelLoading, selectedModel, loadingModelFull, genState, setLoaded, removeLoaded, activeLoadedModel, type ModelFile } from './stores/selectedModel'
+import { loadConfig, loadModelConfig } from './stores/config'
 import { loadGroups } from './stores/groups'
 import { loadColumnWidths } from './stores/columnWidths'
 import { setLang, t } from './i18n'
@@ -71,7 +71,7 @@ function startResize(e: MouseEvent) {
   window.addEventListener('mouseup', onUp)
 }
 
-async function restoreLoadedModel(port: number, modelsPath: string) {
+async function restorePort(port: number, modelsPath: string) {
   try {
     const ctrl = new AbortController()
     const timer = setTimeout(() => ctrl.abort(), 2000)
@@ -96,13 +96,7 @@ async function restoreLoadedModel(port: number, modelsPath: string) {
       const name = id.split(/[\\/]/).pop() || id
       model = { name, publisher: '', model_family: '', size_bytes: 0, path: id, arch: '', params: '', max_context: 0, layer_count: 0, embedding_length: 0, head_count: 0, head_count_kv: 0, key_length: 0, sliding_window: 0, sliding_window_pattern: '', key_length_swa: 0, head_count_kv_list: '', shared_kv_layers: 0, full_attention_interval: 0, ssm_state_size: 0, ssm_inner_size: 0, feed_forward_length: 0, expert_feed_forward_length: 0, is_moe: false, expert_count: 0, expert_used_count: 0, supports_thinking: false, supports_effort: false, supported_effort_levels: [], mmproj_paths: [], is_draft: false }
     }
-
-    selectedModel.value = model
-    loadedModel.value = model
-    loadedServerPort.value = port
-    modelLoading.value = false
-    loadingModel.value = null
-    loadedModelConfig.value = { ...(await loadModelConfig(model.path)) }
+    setLoaded(port, model)
   } catch {
     // server no corriendo o aún cargando — nada que restaurar
   }
@@ -130,52 +124,57 @@ onMounted(async () => {
   await invoke('load_window_state').catch(() => {})
   await win.show()
 
-  restoreLoadedModel(config.port, config.modelsPath)
+  for (const port of config.ports) restorePort(port, config.modelsPath)
 
-  unlistenLogs = await listen<string>('llama-log', (event) => {
-    const line = event.payload
-    const clean = line.replace(/\x1B\[[0-9;]*m/g, '')
-    if (clean.startsWith('CMD:')) launchCmd.value = clean
-    else if (clean.startsWith('SPEC:')) launchSpec.value = clean
+  unlistenLogs = await listen<{ port: number; line: string }>('llama-log', (event) => {
+    const port = event.payload.port
+    const clean = event.payload.line.replace(/\x1B\[[0-9;]*m/g, '')
+    const cmd = launchCmdByPort.value
+    const spec = launchSpecByPort.value
+    if (clean.startsWith('CMD:')) cmd[port] = clean
+    else if (clean.startsWith('SPEC:')) spec[port] = clean
     const match = clean.match(/^(\S+)\s+([IWED])\s+(.+)$/)
     const levelMap: Record<string, string> = { I: 'info', W: 'warn', E: 'error', D: 'debug' }
-    serverLogs.value.push(
+    const logs = serverLogsByPort.value[port] ?? []
+    logs.push(
       match
         ? { time: fmtLogTime(match[1]), level: levelMap[match[2]] ?? 'info', msg: match[3] }
         : { time: '', level: 'info', msg: clean }
     )
-    if (serverLogs.value.length > 1000) serverLogs.value.splice(0, serverLogs.value.length - 1000)
+    if (logs.length > 1000) logs.splice(0, logs.length - 1000)
+    serverLogsByPort.value = { ...serverLogsByPort.value, [port]: logs }
 
-    if (clean.includes('print_timing')) {
-      if (clean.includes('prompt processing')) {
-        const m = clean.match(/progress = ([\d.]+)/)
-        if (m) prefillProgress.value = Math.round(parseFloat(m[1]) * 100)
-      } else {
-        prefillProgress.value = null
+    const gs = genState.value[port]
+    if (gs) {
+      if (clean.includes('print_timing')) {
+        if (clean.includes('prompt processing')) {
+          const m = clean.match(/progress = ([\d.]+)/)
+          if (m) gs.prefill = Math.round(parseFloat(m[1]) * 100)
+        } else {
+          gs.prefill = null
+        }
+        if (clean.includes('n_gen')) {
+          const m = clean.match(/n_gen\s*=\s*(\d+)/)
+          if (m) gs.tokens = parseInt(m[1])
+        }
       }
-      if (clean.includes('n_gen')) {
-        const m = clean.match(/n_gen\s*=\s*(\d+)/)
-        if (m) generationTokens.value = parseInt(m[1])
+      if (clean.includes('slot release')) {
+        gs.prefill = null
+        gs.tokens = null
       }
-    }
-    if (clean.includes('slot release')) {
-      prefillProgress.value = null
-      generationTokens.value = null
     }
 
     if (clean.includes('model loaded')) {
       modelLoading.value = false
-      prefillProgress.value = null
-      generationTokens.value = null
-      const target = loadingModel.value ?? selectedModel.value
-      if (target) {
-        loadedModel.value = target
-        loadingModel.value = null
-        loadModelConfig(target.path).then(cfg => {
-          loadedModelConfig.value = { ...cfg }
-        })
+      const pending = loadingModelFull.value
+      if (pending && pending.port === port) {
+        setLoaded(port, pending.model)
+        loadingModelFull.value = null
       } else {
-        restoreLoadedModel(appConfig.value.port, config.modelsPath)
+        // server que terminó de cargar sin carga pendiente (restore temprano: el
+        // fetch a /v1/models falló porque el modelo aún cargaba; o crash y relaunch)
+        // → reintentar el restore. Idempotente: si ya está cargado, setLoaded repite.
+        restorePort(port, config.modelsPath)
       }
     }
     if (clean.includes('loading model')) {
@@ -183,18 +182,14 @@ onMounted(async () => {
     }
   })
 
-  await listen('llama-exited', () => {
-    if (!loadedModel.value && !modelLoading.value) return
-    serverLogs.value.push({ time: '', level: 'error', msg: 'server process exited' })
-    if (serverLogs.value.length > 1000) serverLogs.value.splice(0, serverLogs.value.length - 1000)
-    loadedModel.value = null
-    loadingModel.value = null
-    loadedServerPort.value = null
-    modelLoading.value = false
-    prefillProgress.value = null
-    generationTokens.value = null
-    launchCmd.value = ''
-    launchSpec.value = ''
+  await listen<{ port: number }>('llama-exited', (event) => {
+    const port = event.payload.port
+    const logs = serverLogsByPort.value[port] ?? []
+    logs.push({ time: '', level: 'error', msg: 'server process exited' })
+    if (logs.length > 1000) logs.splice(0, logs.length - 1000)
+    serverLogsByPort.value = { ...serverLogsByPort.value, [port]: logs }
+    removeLoaded(port)
+    if (loadingModelFull.value?.port === port) loadingModelFull.value = null
   })
 
   await win.listen('tauri://close-requested', async () => {

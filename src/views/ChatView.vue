@@ -1,9 +1,9 @@
 <template>
   <div class="chat-view">
     <div class="topbar">
-      <template v-if="loadedModel">
+      <template v-if="activeLoadedModel">
         <span style="color:#5a8af5;">✦</span>
-        <span style="color:#fff; font-size:13px;">{{ modelDisplayNames[loadedModel.path] || loadedModel.name }}</span>
+        <span style="color:#fff; font-size:13px;">{{ modelDisplayNames[activeLoadedModel.path] || activeLoadedModel.name }}</span>
         <button class="btn-secondary" style="margin-left:4px;" @click="showModal = true">▾</button>
         <div style="flex:1"></div>
         <button class="btn-eject" @click="eject">⏏</button>
@@ -15,7 +15,7 @@
       </template>
     </div>
 
-    <div v-if="!loadedModel" class="chat-empty">
+    <div v-if="!activeLoadedModel" class="chat-empty">
       <p>{{ t('chat.noModel') }}</p>
     </div>
     <iframe
@@ -30,7 +30,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { loadedModel, modelLoading, loadedServerPort, prefillProgress, generationTokens } from '../stores/selectedModel'
+import { activeLoadedModel, modelLoading, removeLoaded } from '../stores/selectedModel'
 import { modelDisplayNames } from '../stores/groups'
 import { appConfig } from '../stores/config'
 import { invoke } from '@tauri-apps/api/core'
@@ -39,17 +39,11 @@ import LoadModelModal from '../components/LoadModelModal.vue'
 
 const showModal = ref(false)
 
-const chatUrl = computed(() => {
-  const p = loadedServerPort.value ?? appConfig.value.port
-  return `http://127.0.0.1:${p}/`
-})
+const chatUrl = computed(() => `http://127.0.0.1:${appConfig.value.chatPort}/`)
 
 async function eject() {
-  await invoke('stop_model')
-  loadedModel.value = null
-  loadedServerPort.value = null
+  await invoke('stop_model', { port: appConfig.value.chatPort })
+  removeLoaded(appConfig.value.chatPort)
   modelLoading.value = false
-  prefillProgress.value = null
-  generationTokens.value = null
 }
 </script>

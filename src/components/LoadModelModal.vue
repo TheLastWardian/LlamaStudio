@@ -12,11 +12,11 @@
 
         <!-- Modelo cargado actualmente -->
         <div v-if="error" style="color:#f55a5a; font-size:11px; margin-bottom:8px;">{{ error }}</div>
-        <div v-if="loadedModel" class="modal-section-title">{{ t('modal.currentlyLoaded', { count: 1 }) }}</div>
-        <div v-if="loadedModel" class="modal-model-row loaded">
-          <span class="pin-indicator" v-if="modelMeta[loadedModel.path]?.pinned">📌</span>
-          <span class="modal-model-name">{{ modelDisplayNames[loadedModel.path] || loadedModel.name }}</span>
-          <span class="tag quant">{{ loadedModel.name.split('-').pop()?.replace('.gguf','').replace('.GGUF','') }}</span>
+        <div v-if="activeLoadedModel" class="modal-section-title">{{ t('modal.currentlyLoaded', { count: 1 }) }}</div>
+        <div v-if="activeLoadedModel" class="modal-model-row loaded">
+          <span class="pin-indicator" v-if="modelMeta[activeLoadedModel.path]?.pinned">📌</span>
+          <span class="modal-model-name">{{ modelDisplayNames[activeLoadedModel.path] || activeLoadedModel.name }}</span>
+          <span class="tag quant">{{ activeLoadedModel.name.split('-').pop()?.replace('.gguf','').replace('.GGUF','') }}</span>
           <span class="tag" style="background:#1a2a1a; color:#4af54a;">GGUF</span>
           <div style="flex:1"></div>
           <button class="btn-eject" @click.stop="eject">⏏ {{ t('modal.eject') }}</button>
@@ -32,7 +32,7 @@
               v-for="model in section.models"
               :key="model.path"
               class="modal-model-row"
-              :class="{ active: loadedModel?.path === model.path }"
+              :class="{ active: activeLoadedModel?.path === model.path }"
               @click="onModelClick($event, model)"
             >
               <span class="pin-indicator" v-if="modelMeta[model.path]?.pinned">📌</span>
@@ -395,16 +395,21 @@
       </template>
 
     </div>
+
+    <ReplaceModelModal v-if="showReplace" :candidates="replaceCandidates ?? undefined" @choose="choose" @close="close" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { allModels, loadedModel, selectedModel, modelLoading, loadingModel, loadedServerPort, prefillProgress, generationTokens } from '../stores/selectedModel'
+import { allModels, activeLoadedModel, selectedModel, modelLoading, loadingModelFull, setLoading, removeLoaded } from '../stores/selectedModel'
 import { modelDisplayNames, modelMeta, groups } from '../stores/groups'
 import { invoke } from '@tauri-apps/api/core'
-import { loadConfig, loadModelConfig, saveModelConfig, type ModelConfig, defaultDraftParams, activeSpecKind, numOrDefault } from '../stores/config'
+import { appConfig, loadModelConfig, saveModelConfig, type ModelConfig, activeSpecKind, numOrDefault } from '../stores/config'
+import { prepareLoad, executeLoad } from '../lib/loadPath'
+import { useReplaceFlow } from '../lib/useReplaceFlow'
+import ReplaceModelModal from './ReplaceModelModal.vue'
 import { t } from '../i18n'
 import type { ModelFile } from '../stores/selectedModel'
 import { estimateVram } from '../utils/vram'
@@ -535,7 +540,7 @@ const cacheRamWarning = computed(() => {
 const groupedFilteredModels = computed(() => {
   const filtered = allModels.value.filter(m =>
     !m.is_draft &&
-    m.path !== loadedModel.value?.path &&
+    m.path !== activeLoadedModel.value?.path &&
     (m.name.toLowerCase().includes(search.value.toLowerCase()) ||
      (modelDisplayNames[m.path] ?? '').toLowerCase().includes(search.value.toLowerCase()))
   )
@@ -590,76 +595,33 @@ async function onModelClick(e: MouseEvent, model: ModelFile) {
   }
 }
 
-async function invokeLoad(modelPath: string, cfg: ModelConfig) {
-  const config = await loadConfig()
-  const cpuThreads = numOrDefault(cfg.cpuThreads, 0)
-  const resolvedThreads = cpuThreads > 0 ? cpuThreads : await invoke<number>('get_cpu_threads')
-  const resolvedGpu = numOrDefault(cfg.gpuOffload, 999)
-  const dp = cfg.draftParams?.[activeSpecKind(cfg)] ?? defaultDraftParams
-  await invoke('load_model', {
-    llamaPath: config.llamaPath,
-    cudaGraphOpt: config.cudaGraphOpt ?? '',
-    logVerbosity: Number(config.logVerbosity ?? 3),
-    modelPath,
-    gpuLayers: resolvedGpu,
-    contextLength: numOrDefault(cfg.contextLength, 4096),
-    cpuThreads: resolvedThreads,
-    evalBatch: numOrDefault(cfg.evalBatch, 2048),
-    physicalBatch: numOrDefault(cfg.physicalBatch, 512),
-    flashAttention: cfg.flashAttention ?? true,
-    specType: cfg.specType ?? 'None',
-    draftSpecType: cfg.draftSpecType ?? 'simple',
-    draftModelPath: cfg.draftModelPath ?? '',
-    maxDraftTokens: numOrDefault(dp.maxDraftTokens, 2),
-    minDraftTokens: numOrDefault(dp.minDraftTokens, 0),
-    draftProbability: numOrDefault(dp.probability, 0.75),
-    draftSplitProbability: numOrDefault(dp.splitProbability, 0.10),
-    dflashNgramK4v: cfg.dflashNgramK4v ?? false,
-    ngramK4vSizeN: numOrDefault(cfg.ngramK4vSizeN, 12),
-    ngramK4vSizeM: numOrDefault(cfg.ngramK4vSizeM, 48),
-    ngramK4vMinHits: numOrDefault(cfg.ngramK4vMinHits, 1),
-    ngramMod: cfg.ngramMod ?? false,
-    ngramModNMatch: numOrDefault(cfg.ngramModNMatch, 24),
-    ngramModNMin: numOrDefault(cfg.ngramModNMin, 48),
-    ngramModNMax: numOrDefault(cfg.ngramModNMax, 64),
-    ngramCache: cfg.ngramCache ?? false,
-    kCacheQuant: cfg.kCacheQuant ?? 'Q8_0',
-    vCacheQuant: cfg.vCacheQuant ?? 'Q8_0',
-    draftKCacheQuant: dp.kCacheQuant ?? 'F16',
-    draftVCacheQuant: dp.vCacheQuant ?? 'F16',
-    cacheReuse: numOrDefault(cfg.cacheReuse, 0),
-    ctxCheckpoints: numOrDefault(cfg.ctxCheckpoints, 32),
-    checkpointMinStep: numOrDefault(cfg.checkpointMinStep, 8192),
-    port: Number(config.port ?? 8080),
-    host: cfg.host ?? '127.0.0.1',
-    alias: cfg.alias ?? '',
-    threadsHttp: numOrDefault(cfg.threadsHttp, 2),
-    noWarmup: cfg.noWarmup ?? false,
-    sleepIdle: numOrDefault(cfg.sleepIdle, -1),
-    reasoningPreserve: cfg.reasoningPreserve ?? false,
-    fit: cfg.fit ?? 'on',
-    reasoning: cfg.reasoning ?? 'auto',
-    reasoningBudget: cfg.reasoningBudget === 'custom' ? Math.max(1, numOrDefault(cfg.reasoningBudgetCustom, 2048)) : numOrDefault(cfg.reasoningBudget, -1),
-    reasoningEffort: cfg.reasoningEffort ?? 'default',
-    parallel: numOrDefault(cfg.parallel, 1),
-    mlock: cfg.mlock ?? false,
-    nCpuMoe: numOrDefault(cfg.nCpuMoe, 0),
-    expertsPerToken: numOrDefault(cfg.expertsPerToken, 0),
-    visionEnabled: cfg.visionEnabled ?? false,
-    mmprojPath: cfg.mmprojPath ?? '',
-    imageMinTokens: numOrDefault(cfg.imageMinTokens, 0),
-    mmap: cfg.mmap ?? false,
-    kvUnified: cfg.kvUnified ?? false,
-    kvOffload: cfg.kvOffload ?? false,
-    cacheRam: numOrDefault(cfg.cacheRam, 0),
-    seed: numOrDefault(cfg.seed, -1),
-    temp: numOrDefault(cfg.temp, 0.8),
-    topP: numOrDefault(cfg.topP, 0.95),
-    topK: numOrDefault(cfg.topK, 40),
-    minP: numOrDefault(cfg.minP, 0.05),
-    repeatPenalty: numOrDefault(cfg.repeatPenalty, 1.0),
-  })
-  loadedServerPort.value = Number(config.port ?? 8080)
+const { showReplace, replaceCandidates, askReplace, choose, close } = useReplaceFlow()
+
+async function doLoad(model: ModelFile, cfg: ModelConfig) {
+  selectedModel.value = model
+  error.value = ''
+  const prep = await prepareLoad(model, cfg)
+  let evict: number | undefined
+  let port: number
+  if (prep.decision.kind === 'ask-replace') {
+    const chosen = await askReplace(prep.decision.candidates)
+    if (chosen === null) { emit('close'); return }
+    port = prep.decision.manualPort ?? chosen
+    evict = chosen
+  } else {
+    port = prep.decision.port
+  }
+  emit('close')
+  setLoading(port, model)
+  modelLoading.value = true
+  try {
+    await executeLoad(prep, port, evict)
+  } catch (e) {
+    modelLoading.value = false
+    loadingModelFull.value = null
+    selectedModel.value = activeLoadedModel.value
+    console.error(e)
+  }
 }
 
 async function selectModel(model: ModelFile) {
@@ -673,18 +635,7 @@ async function selectModel(model: ModelFile) {
     return
   }
   error.value = ''
-  selectedModel.value = model
-  loadingModel.value = model
-  emit('close')
-  modelLoading.value = true
-  try {
-    await invokeLoad(model.path, cfg)
-  } catch (e) {
-    modelLoading.value = false
-    loadingModel.value = null
-    selectedModel.value = loadedModel.value
-    console.error(e)
-  }
+  await doLoad(model, cfg)
 }
 
 async function loadWithConfig() {
@@ -698,28 +649,15 @@ async function loadWithConfig() {
   error.value = ''
 
   await saveModelConfig(configModel.value.path, tempCfg.value)
-  
-  selectedModel.value = configModel.value
-  loadingModel.value = configModel.value
-  emit('close')
-  modelLoading.value = true
-  try {
-    await invokeLoad(configModel.value.path, tempCfg.value)
-  } catch (e) {
-    modelLoading.value = false
-    loadingModel.value = null
-    selectedModel.value = loadedModel.value
-    console.error(e)
-  }
+
+  await doLoad(configModel.value, tempCfg.value)
 }
 
 async function eject() {
-  await invoke('stop_model')
-  loadedModel.value = null
-  loadedServerPort.value = null
+  const port = appConfig.value.chatPort
+  await invoke('stop_model', { port })
+  removeLoaded(port)
   modelLoading.value = false
-  prefillProgress.value = null
-  generationTokens.value = null
   emit('close')
 }
 </script>

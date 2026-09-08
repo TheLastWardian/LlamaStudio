@@ -364,4 +364,8 @@ export default {
     load: '⬆ Cargar',
     eject: '⏏ Expulsar',
   },
+  replace: {
+    title: 'Sin espacio — reemplazar un modelo',
+    cancel: 'Cancelar',
+  },
 }

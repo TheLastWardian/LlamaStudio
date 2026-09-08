@@ -157,7 +157,7 @@
     :main="{ path: deleteTarget.path, name: modelDisplayNames[deleteTarget.path] || deleteTarget.name, sizeBytes: deleteTarget.size_bytes }"
     :related="deleteRelated"
     :use-trash="trashDelete"
-    :is-loaded="loadedModel?.path === deleteTarget.path"
+    :is-loaded="isLoaded(deleteTarget.path)"
     @close="deleteTarget = null"
     @confirm="confirmDelete"
   />
@@ -167,7 +167,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { revealItemInDir, openPath, openUrl } from '@tauri-apps/plugin-opener'
-import { selectedModel, allModels, loadedModel } from '../stores/selectedModel'
+import { selectedModel, allModels, loadedModels } from '../stores/selectedModel'
 import { loadConfig, deleteModelConfig } from '../stores/config'
 import { groups, modelMeta, modelDisplayNames, createGroup, deleteGroup, moveModelToGroup, togglePin, saveGroups, collapsedGroups } from '../stores/groups'
 import { columnWidths, saveColumnWidths } from '../stores/columnWidths'
@@ -176,6 +176,7 @@ import DeleteModelDialog from '../components/DeleteModelDialog.vue'
 import { t } from '../i18n'
 
 const search = ref('')
+const isLoaded = (path: string) => Object.values(loadedModels.value).some(x => x.path === path)
 const columns = ref([
   { key: 'arch', labelKey: 'models.arch', width: 100 },
   { key: 'params', labelKey: 'models.params', width: 70 },

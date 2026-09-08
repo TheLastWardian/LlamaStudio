@@ -17,7 +17,7 @@
         @click="loadModel" 
         :disabled="loading"
       >
-        {{ loading ? t('load.loading') : hasUnsavedChanges ? t('load.reloadChanges') : ((currentView === 'developer' && loadedModel) ? t('load.reload') : t('load.loadModel')) }}
+        {{ loading ? t('load.loading') : hasUnsavedChanges ? t('load.reloadChanges') : ((currentView === 'developer' && activeLoadedModel) ? t('load.reload') : t('load.loadModel')) }}
       </button>
       <button class="btn-secondary" style="width:100%; margin-top:6px;" @click="stopModel">
         {{ t('load.stop') }}
@@ -261,7 +261,7 @@
         <div style="color:#555; font-size:11px; margin-bottom:4px;">
           {{ systemRamTotal > 0 ? t('load.systemRam', { total: systemRamTotal, free: systemRamAvailable }) : '' }}
         </div>
-        <template v-if="activeModel?.path !== loadedModel?.path">
+        <template v-if="activeModel?.path !== activeLoadedModel?.path">
           <div v-if="cacheRamWarning === 'unlimited'" style="color:#f5a55a; font-size:11px; margin-bottom:8px;">
             {{ t('load.cacheRamUnlimited') }}
           </div>
@@ -462,14 +462,19 @@
       </div>
     </div>
     </div>
+
+    <ReplaceModelModal v-if="showReplace" :candidates="replaceCandidates ?? undefined" @choose="choose" @close="close" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
-import { selectedModel, allModels, modelLoading, loadedModel, loadingModel, loadedModelConfig, loadedServerPort, prefillProgress, generationTokens } from '../stores/selectedModel'
-import { loadConfig, loadModelConfig, saveModelConfig, appConfig, type ModelConfig, defaultDraftParams, activeSpecKind, numOrDefault } from '../stores/config'
+import { selectedModel, allModels, modelLoading, activeLoadedModel, loadingModelFull, setLoading, removeLoaded } from '../stores/selectedModel'
+import { prepareLoad, executeLoad } from '../lib/loadPath'
+import { useReplaceFlow } from '../lib/useReplaceFlow'
+import ReplaceModelModal from './ReplaceModelModal.vue'
+import { loadModelConfig, saveModelConfig, appConfig, type ModelConfig, defaultDraftParams, activeSpecKind, numOrDefault } from '../stores/config'
 import { t } from '../i18n'
 import { estimateVram } from '../utils/vram'
 
@@ -478,14 +483,21 @@ const props = defineProps<{ currentView?: string }>()
 const activeTab = ref('load')
 
 const activeModel = computed(() =>
-  ((props.currentView === 'developer' || props.currentView === 'chat') && loadedModel.value) ? loadedModel.value : selectedModel.value
+  (props.currentView === 'developer' || props.currentView === 'chat')
+    ? (activeLoadedModel.value ?? selectedModel.value)
+    : selectedModel.value
 )
 
-const serverUrl = computed(() => `http://127.0.0.1:${loadedServerPort.value ?? appConfig.value.port}`)
+const serverUrl = computed(() => `http://127.0.0.1:${appConfig.value.chatPort}`)
+
+const loadedCfg = ref<Record<string, any> | null>(null)
+watch(activeLoadedModel, async (m) => {
+  loadedCfg.value = m ? { ...(await loadModelConfig(m.path)) } : null
+}, { immediate: true })
 
 const hasUnsavedChanges = computed(() => {
-  if (!loadedModelConfig.value || !loadedModel.value) return false
-  if (activeModel.value?.path !== loadedModel.value.path) return false
+  if (!loadedCfg.value || !activeLoadedModel.value) return false
+  if (activeModel.value?.path !== activeLoadedModel.value.path) return false
   
   const keys: (keyof typeof modelCfg.value)[] = [
     'contextLength', 'gpuOffload', 'cpuThreads', 'evalBatch', 'physicalBatch',
@@ -497,8 +509,8 @@ const hasUnsavedChanges = computed(() => {
     'kvOffload', 'cacheRam', 'temp', 'topP', 'topK', 'minP', 'repeatPenalty'
   ]
 
-  return JSON.stringify(modelCfg.value.draftParams) !== JSON.stringify(loadedModelConfig.value!.draftParams) ||
-    keys.some(k => String(modelCfg.value[k]) !== String(loadedModelConfig.value![k]))
+  return JSON.stringify(modelCfg.value.draftParams) !== JSON.stringify(loadedCfg.value!.draftParams) ||
+    keys.some(k => String(modelCfg.value[k]) !== String(loadedCfg.value![k]))
 })
 
 const effortOptions = computed(() => {
@@ -707,22 +719,24 @@ watch(modelCfg, async (cfg) => {
 const loading = ref(false)
 const error = ref('')
 
+const { showReplace, replaceCandidates, askReplace, choose, close } = useReplaceFlow()
+
 async function loadModel() {
   const model = activeModel.value
-  if (!model) return
-  loadingModel.value = model
-  modelLoading.value = true
+  if (!model || loading.value) return
   loading.value = true
   error.value = ''
 
   if (modelCfg.value.specType === 'Draft' && !(modelCfg.value.draftModelPath ?? '').trim()) {
     error.value = t('load.draftNeedsModel')
     modelLoading.value = false
+    loading.value = false
     return
   }
   if (modelCfg.value.visionEnabled && !(modelCfg.value.mmprojPath ?? '').trim()) {
     error.value = t('load.visionNeedsMmproj')
     modelLoading.value = false
+    loading.value = false
     return
   }
   if (model?.arch === 'gemma4' && modelCfg.value.visionEnabled) {
@@ -731,97 +745,45 @@ async function loadModel() {
     if (ub < req) {
       error.value = t('load.gemmaUbatch', { ub, n: req })
       modelLoading.value = false
+      loading.value = false
       return
     }
   }
 
   try {
-    const config = await loadConfig()
-    const cfg = modelCfg.value
-    const resolvedThreads = numOrDefault(cfg.cpuThreads, 0) > 0 ? numOrDefault(cfg.cpuThreads, 0) : await invoke<number>('get_cpu_threads')
-    const resolvedGpu = numOrDefault(cfg.gpuOffload, 999)
-    const dp = cfg.draftParams[activeSpecKind(cfg)]
-    await invoke('load_model', {
-      llamaPath: config.llamaPath,
-      cudaGraphOpt: config.cudaGraphOpt ?? '',
-      logVerbosity: Number(config.logVerbosity ?? 3),
-      modelPath: model.path,
-      gpuLayers: resolvedGpu,
-      contextLength: numOrDefault(cfg.contextLength, 4096),
-      cpuThreads: resolvedThreads,
-      evalBatch: numOrDefault(cfg.evalBatch, 2048),
-      physicalBatch: numOrDefault(cfg.physicalBatch, 512),
-      flashAttention: cfg.flashAttention ?? true,
-      specType: cfg.specType ?? 'None',
-      draftSpecType: cfg.draftSpecType ?? 'simple',
-      draftModelPath: cfg.draftModelPath ?? '',
-      maxDraftTokens: numOrDefault(dp.maxDraftTokens, 2),
-      minDraftTokens: numOrDefault(dp.minDraftTokens, 0),
-      draftProbability: numOrDefault(dp.probability, 0.75),
-      draftSplitProbability: numOrDefault(dp.splitProbability, 0.10),
-      dflashNgramK4v: cfg.dflashNgramK4v ?? false,
-      ngramK4vSizeN: numOrDefault(cfg.ngramK4vSizeN, 12),
-      ngramK4vSizeM: numOrDefault(cfg.ngramK4vSizeM, 48),
-      ngramK4vMinHits: numOrDefault(cfg.ngramK4vMinHits, 1),
-      ngramMod: cfg.ngramMod ?? false,
-      ngramModNMatch: numOrDefault(cfg.ngramModNMatch, 24),
-      ngramModNMin: numOrDefault(cfg.ngramModNMin, 48),
-      ngramModNMax: numOrDefault(cfg.ngramModNMax, 64),
-      ngramCache: cfg.ngramCache ?? false,
-      kCacheQuant: cfg.kCacheQuant ?? 'Q8_0',
-      vCacheQuant: cfg.vCacheQuant ?? 'Q8_0',
-      draftKCacheQuant: dp.kCacheQuant ?? 'F16',
-      draftVCacheQuant: dp.vCacheQuant ?? 'F16',
-      cacheReuse: numOrDefault(cfg.cacheReuse, 0),
-      ctxCheckpoints: numOrDefault(cfg.ctxCheckpoints, 32),
-      checkpointMinStep: numOrDefault(cfg.checkpointMinStep, 8192),
-      port: Number(config.port) || 8080,
-      host: cfg.host ?? '127.0.0.1',
-      alias: cfg.alias ?? '',
-      threadsHttp: numOrDefault(cfg.threadsHttp, 2),
-      noWarmup: cfg.noWarmup ?? false,
-      sleepIdle: numOrDefault(cfg.sleepIdle, -1),
-      reasoningPreserve: cfg.reasoningPreserve ?? false,
-      fit: cfg.fit ?? 'on',
-      reasoning: cfg.reasoning ?? 'auto',
-      reasoningBudget: cfg.reasoningBudget === 'custom' ? Math.max(1, numOrDefault(cfg.reasoningBudgetCustom, 2048)) : numOrDefault(cfg.reasoningBudget, -1),
-      reasoningEffort: cfg.reasoningEffort ?? 'default',
-      parallel: numOrDefault(cfg.parallel, 1),
-      mlock: cfg.mlock ?? false,
-      mmap: cfg.mmap ?? false,
-      kvUnified: cfg.kvUnified ?? false,
-      kvOffload: cfg.kvOffload ?? false,
-      cacheRam: numOrDefault(cfg.cacheRam, 0),
-      nCpuMoe: numOrDefault(cfg.nCpuMoe, 0),
-      expertsPerToken: numOrDefault(cfg.expertsPerToken, 0),
-      visionEnabled: cfg.visionEnabled ?? false,
-      mmprojPath: cfg.mmprojPath ?? '',
-      imageMinTokens: numOrDefault(cfg.imageMinTokens, 0),
-      seed: numOrDefault(cfg.seed, -1),
-      temp: numOrDefault(cfg.temp, 0.8),
-      topP: numOrDefault(cfg.topP, 0.95),
-      topK: numOrDefault(cfg.topK, 40),
-      minP: numOrDefault(cfg.minP, 0.05),
-      repeatPenalty: numOrDefault(cfg.repeatPenalty, 1.0),
-    })
-    loadedServerPort.value = Number(config.port) || 8080
-    loadedModel.value = model
+    const prep = await prepareLoad(model, modelCfg.value)
+    let port: number
+    let evict: number | undefined
+    if (prep.decision.kind === 'ask-replace') {
+      const chosen = await askReplace(prep.decision.candidates)
+      if (chosen === null) return // cancelado
+      // manual sin espacio → el nuevo va al puerto manual y ejecta el elegido;
+      // auto full → el nuevo toma el puerto del modelo reemplazado
+      port = prep.decision.manualPort ?? chosen
+      evict = chosen
+      setLoading(port, model)
+      modelLoading.value = true
+      await executeLoad(prep, port, evict)
+    } else {
+      port = prep.decision.port
+      setLoading(port, model)
+      modelLoading.value = true
+      await executeLoad(prep, port)
+    }
   } catch (e) {
     error.value = String(e)
     modelLoading.value = false
-    loadingModel.value = null
+    loadingModelFull.value = null
   } finally {
     loading.value = false
   }
 }
 
 async function stopModel() {
-  await invoke('stop_model')
+  const port = appConfig.value.chatPort
+  await invoke('stop_model', { port })
+  removeLoaded(port)
   modelLoading.value = false
-  loadedModel.value = null
-  loadedServerPort.value = null
-  prefillProgress.value = null
-  generationTokens.value = null
 }
 
 function copy(text: string) {
