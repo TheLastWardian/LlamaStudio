@@ -52,6 +52,13 @@ pub struct Sibling {
     pub rfilename: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct HfSearchPage {
+    pub repos: Vec<HfRepo>,
+    /// Token opaco para la página siguiente (header `Link: rel="next"`); None si no hay más.
+    pub next_cursor: Option<String>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum FileGroup {
@@ -94,7 +101,8 @@ pub async fn search_models(
     limit: u32,
     author: Option<&str>,
     gguf_only: bool,
-) -> Result<Vec<HfRepo>, String> {
+    cursor: Option<&str>,
+) -> Result<HfSearchPage, String> {
     let query = query.trim();
     let author = author.map(str::trim).filter(|a| !a.is_empty());
 
@@ -102,19 +110,19 @@ pub async fn search_models(
     // "Unsloth" no encuentra el namespace "unsloth". Probamos variantes de
     // mayúsculas/minúsculas hasta que alguna devuelva resultados.
     let candidates = author_candidates(author);
-    let mut fallback: Option<Vec<HfRepo>> = None;
+    let mut fallback: Option<HfSearchPage> = None;
     for c in &candidates {
-        match do_search(query, sort, limit, c.as_deref(), gguf_only).await {
-            Ok(repos) if !repos.is_empty() => return Ok(repos),
-            Ok(repos) => {
+        match do_search(query, sort, limit, c.as_deref(), gguf_only, cursor).await {
+            Ok(page) if !page.repos.is_empty() => return Ok(page),
+            Ok(page) => {
                 if fallback.is_none() {
-                    fallback = Some(repos);
+                    fallback = Some(page);
                 }
             }
             Err(e) => return Err(e),
         }
     }
-    Ok(fallback.unwrap_or_default())
+    Ok(fallback.unwrap_or(HfSearchPage { repos: Vec::new(), next_cursor: None }))
 }
 
 /// Variantes de `author` a probar en orden: exacto, minúsculas y primera letra
@@ -145,7 +153,8 @@ async fn do_search(
     limit: u32,
     author: Option<&str>,
     gguf_only: bool,
-) -> Result<Vec<HfRepo>, String> {
+    cursor: Option<&str>,
+) -> Result<HfSearchPage, String> {
     // Con `expand[]` la API responde SOLO con los campos expandidos: hay que listar
     // todos los que usa el app (sin expand[] vienen por defecto, menos `modelId`).
     const EXPAND: [&str; 9] = [
@@ -168,18 +177,34 @@ async fn do_search(
     if gguf_only {
         req = req.query(&[("filter", "gguf")]);
     }
+    if let Some(c) = cursor.filter(|c| !c.is_empty()) {
+        req = req.query(&[("cursor", c)]);
+    }
 
     let resp = req.send().await.map_err(|e| format!("HF search: {e}"))?;
     let status = resp.status();
     if !status.is_success() {
         return Err(format!("HF search: HTTP {status}"));
     }
+    let next_cursor = resp
+        .headers()
+        .get(reqwest::header::LINK)
+        .and_then(|v| v.to_str().ok())
+        .and_then(extract_next_cursor);
     let mut repos: Vec<HfRepo> = resp
         .json::<Vec<HfRepo>>()
         .await
         .map_err(|e| format!("HF search JSON: {e}"))?;
     derive_q4k_flags(&mut repos);
-    Ok(repos)
+    Ok(HfSearchPage { repos, next_cursor })
+}
+
+/// Extrae el parámetro `cursor` de un header `Link: <url>; rel="next"`.
+/// None si no hay página siguiente o el header no trae cursor.
+pub fn extract_next_cursor(link: &str) -> Option<String> {
+    let url = link.split('<').nth(1)?.split('>').next()?;
+    let encoded = url.split("cursor=").nth(1)?.split('&').next()?;
+    percent_decode(encoded)
 }
 
 async fn fetch_tree(owner: &str, repo: &str) -> Result<Vec<TreeItem>, String> {
@@ -550,6 +575,21 @@ mod tests {
         assert_eq!(repos[1].downloads, 1795);
     }
 
+    // Header real capturado de /api/models (limit=2): el cursor va percent-encoded.
+    #[test]
+    fn link_header_cursor_extraction() {
+        let link = "<https://huggingface.co/api/models?search=qwen3.8&limit=2&filter=gguf&cursor=eyIkb3IiOlt7InRyZW5kaW5nU2NvcmUiOjMyMSwiX2lkIjp7IiRndCI6IjZhOTY3ODM1NGUyNTQxYjgyOGI0YTQwZSJ9fSx7InRyZW5kaW5nU2NvcmUiOnsiJGx0IjozMjF9fSx7InRyZW5kaW5nU2NvcmUiOm51bGx9XSwic2VhcmNoU2VxdWVuY2VUb2tlbiI6IkNKZU15QUlhQ1NFQUFBQUFBQkIwUUJvT1dneXFsbmcxVGlWQnVDaTBwQTRpRGxvTWFwWjROVTRsUWJnb3RLUU8ifQ%3D%3D>; rel=\"next\"";
+        let cursor = extract_next_cursor(link).expect("extrae el cursor");
+        // El token es opaco (base64 de un JSON de estado): se reenvía tal cual,
+        // reqwest lo percent-encodea igual que en el header original.
+        assert!(cursor.len() > 100);
+        assert!(cursor.ends_with("=="));
+        assert!(!cursor.contains('%'));
+        assert!(extract_next_cursor("<https://huggingface.co/api/models?limit=5>; rel=\"next\"").is_none());
+        assert!(extract_next_cursor("").is_none());
+        assert!(extract_next_cursor("no angle brackets").is_none());
+    }
+
     #[test]
     fn siblings_q4k_detection() {
         let sib = |rf: &str| Sibling { rfilename: rf.into() };
@@ -596,11 +636,17 @@ mod tests {
     #[tokio::test]
     #[ignore = "requiere red — cargo test -- --ignored"]
     async fn live_search_and_tree_smoke() {
-        let repos = search_models("qwen3.8", "lastModified", 3, None, false).await.unwrap();
-        assert!(!repos.is_empty());
-        assert!(repos.iter().any(|r| r.last_modified.is_some()));
-
-        let (owner, name) = repos[0].id.split_once('/').unwrap();
+        let page = search_models("qwen3.8", "lastModified", 3, None, false, None).await.unwrap();
+        assert!(!page.repos.is_empty());
+        assert!(page.repos.iter().any(|r| r.last_modified.is_some()));
+        let (owner, name) = page.repos[0].id.split_once('/').unwrap();
+        // Segunda página vía cursor: distinto contenido, sin duplicados
+        let cursor = page.next_cursor.expect("hay página siguiente con limit=3");
+        let page2 = search_models("qwen3.8", "lastModified", 3, None, false, Some(&cursor))
+            .await
+            .unwrap();
+        assert!(!page2.repos.is_empty());
+        assert!(page2.repos.iter().all(|r| !page.repos.iter().any(|p| p.id == r.id)));
         let files = repo_files(owner, name, false).await.unwrap();
         assert!(files.iter().any(|f| f.size > 0));
     }

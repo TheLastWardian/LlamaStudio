@@ -886,9 +886,17 @@ async fn search_hf_models(
     limit: Option<u32>,
     author: Option<String>,
     gguf_only: Option<bool>,
-) -> Result<Vec<hf::HfRepo>, String> {
-    hf::search_models(&query, &sort, limit.unwrap_or(50), author.as_deref(), gguf_only.unwrap_or(false))
-        .await
+    cursor: Option<String>,
+) -> Result<hf::HfSearchPage, String> {
+    hf::search_models(
+        &query,
+        &sort,
+        limit.unwrap_or(50),
+        author.as_deref(),
+        gguf_only.unwrap_or(false),
+        cursor.as_deref(),
+    )
+    .await
 }
 
 #[tauri::command]

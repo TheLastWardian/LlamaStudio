@@ -6,6 +6,14 @@
       <select class="discover-select" v-model="sort">
         <option v-for="s in SORT_OPTIONS" :key="s.value" :value="s.value">{{ t(s.labelKey) }}</option>
       </select>
+      <select
+        class="discover-select"
+        v-model="dateFilter"
+        :disabled="inLibraryOnly"
+        :title="inLibraryOnly ? t('discover.filterDisabledLocal') : undefined"
+      >
+        <option v-for="d in DATE_OPTIONS" :key="d.value" :value="d.value">{{ t(d.labelKey) }}</option>
+      </select>
       <label class="discover-toggle-label">
         <input type="checkbox" class="discover-toggle" v-model="ggufOnly" />
         {{ t('discover.ggufOnly') }}
@@ -54,6 +62,11 @@
           <div class="repo-stat"><span class="stat-downloads">↓ {{ fmtNum(repo.downloads) }}</span><span class="stat-likes"><span class="stat-star">★</span> {{ fmtNum(repo.likes) }}</span></div>
           <div class="repo-time">{{ relativeTime(repo.lastModified ?? repo.createdAt) || t('discover.now') }}</div>
         </div>
+      </div>
+      <div v-if="!inLibraryOnly && nextCursor && !loading" class="load-more-wrap">
+        <button class="load-more-btn" :disabled="loadingMore" @click="loadMore">
+          {{ loadingMore ? t('discover.loadingMore') : t('discover.loadMore') }}
+        </button>
       </div>
     </div>
 
@@ -131,6 +144,12 @@ export function relativeTime(iso: string): string {
 export function fmtNum(n: number): string {
   return n.toLocaleString()
 }
+
+// Respuesta de search_hf_models (hf::HfSearchPage)
+export interface SearchPage {
+  repos: HfRepo[]
+  next_cursor: string | null
+}
 </script>
 
 <script setup lang="ts">
@@ -145,11 +164,35 @@ const author = ref('')
 const sort = ref('trendingScore')
 const ggufOnly = ref(true)
 const inLibraryOnly = ref(false)
+const dateFilter = ref<'all' | '10d' | '30d' | '3m' | '6m' | '1y'>('all')
 const repos = ref<HfRepo[]>([])
+const nextCursor = ref<string | null>(null)
 const loading = ref(false)
+const loadingMore = ref(false)
 const searched = ref(false)
 const error = ref<string | null>(null)
 const panelRepo = ref<HfRepo | null>(null)
+
+const DATE_OPTIONS: { value: 'all' | '10d' | '30d' | '3m' | '6m' | '1y', labelKey: string }[] = [
+  { value: 'all', labelKey: 'discover.filter.all' },
+  { value: '10d', labelKey: 'discover.filter.10d' },
+  { value: '30d', labelKey: 'discover.filter.30d' },
+  { value: '3m', labelKey: 'discover.filter.3m' },
+  { value: '6m', labelKey: 'discover.filter.6m' },
+  { value: '1y', labelKey: 'discover.filter.1y' },
+]
+
+function cutoffMs(): number | null {
+  const now = Date.now()
+  switch (dateFilter.value) {
+    case '10d': return now - 10 * 86400_000
+    case '30d': return now - 30 * 86400_000
+    case '3m': { const d = new Date(); d.setMonth(d.getMonth() - 3); return d.getTime() }
+    case '6m': { const d = new Date(); d.setMonth(d.getMonth() - 6); return d.getTime() }
+    case '1y': { const d = new Date(); d.setFullYear(d.getFullYear() - 1); return d.getTime() }
+    default: return null
+  }
+}
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 let searchSeq = 0
@@ -172,27 +215,102 @@ watch([textParams, sort, ggufOnly], () => {
 async function doSearch() {
   const seq = ++searchSeq
   loading.value = true
+  loadingMore.value = false
   error.value = null
+  nextCursor.value = null
+  autoFillPages = 0
   try {
-    const result = await invoke<HfRepo[]>('search_hf_models', {
+    const page = await invoke<SearchPage>('search_hf_models', {
       query: textParams.value.query,
       sort: sort.value,
       limit: 50,
       author: textParams.value.author || null,
       ggufOnly: ggufOnly.value,
+      cursor: null,
     })
     if (seq !== searchSeq) return
-    repos.value = result
+    repos.value = page.repos
+    nextCursor.value = page.next_cursor
     searched.value = true
     q4Queue.length = 0
-    scheduleQ4Sizes(result)
+    scheduleQ4Sizes(page.repos)
   } catch (e) {
     if (seq !== searchSeq) return
     error.value = String(e)
   } finally {
     if (seq === searchSeq) loading.value = false
   }
+  if (seq === searchSeq) maybeAutoFill()
 }
+
+// Página siguiente del cursor: appendea deduplicando por id.
+async function loadMore() {
+  if (!nextCursor.value || loadingMore.value) return
+  const seq = searchSeq
+  loadingMore.value = true
+  try {
+    const page = await invoke<SearchPage>('search_hf_models', {
+      query: textParams.value.query,
+      sort: sort.value,
+      limit: 50,
+      author: textParams.value.author || null,
+      ggufOnly: ggufOnly.value,
+      cursor: nextCursor.value,
+    })
+    if (seq !== searchSeq) return
+    const seen = new Set(repos.value.map(r => r.id))
+    for (const r of page.repos) if (!seen.has(r.id)) repos.value.push(r)
+    nextCursor.value = page.next_cursor
+    scheduleQ4Sizes(page.repos)
+  } catch (e) {
+    if (seq === searchSeq) error.value = String(e)
+    return
+  } finally {
+    if (seq === searchSeq) loadingMore.value = false
+  }
+  if (seq === searchSeq) maybeAutoFill()
+}
+
+// Con filtro de fecha activo, se cargan páginas solas (el botón "Cargar más"
+// sigue disponible para seguir a mano):
+// - sort "last modified": hasta que el último repo queda fuera de la ventana (exacto).
+// - otros sorts: hasta juntar AUTOFILL_MATCHES dentro de la ventana o el tope de páginas.
+let autoFillPages = 0
+const AUTOFILL_MAX = 20
+const AUTOFILL_MATCHES = 25
+
+function windowMatchCount(): number {
+  const cutoff = cutoffMs()
+  if (cutoff === null) return 0
+  return repos.value.filter(r => {
+    const t = new Date(r.lastModified ?? r.createdAt).getTime()
+    return !Number.isNaN(t) && t >= cutoff
+  }).length
+}
+
+function maybeAutoFill() {
+  if (dateFilter.value === 'all' || !nextCursor.value || autoFillPages >= AUTOFILL_MAX) return
+  if (sort.value === 'lastModified') {
+    const last = repos.value[repos.value.length - 1]
+    const cutoff = cutoffMs()
+    if (!last || cutoff === null) return
+    const t = new Date(last.lastModified ?? last.createdAt).getTime()
+    if (!Number.isNaN(t) && t >= cutoff) {
+      autoFillPages++
+      void loadMore()
+    }
+    return
+  }
+  if (windowMatchCount() >= AUTOFILL_MATCHES) return
+  autoFillPages++
+  void loadMore()
+}
+
+watch(dateFilter, () => {
+  autoFillPages = 0
+  scheduleQ4Sizes(repos.value)
+  maybeAutoFill()
+})
 
 onMounted(() => {
   void doSearch()
@@ -246,9 +364,12 @@ function q4Size(repo: HfRepo | LocalRepo): number | null {
   return localQ4.value[repo.id] ?? q4Sizes[repo.id] ?? null
 }
 
+const Q4_QUEUE_MAX = 150
+
 function scheduleQ4Sizes(list: HfRepo[]) {
   for (const r of list) {
     if (!r.has_q4_k_m || r.id in q4Sizes || localQ4.value[r.id] !== undefined) continue
+    if (q4Queue.length >= Q4_QUEUE_MAX) break
     q4Queue.push(r.id)
   }
   pumpQ4()
@@ -302,9 +423,15 @@ const libraryRepos = computed<LocalRepo[]>(() => {
     .sort((x, y) => x.id.localeCompare(y.id))
 })
 
-const visibleRepos = computed<(HfRepo | LocalRepo)[]>(() =>
-  inLibraryOnly.value ? libraryRepos.value : repos.value,
-)
+const visibleRepos = computed<(HfRepo | LocalRepo)[]>(() => {
+  if (inLibraryOnly.value) return libraryRepos.value
+  const cutoff = cutoffMs()
+  if (cutoff === null) return repos.value
+  return repos.value.filter(r => {
+    const t = new Date(r.lastModified ?? r.createdAt).getTime()
+    return !Number.isNaN(t) && t >= cutoff
+  })
+})
 
 function isLocalRepo(r: HfRepo | LocalRepo): r is LocalRepo {
   return (r as LocalRepo).isLocal === true
@@ -553,6 +680,36 @@ function openPanel(repo: HfRepo | LocalRepo) {
 }
 .q4k-quant { color: #d4d4d4; }
 .q4k-size { color: #7ee787; }
+
+.discover-select:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.load-more-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0 16px;
+}
+
+.load-more-btn {
+  background: #2a2a2a;
+  border: 1px solid #333;
+  color: #d4d4d4;
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.load-more-btn:hover:not(:disabled) {
+  border-color: #5a8af5;
+}
+
+.load-more-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
 
 .repo-time {
   color: #d4d4d4;
