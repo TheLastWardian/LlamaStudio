@@ -19,7 +19,7 @@
       >
         {{ loading ? t('load.loading') : hasUnsavedChanges ? t('load.reloadChanges') : ((currentView === 'developer' && activeLoadedModel) ? t('load.reload') : t('load.loadModel')) }}
       </button>
-      <button class="btn-secondary" style="width:100%; margin-top:6px;" @click="stopModel">
+      <button class="btn-secondary" style="width:100%; margin-top:6px;" :disabled="stopTarget === null" @click="stopModel">
         {{ t('load.stop') }}
       </button>
     </div>
@@ -351,6 +351,21 @@
             <option value="0.0.0.0">{{ t('load.allInterfaces') }}</option>
           </select>
         </div>
+        <div class="field">
+          <label>{{ t('load.port') }}</label>
+          <div class="port-row">
+            <select class="field-select" v-model="modelCfg.portMode">
+              <option value="auto">{{ t('load.portAuto') }}</option>
+              <option value="manual">{{ t('load.portManual') }}</option>
+            </select>
+            <input
+              v-if="modelCfg.portMode === 'manual'"
+              class="field-input" type="number" min="1" max="65535" step="1"
+              v-model.number="modelCfg.serverPort"
+            />
+          </div>
+          <div class="port-preview">→ {{ t('load.portPreview', { port: previewPort }) }}</div>
+        </div>
         <div class="field" :title="t('load.aliasTooltip')">
           <label>{{ t('load.alias') }}</label>
           <input type="text" v-model="modelCfg.alias" class="field-input" :placeholder="t('load.optional')" />
@@ -470,7 +485,7 @@
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
-import { selectedModel, allModels, modelLoading, activeLoadedModel, loadingModelFull, setLoading, removeLoaded } from '../stores/selectedModel'
+import { selectedModel, allModels, modelLoading, activeLoadedModel, loadingModelFull, setLoading, removeLoaded, portOfModel, loadedModels } from '../stores/selectedModel'
 import { prepareLoad, executeLoad } from '../lib/loadPath'
 import { useReplaceFlow } from '../lib/useReplaceFlow'
 import ReplaceModelModal from './ReplaceModelModal.vue'
@@ -488,7 +503,27 @@ const activeModel = computed(() =>
     : selectedModel.value
 )
 
-const serverUrl = computed(() => `http://127.0.0.1:${appConfig.value.chatPort}`)
+const serverUrl = computed(() => {
+  const m = activeModel.value
+  if (!m) return ''
+  const loadedPort = portOfModel(m)
+  const port = loadedPort ?? (
+    modelCfg.value.portMode === 'manual'
+      ? modelCfg.value.serverPort
+      : appConfig.value.ports.find(p => loadedModels.value[p] === undefined) ?? appConfig.value.ports[0]
+  )
+  const host = modelCfg.value.host ?? '127.0.0.1'
+  return `http://${host}:${port}`
+})
+
+const previewPort = computed<number>(() => {
+  const m = activeModel.value
+  if (!m) return 0
+  const loaded = portOfModel(m)
+  if (loaded !== null) return loaded
+  if (modelCfg.value.portMode === 'manual') return modelCfg.value.serverPort
+  return appConfig.value.ports.find(p => loadedModels.value[p] === undefined) ?? 0
+})
 
 const loadedCfg = ref<Record<string, any> | null>(null)
 watch(activeLoadedModel, async (m) => {
@@ -505,7 +540,7 @@ const hasUnsavedChanges = computed(() => {
     'ctxCheckpoints', 'checkpointMinStep',
     'reasoning', 'reasoningBudget', 'reasoningBudgetCustom', 'reasoningEffort', 'parallel', 'mlock', 'nCpuMoe', 'expertsPerToken',
     'mmap', 'kvUnified', 'seed', 'draftModelPath', 'threadsHttp', 'alias',
-    'host', 'noWarmup', 'sleepIdle', 'reasoningPreserve', 'fit', 'visionEnabled', 'mmprojPath', 'imageMinTokens',
+    'host', 'portMode', 'serverPort', 'noWarmup', 'sleepIdle', 'reasoningPreserve', 'fit', 'visionEnabled', 'mmprojPath', 'imageMinTokens',
     'kvOffload', 'cacheRam', 'temp', 'topP', 'topK', 'minP', 'repeatPenalty'
   ]
 
@@ -724,6 +759,10 @@ const { showReplace, replaceCandidates, askReplace, choose, close } = useReplace
 async function loadModel() {
   const model = activeModel.value
   if (!model || loading.value) return
+  if (modelCfg.value.portMode === 'manual' && (modelCfg.value.serverPort < 1 || modelCfg.value.serverPort > 65535)) {
+    error.value = t('load.portInvalid')
+    return
+  }
   loading.value = true
   error.value = ''
 
@@ -779,8 +818,17 @@ async function loadModel() {
   }
 }
 
+const stopTarget = computed<number | null>(() => {
+  if (props.currentView === 'models') {
+    const sel = selectedModel.value
+    return sel ? portOfModel(sel) : null
+  }
+  return activeLoadedModel.value ? appConfig.value.chatPort : null
+})
+
 async function stopModel() {
-  const port = appConfig.value.chatPort
+  const port = stopTarget.value
+  if (port === null) return
   await invoke('stop_model', { port })
   removeLoaded(port)
   modelLoading.value = false

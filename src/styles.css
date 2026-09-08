@@ -432,6 +432,20 @@ body {
   text-align: left;
 }
 
+.port-row {
+  display: flex;
+  gap: 6px;
+}
+.port-row .field-select,
+.port-row .field-input {
+  flex: 1;
+}
+.port-preview {
+  color: #666;
+  font-size: 11px;
+  margin-top: 4px;
+}
+
 .field-extra {
   display: flex;
   justify-content: flex-end;
