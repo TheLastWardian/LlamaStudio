@@ -370,6 +370,7 @@ export default {
     back: '← Back',
     load: '⬆ Load',
     eject: '⏏ Eject',
+    chatBadgeTitle: 'Current chat model',
   },
   replace: {
     title: 'No room — replace a model',

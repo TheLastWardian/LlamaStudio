@@ -370,6 +370,7 @@ export default {
     back: '← Volver',
     load: '⬆ Cargar',
     eject: '⏏ Expulsar',
+    chatBadgeTitle: 'Modelo de chat actual',
   },
   replace: {
     title: 'Sin espacio — reemplazar un modelo',

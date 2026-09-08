@@ -1109,6 +1109,17 @@ body {
 .modal-model-row:hover { background: #252525; }
 .modal-model-row.loaded { background: #1a1a2a; cursor: default; }
 .modal-model-row.active { background: #252535; }
+.modal-model-row .row-port {
+  color: #5a8af5;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.modal-model-row .chat-badge {
+  font-size: 11px;
+}
+.modal-model-row.loaded.chat {
+  outline: 1px solid rgba(250, 204, 21, 0.4);
+}
 
 .modal-model-name {
   font-size: 13px;

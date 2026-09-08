@@ -10,16 +10,23 @@
           <button class="modal-close" @click="$emit('close')">{{ t('modal.close') }}</button>
         </div>
 
-        <!-- Modelo cargado actualmente -->
+        <!-- Modelos cargados -->
         <div v-if="error" style="color:#f55a5a; font-size:11px; margin-bottom:8px;">{{ error }}</div>
-        <div v-if="activeLoadedModel" class="modal-section-title">{{ t('modal.currentlyLoaded', { count: 1 }) }}</div>
-        <div v-if="activeLoadedModel" class="modal-model-row loaded">
-          <span class="pin-indicator" v-if="modelMeta[activeLoadedModel.path]?.pinned">📌</span>
-          <span class="modal-model-name">{{ modelDisplayNames[activeLoadedModel.path] || activeLoadedModel.name }}</span>
-          <span class="tag quant">{{ activeLoadedModel.name.split('-').pop()?.replace('.gguf','').replace('.GGUF','') }}</span>
+        <div v-if="loadedRows.length > 0" class="modal-section-title">{{ t('modal.currentlyLoaded', { count: loadedRows.length }) }}</div>
+        <div
+          v-for="row in loadedRows"
+          :key="row.port"
+          class="modal-model-row loaded"
+          :class="{ chat: row.chat }"
+        >
+          <span v-if="row.chat" class="chat-badge" :title="t('modal.chatBadgeTitle')">💬</span>
+          <span class="pin-indicator" v-if="modelMeta[row.model.path]?.pinned">📌</span>
+          <span class="modal-model-name">{{ modelDisplayNames[row.model.path] || row.model.name }}</span>
+          <span class="tag quant">{{ row.model.name.split('-').pop()?.replace('.gguf','').replace('.GGUF','') }}</span>
           <span class="tag" style="background:#1a2a1a; color:#4af54a;">GGUF</span>
+          <span class="row-port">{{ row.port }}</span>
           <div style="flex:1"></div>
-          <button class="btn-eject" @click.stop="eject">⏏ {{ t('modal.eject') }}</button>
+          <button class="btn-eject" @click.stop="ejectRow(row.port)">⏏ {{ t('modal.eject') }}</button>
         </div>
 
         <!-- Lista agrupada -->
@@ -32,7 +39,7 @@
               v-for="model in section.models"
               :key="model.path"
               class="modal-model-row"
-              :class="{ active: activeLoadedModel?.path === model.path }"
+              :class="{ active: isLoaded(model) }"
               @click="onModelClick($event, model)"
             >
               <span class="pin-indicator" v-if="modelMeta[model.path]?.pinned">📌</span>
@@ -403,7 +410,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { allModels, activeLoadedModel, selectedModel, modelLoading, loadingModelFull, setLoading, removeLoaded } from '../stores/selectedModel'
+import { allModels, activeLoadedModel, selectedModel, modelLoading, loadingModelFull, setLoading, removeLoaded, loadedModels } from '../stores/selectedModel'
 import { modelDisplayNames, modelMeta, groups } from '../stores/groups'
 import { invoke } from '@tauri-apps/api/core'
 import { appConfig, loadModelConfig, saveModelConfig, type ModelConfig, activeSpecKind, numOrDefault } from '../stores/config'
@@ -653,11 +660,17 @@ async function loadWithConfig() {
   await doLoad(configModel.value, tempCfg.value)
 }
 
-async function eject() {
-  const port = appConfig.value.chatPort
+const loadedRows = computed(() =>
+  Object.entries(loadedModels.value)
+    .map(([p, m]) => ({ port: Number(p), model: m, chat: Number(p) === appConfig.value.chatPort }))
+    .sort((a, b) => a.port - b.port)
+)
+
+async function ejectRow(port: number) {
   await invoke('stop_model', { port })
   removeLoaded(port)
   modelLoading.value = false
-  emit('close')
 }
+
+const isLoaded = (m: ModelFile) => Object.values(loadedModels.value).some(x => x.path === m.path)
 </script>
