@@ -1,9 +1,8 @@
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')">
+  <div class="modal-overlay modal-overlay-center" @click.self="$emit('close')">
     <div class="modal replace-modal">
       <div class="modal-header">
         <span>{{ t('replace.title') }}</span>
-        <button class="btn-close" @click="$emit('close')">✕</button>
       </div>
       <div class="replace-row" v-for="entry in entries" :key="entry.port" @click="$emit('choose', entry.port)">
         <span class="replace-name">{{ entry.model.name }}</span>
@@ -33,6 +32,9 @@ const entries = computed(() =>
 </script>
 
 <style scoped>
+.modal-overlay-center {
+  align-items: center;
+}
 .replace-modal {
   min-width: 340px;
   max-width: 480px;

@@ -48,9 +48,11 @@
             <option v-for="n in 10" :key="n" :value="n">{{ n }}</option>
           </select>
         </div>
-        <div class="settings-field" v-for="(_p, i) in config.ports" :key="'port' + i">
-          <label>{{ t('settings.modelPort', { n: i + 1 }) }}</label>
-          <input type="number" v-model.number="config.ports[i]" min="1" max="65535" class="field-input" :class="portStateClass(i)" />
+        <div class="ports-row">
+          <div class="settings-field port-cell" v-for="(_p, i) in config.ports" :key="'port' + i">
+            <label>{{ t('settings.modelPort', { n: i + 1 }) }}</label>
+            <input type="number" v-model.number="config.ports[i]" min="1" max="65535" class="field-input" :class="portStateClass(i)" />
+          </div>
         </div>
         <div class="settings-field">
           <label :title="t('settings.chatPortHint')">💬 {{ t('settings.chat') }} — {{ t('settings.chatPort') }}</label>
@@ -168,8 +170,8 @@ watch(() => config.value.serverCount, (n) => {
 
 function portStateClass(i: number): string {
   const p = config.value.ports[i]
-  const inUse = !!loadedModels.value[p]
-  return p === config.value.chatPort && inUse ? 'port-chat' : inUse ? 'port-in-use' : ''
+  if (p === config.value.chatPort) return 'port-chat'
+  return loadedModels.value[p] ? 'port-in-use' : ''
 }
 
 onMounted(async () => {

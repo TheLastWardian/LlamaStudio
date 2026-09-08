@@ -352,19 +352,16 @@
           </select>
         </div>
         <div class="field">
-          <label>{{ t('load.port') }}</label>
-          <div class="port-row">
-            <select class="field-select" v-model="modelCfg.portMode">
-              <option value="auto">{{ t('load.portAuto') }}</option>
-              <option value="manual">{{ t('load.portManual') }}</option>
-            </select>
-            <input
-              v-if="modelCfg.portMode === 'manual'"
-              class="field-input" type="number" min="1" max="65535" step="1"
-              v-model.number="modelCfg.serverPort"
-            />
-          </div>
-          <div class="port-preview">→ {{ t('load.portPreview', { port: previewPort }) }}</div>
+          <label>→ {{ t('load.portPreview', { port: previewPort }) }}</label>
+          <input
+            v-if="modelCfg.portMode === 'manual'"
+            class="field-input" type="number" min="1" max="65535" step="1"
+            v-model.number="modelCfg.serverPort"
+          />
+          <select class="field-select" v-model="modelCfg.portMode">
+            <option value="auto">{{ t('load.portAuto') }}</option>
+            <option value="manual">{{ t('load.portManual') }}</option>
+          </select>
         </div>
         <div class="field" :title="t('load.aliasTooltip')">
           <label>{{ t('load.alias') }}</label>

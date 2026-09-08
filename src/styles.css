@@ -432,20 +432,6 @@ body {
   text-align: left;
 }
 
-.port-row {
-  display: flex;
-  gap: 6px;
-}
-.port-row .field-select,
-.port-row .field-input {
-  flex: 1;
-}
-.port-preview {
-  color: #666;
-  font-size: 11px;
-  margin-top: 4px;
-}
-
 .field-extra {
   display: flex;
   justify-content: flex-end;
@@ -969,6 +955,21 @@ body {
   color: #888;
   font-size: 12px;
   margin-bottom: 6px;
+}
+
+.ports-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.ports-row .port-cell {
+  flex: 1 1 90px;
+  min-width: 84px;
+  margin-bottom: 0;
+}
+.ports-row .port-cell .field-input {
+  width: 100%;
 }
 
 .path-row {

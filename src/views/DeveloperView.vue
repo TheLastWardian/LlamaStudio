@@ -94,7 +94,7 @@ const launchSpec = computed(() => launchSpecByPort.value[appConfig.value.chatPor
 const topbarUrl = computed(() =>
   activeLoadedModel.value
     ? `http://${hostByPath.value[activeLoadedModel.value.path] ?? '127.0.0.1'}:${appConfig.value.chatPort}`
-    : String(appConfig.value.chatPort)
+    : `http://127.0.0.1:${appConfig.value.ports[0] ?? 8080}`
 )
 
 interface DevRow { port: number; model: ModelFile; loading: boolean }

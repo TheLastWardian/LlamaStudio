@@ -250,7 +250,6 @@ export default {
     host: 'Host',
     localhost: 'localhost (127.0.0.1)',
     allInterfaces: 'Todas las interfaces (0.0.0.0)',
-    port: 'Puerto',
     portAuto: 'Automático',
     portManual: 'Manual',
     portPreview: 'Se usará: {port}',
