@@ -4,6 +4,7 @@
       <span class="topbar-title">{{ t('topbar.settings') }}</span>
       <button class="btn-load" style="width:auto; padding: 6px 24px;" @click="save">{{ t('settings.save') }}</button>
       <span v-if="saved" style="color:#4af54a; font-size:12px;">{{ t('settings.saved') }}</span>
+      <span v-if="saveError" style="color:#f55a5a; font-size:12px;">{{ saveError }}</span>
     </div>
 
     <div class="settings-content">
@@ -42,8 +43,25 @@
       <div class="settings-section">
         <div class="section-title">{{ t('settings.server') }}</div>
         <div class="settings-field">
-          <label>{{ t('settings.defaultPort') }}</label>
-          <input type="number" v-model.number="config.port" class="field-input" />
+          <label>{{ t('settings.modelsCount') }}</label>
+          <select class="field-select" v-model.number="config.serverCount">
+            <option v-for="n in 10" :key="n" :value="n">{{ n }}</option>
+          </select>
+        </div>
+        <div class="settings-field" v-for="(_p, i) in config.ports" :key="'port' + i">
+          <label>{{ t('settings.modelPort', { n: i + 1 }) }}</label>
+          <input type="number" v-model.number="config.ports[i]" min="1" max="65535" class="field-input" :class="portStateClass(i)" />
+        </div>
+        <div class="settings-field">
+          <label :title="t('settings.chatPortHint')">💬 {{ t('settings.chat') }} — {{ t('settings.chatPort') }}</label>
+          <input type="number" v-model.number="config.chatPort" min="1" max="65535" class="field-input port-chat" />
+        </div>
+        <div class="settings-field">
+          <label>{{ t('settings.onSlotsFull') }}</label>
+          <select class="field-select" v-model="config.onSlotsFull">
+            <option value="replace_first">{{ t('settings.onSlotsFullReplaceFirst') }}</option>
+            <option value="ask">{{ t('settings.onSlotsFullAsk') }}</option>
+          </select>
         </div>
       </div>
 
@@ -115,9 +133,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { open } from '@tauri-apps/plugin-dialog'
 import { loadConfig, saveConfig, type AppConfig } from '../stores/config'
+import { loadedModels } from '../stores/selectedModel'
 import { t, setLang } from '../i18n'
 
 const config = ref<AppConfig>({
@@ -137,6 +156,21 @@ const config = ref<AppConfig>({
 })
 
 const saved = ref(false)
+const saveError = ref('')
+
+// al cambiar la cantidad, redimensionar ports (completa con último+1 / trunca)
+watch(() => config.value.serverCount, (n) => {
+  const ports = config.value.ports
+  while (ports.length < n) ports.push((ports[ports.length - 1] ?? 8080) + 1)
+  if (ports.length > n) ports.length = n
+  config.value.ports = [...ports]
+})
+
+function portStateClass(i: number): string {
+  const p = config.value.ports[i]
+  const inUse = !!loadedModels.value[p]
+  return p === config.value.chatPort && inUse ? 'port-chat' : inUse ? 'port-in-use' : ''
+}
 
 onMounted(async () => {
   config.value = await loadConfig()
@@ -158,6 +192,18 @@ async function browsePath(type: 'models' | 'llama') {
 }
 
 async function save() {
+  saveError.value = ''
+  const ports = config.value.ports
+  if (ports.some(p => p < 1 || p > 65535) || new Set(ports).size !== ports.length) {
+    saveError.value = t('settings.invalidPorts')
+    return
+  }
+  // modelos cargados cuyo puerto ya no está en la lista (reducción) → bloquear
+  const blocked = Object.keys(loadedModels.value).map(Number).filter(p => !ports.includes(p))
+  if (blocked.length > 0) {
+    saveError.value = t('settings.reduceBlocked', { ports: blocked.join(', ') })
+    return
+  }
   await saveConfig(config.value)
   saved.value = true
   setTimeout(() => saved.value = false, 2000)

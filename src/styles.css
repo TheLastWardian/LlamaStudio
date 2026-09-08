@@ -407,6 +407,14 @@ body {
   outline: none;
 }
 
+.field-input.port-in-use {
+  border-color: #5a8af5;
+}
+
+.field-input.port-chat {
+  border-color: #facc15;
+}
+
 .field-select {
   background: #2a2a2a;
   border: 1px solid #444;
