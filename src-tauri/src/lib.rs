@@ -887,6 +887,8 @@ async fn search_hf_models(
     author: Option<String>,
     gguf_only: Option<bool>,
     cursor: Option<String>,
+    param_min: Option<String>,
+    param_max: Option<String>,
 ) -> Result<hf::HfSearchPage, String> {
     hf::search_models(
         &query,
@@ -895,6 +897,8 @@ async fn search_hf_models(
         author.as_deref(),
         gguf_only.unwrap_or(false),
         cursor.as_deref(),
+        param_min.as_deref(),
+        param_max.as_deref(),
     )
     .await
 }

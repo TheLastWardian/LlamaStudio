@@ -102,6 +102,8 @@ pub async fn search_models(
     author: Option<&str>,
     gguf_only: bool,
     cursor: Option<&str>,
+    param_min: Option<&str>,
+    param_max: Option<&str>,
 ) -> Result<HfSearchPage, String> {
     let query = query.trim();
     let author = author.map(str::trim).filter(|a| !a.is_empty());
@@ -112,7 +114,7 @@ pub async fn search_models(
     let candidates = author_candidates(author);
     let mut fallback: Option<HfSearchPage> = None;
     for c in &candidates {
-        match do_search(query, sort, limit, c.as_deref(), gguf_only, cursor).await {
+        match do_search(query, sort, limit, c.as_deref(), gguf_only, cursor, param_min, param_max).await {
             Ok(page) if !page.repos.is_empty() => return Ok(page),
             Ok(page) => {
                 if fallback.is_none() {
@@ -154,6 +156,8 @@ async fn do_search(
     author: Option<&str>,
     gguf_only: bool,
     cursor: Option<&str>,
+    param_min: Option<&str>,
+    param_max: Option<&str>,
 ) -> Result<HfSearchPage, String> {
     // Con `expand[]` la API responde SOLO con los campos expandidos: hay que listar
     // todos los que usa el app (sin expand[] vienen por defecto, menos `modelId`).
@@ -179,6 +183,19 @@ async fn do_search(
     }
     if let Some(c) = cursor.filter(|c| !c.is_empty()) {
         req = req.query(&[("cursor", c)]);
+    }
+    // Filtro por parámetros de HF: `num_parameters=min:<bucket>,max:<bucket>`.
+    // Los buckets son los del slider de la web ("< 1B", "3B", ... "> 500B"); un
+    // extremo vacío se omite (sin cota).
+    let mut np: Vec<String> = Vec::new();
+    if let Some(m) = param_min.filter(|v| !v.is_empty()) {
+        np.push(format!("min:{m}"));
+    }
+    if let Some(m) = param_max.filter(|v| !v.is_empty()) {
+        np.push(format!("max:{m}"));
+    }
+    if !np.is_empty() {
+        req = req.query(&[("num_parameters", np.join(","))]);
     }
 
     let resp = req.send().await.map_err(|e| format!("HF search: {e}"))?;
@@ -636,15 +653,20 @@ mod tests {
     #[tokio::test]
     #[ignore = "requiere red — cargo test -- --ignored"]
     async fn live_search_and_tree_smoke() {
-        let page = search_models("qwen3.8", "lastModified", 3, None, false, None).await.unwrap();
+        let page = search_models("qwen3.8", "lastModified", 3, None, false, None, None, None).await.unwrap();
         assert!(!page.repos.is_empty());
         assert!(page.repos.iter().any(|r| r.last_modified.is_some()));
         let (owner, name) = page.repos[0].id.split_once('/').unwrap();
         // Segunda página vía cursor: distinto contenido, sin duplicados
         let cursor = page.next_cursor.expect("hay página siguiente con limit=3");
-        let page2 = search_models("qwen3.8", "lastModified", 3, None, false, Some(&cursor))
+        let page2 = search_models("qwen3.8", "lastModified", 3, None, false, Some(&cursor), None, None)
             .await
             .unwrap();
+        // Filtro por parámetros: bucket 32B-64B (labels, tal como manda la web)
+        let page3 = search_models("", "downloads", 3, None, true, None, Some("32B"), Some("64B"))
+            .await
+            .unwrap();
+        assert!(!page3.repos.is_empty());
         assert!(!page2.repos.is_empty());
         assert!(page2.repos.iter().all(|r| !page.repos.iter().any(|p| p.id == r.id)));
         let files = repo_files(owner, name, false).await.unwrap();

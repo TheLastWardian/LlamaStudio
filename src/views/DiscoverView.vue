@@ -3,6 +3,24 @@
     <div class="topbar">
       <span class="topbar-title">{{ t('discover.title') }}</span>
       <input class="search-box discover-search" v-model="query" :placeholder="t('discover.searchPlaceholder')" />
+      <select
+        class="discover-select discover-size-select"
+        v-model="sizeMin"
+        :disabled="inLibraryOnly"
+        :title="inLibraryOnly ? t('discover.sizeDisabledLocal') : t('discover.sizeMin')"
+      >
+        <option value="">{{ t('discover.sizeAny') }}</option>
+        <option v-for="b in SIZE_BUCKETS" :key="b" :value="b">{{ b }}</option>
+      </select>
+      <select
+        class="discover-select discover-size-select"
+        v-model="sizeMax"
+        :disabled="inLibraryOnly"
+        :title="inLibraryOnly ? t('discover.sizeDisabledLocal') : t('discover.sizeMax')"
+      >
+        <option value="">{{ t('discover.sizeAny') }}</option>
+        <option v-for="b in SIZE_BUCKETS" :key="b" :value="b">{{ b }}</option>
+      </select>
       <select class="discover-select" v-model="sort">
         <option v-for="s in SORT_OPTIONS" :key="s.value" :value="s.value">{{ t(s.labelKey) }}</option>
       </select>
@@ -165,6 +183,8 @@ const sort = ref('trendingScore')
 const ggufOnly = ref(true)
 const inLibraryOnly = ref(false)
 const dateFilter = ref<'all' | '10d' | '30d' | '3m' | '6m' | '1y'>('all')
+const sizeMin = ref('')
+const sizeMax = ref('')
 const repos = ref<HfRepo[]>([])
 const nextCursor = ref<string | null>(null)
 const loading = ref(false)
@@ -194,6 +214,19 @@ function cutoffMs(): number | null {
   }
 }
 
+// Buckets de parámetros de HF (los mismos que el slider de huggingface.co/models).
+// El value es el label tal cual: la API lo recibe en `num_parameters=min:..,max:..`
+// y un extremo vacío se omite (sin cota).
+const SIZE_BUCKETS = ['< 1B', '3B', '6B', '9B', '12B', '24B', '32B', '64B', '128B', '256B', '> 500B']
+
+// Si el usuario elige min > max se intercambian (la API espera rango coherente).
+function sizeParams(): { min: string | null, max: string | null } {
+  let lo = sizeMin.value
+  let hi = sizeMax.value
+  if (lo && hi && SIZE_BUCKETS.indexOf(lo) > SIZE_BUCKETS.indexOf(hi)) [lo, hi] = [hi, lo]
+  return { min: lo || null, max: hi || null }
+}
+
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 let searchSeq = 0
 
@@ -208,7 +241,7 @@ function scheduleSearch() {
 }
 
 watch([query, author], scheduleSearch)
-watch([textParams, sort, ggufOnly], () => {
+watch([textParams, sort, ggufOnly, sizeMin, sizeMax], () => {
   void doSearch()
 })
 
@@ -223,6 +256,7 @@ async function doSearch() {
     await waitPageCd()
     if (seq !== searchSeq) return
     lastPageFetchAt = Date.now()
+    const size = sizeParams()
     const page = await invoke<SearchPage>('search_hf_models', {
       query: textParams.value.query,
       sort: sort.value,
@@ -230,6 +264,8 @@ async function doSearch() {
       author: textParams.value.author || null,
       ggufOnly: ggufOnly.value,
       cursor: null,
+      paramMin: size.min,
+      paramMax: size.max,
     })
     if (seq !== searchSeq) return
     repos.value = page.repos
@@ -265,6 +301,7 @@ async function loadMore() {
     await waitPageCd()
     if (seq !== searchSeq) return
     lastPageFetchAt = Date.now()
+    const size = sizeParams()
     const page = await invoke<SearchPage>('search_hf_models', {
       query: textParams.value.query,
       sort: sort.value,
@@ -272,6 +309,8 @@ async function loadMore() {
       author: textParams.value.author || null,
       ggufOnly: ggufOnly.value,
       cursor: nextCursor.value,
+      paramMin: size.min,
+      paramMax: size.max,
     })
     if (seq !== searchSeq) return
     const seen = new Set(repos.value.map(r => r.id))
@@ -520,8 +559,13 @@ function openPanel(repo: HfRepo | LocalRepo) {
 }
 
 .discover-search {
-  flex: 1 1 240px;
-  max-width: 420px;
+  flex: 1 1 200px;
+  max-width: 340px;
+}
+
+.discover-size-select {
+  width: 78px;
+  flex-shrink: 0;
 }
 
 .discover-select {
