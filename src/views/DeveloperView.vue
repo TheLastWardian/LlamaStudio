@@ -140,10 +140,6 @@ function selectRow(port: number) {
 async function ejectRow(port: number) {
   await invoke('stop_model', { port })
   removeLoaded(port)
-  const gs = genState.value
-  if (gs[port]) {
-    gs[port] = { prefill: null, tokens: null }
-  }
   if (appConfig.value.chatPort === port) modelLoading.value = false
 }
 
