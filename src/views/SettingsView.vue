@@ -2,7 +2,7 @@
   <div class="settings-view">
     <div class="topbar">
       <span class="topbar-title">{{ t('topbar.settings') }}</span>
-      <button class="btn-load" style="width:auto; padding: 6px 24px;" @click="save">{{ t('settings.save') }}</button>
+      <button class="btn-load" :class="{ 'btn-blink': hasUnsaved }" style="width:auto; padding: 6px 24px;" @click="save">{{ t('settings.save') }}</button>
       <span v-if="saved" style="color:#4af54a; font-size:12px;">{{ t('settings.saved') }}</span>
       <span v-if="saveError" style="color:#f55a5a; font-size:12px;">{{ saveError }}</span>
     </div>
@@ -135,7 +135,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { open } from '@tauri-apps/plugin-dialog'
 import { loadConfig, saveConfig, type AppConfig } from '../stores/config'
 import { loadedModels } from '../stores/selectedModel'
@@ -160,6 +160,12 @@ const config = ref<AppConfig>({
 const saved = ref(false)
 const saveError = ref('')
 
+// snapshot del último estado guardado: si el config actual difiere, hay cambios sin guardar
+const savedSnapshot = ref('')
+const hasUnsaved = computed(() =>
+  savedSnapshot.value !== '' && JSON.stringify(config.value) !== savedSnapshot.value
+)
+
 // al cambiar la cantidad, redimensionar ports (completa con último+1 / trunca)
 watch(() => config.value.serverCount, (n) => {
   const ports = config.value.ports
@@ -176,6 +182,7 @@ function portStateClass(i: number): string {
 
 onMounted(async () => {
   config.value = await loadConfig()
+  savedSnapshot.value = JSON.stringify(config.value)
   setLang(config.value.language)
 })
 
@@ -207,6 +214,7 @@ async function save() {
     return
   }
   await saveConfig(config.value)
+  savedSnapshot.value = JSON.stringify(config.value)
   saved.value = true
   setTimeout(() => saved.value = false, 2000)
 }

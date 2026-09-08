@@ -574,6 +574,14 @@ body {
 
 .btn-load:hover { background: #4a4a7a; color: #fff; }
 
+.btn-load.btn-blink {
+  animation: save-blink 1.2s ease-in-out infinite;
+}
+@keyframes save-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
 .btn-reload-changes {
   background: #3a2a1a;
   border-color: #f5a55a;
