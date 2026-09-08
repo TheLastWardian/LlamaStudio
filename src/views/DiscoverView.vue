@@ -220,6 +220,9 @@ async function doSearch() {
   nextCursor.value = null
   autoFillPages = 0
   try {
+    await waitPageCd()
+    if (seq !== searchSeq) return
+    lastPageFetchAt = Date.now()
     const page = await invoke<SearchPage>('search_hf_models', {
       query: textParams.value.query,
       sort: sort.value,
@@ -243,12 +246,25 @@ async function doSearch() {
   if (seq === searchSeq) maybeAutoFill()
 }
 
+// Rate limit de HF: 500 req/5 min compartidos con el resto de la app.
+// CD entre llamadas de búsqueda (auto-fill incluido) para no burstear.
+let lastPageFetchAt = 0
+const PAGE_FETCH_CD_MS = 1500
+
+function waitPageCd(): Promise<void> {
+  const wait = lastPageFetchAt + PAGE_FETCH_CD_MS - Date.now()
+  return wait <= 0 ? Promise.resolve() : new Promise(res => setTimeout(res, wait))
+}
+
 // Página siguiente del cursor: appendea deduplicando por id.
 async function loadMore() {
   if (!nextCursor.value || loadingMore.value) return
   const seq = searchSeq
   loadingMore.value = true
   try {
+    await waitPageCd()
+    if (seq !== searchSeq) return
+    lastPageFetchAt = Date.now()
     const page = await invoke<SearchPage>('search_hf_models', {
       query: textParams.value.query,
       sort: sort.value,
@@ -375,12 +391,21 @@ function scheduleQ4Sizes(list: HfRepo[]) {
   pumpQ4()
 }
 
+// CD entre fetches de tree: con el queue de 150, sin pausa sería un burst.
+let lastQ4FetchAt = 0
+const Q4_FETCH_CD_MS = 600
+
 function pumpQ4() {
   while (q4InFlight < Q4_CONCURRENCY && q4Queue.length > 0) {
     const id = q4Queue.shift()!
     q4InFlight++
     const [owner, repo] = id.split('/')
-    invoke<number | null>('q4k_size', { owner, repo })
+    const wait = lastQ4FetchAt + Q4_FETCH_CD_MS - Date.now()
+    const start = wait <= 0 ? Promise.resolve() : new Promise(res => setTimeout(res, wait))
+    void start.then(() => {
+      lastQ4FetchAt = Date.now()
+      return invoke<number | null>('q4k_size', { owner, repo })
+    })
       .then(size => { q4Sizes[id] = size ?? null })
       .catch(() => { q4Sizes[id] = null })
       .finally(() => {
