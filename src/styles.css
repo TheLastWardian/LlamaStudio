@@ -964,12 +964,7 @@ body {
   margin-bottom: 12px;
 }
 .ports-row .port-cell {
-  flex: 1 1 90px;
-  min-width: 84px;
   margin-bottom: 0;
-}
-.ports-row .port-cell .field-input {
-  width: 100%;
 }
 
 .path-row {
