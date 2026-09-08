@@ -186,13 +186,15 @@ const columns = ref([
   { key: 'size', labelKey: 'models.size', width: 80 },
 ])
 
-// Los anchos guardados cargan tras el mount (App.vue los espera); el watch los aplica al llegar
+// Los anchos guardados cargan tras el mount (App.vue los espera); el watch los aplica
+// al llegar. `immediate` porque al remontar (volver al tab) ya tienen valor y el
+// watch sin immediate no dispara, dejando las columnas en ancho default.
 watch(columnWidths, () => {
   for (const col of columns.value) {
     const w = columnWidths[col.key]
     if (typeof w === 'number' && w >= 50) col.width = w
   }
-})
+}, { immediate: true })
 
 // Context menu
 const ctxMenu = ref<{ x: number, y: number, type: 'model' | 'empty' | 'group', modelPath?: string, groupId?: string } | null>(null)
