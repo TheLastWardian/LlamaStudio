@@ -661,14 +661,6 @@ fn load_model(
     cmd.arg("--checkpoint-min-step").arg(checkpoint_min_step.to_string());
 
     cmd.arg("--reasoning").arg(if reasoning.is_empty() { "auto" } else { reasoning.as_str() });
-    if reasoning != "auto" {
-        let kwargs = if reasoning == "on" {
-            r#"{"enable_thinking":true}"#
-        } else {
-            r#"{"enable_thinking":false}"#
-        };
-        cmd.arg("--chat-template-kwargs").arg(kwargs);
-    }
 
     cmd.arg("--reasoning-budget").arg(reasoning_budget.to_string());
 

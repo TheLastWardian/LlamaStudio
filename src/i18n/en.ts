@@ -246,7 +246,7 @@ export default {
     gemmaUbatch: 'Gemma 4: raise the physical batch (now {ub}) to ≥ {n} ({n} image tokens).',
     reasoning: 'Reasoning',
     thinkingMode: 'Thinking Mode',
-    thinkingModeTooltip: 'Thinking switch: auto = template default, on = force thinking, off = no thinking (Qwen3: /no_think). Sent as --reasoning plus the template variable enable_thinking.',
+    thinkingModeTooltip: 'Thinking switch: auto = template default, on = force thinking, off = no thinking (Qwen3: /no_think). Sent as --reasoning on/off.',
     auto: 'Auto',
     on: 'On',
     reasoningBudget: 'Reasoning Budget',

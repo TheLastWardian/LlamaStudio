@@ -246,7 +246,7 @@ export default {
     gemmaUbatch: 'Gemma 4: subí el physical batch (ahora {ub}) a ≥ {n} ({n} tokens de imagen).',
     reasoning: 'Razonamiento',
     thinkingMode: 'Modo de razonamiento',
-    thinkingModeTooltip: 'Interruptor de thinking: auto = default del template, on = forzar thinking, off = sin thinking (Qwen3: /no_think). Se envía como --reasoning y como la variable enable_thinking del template.',
+    thinkingModeTooltip: 'Interruptor de thinking: auto = default del template, on = forzar thinking, off = sin thinking (Qwen3: /no_think). Se envía como --reasoning on/off.',
     auto: 'Auto',
     on: 'On',
     reasoningBudget: 'Presupuesto razonamiento',
