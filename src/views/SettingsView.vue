@@ -154,6 +154,7 @@ const config = ref<AppConfig>({
   minimizeToTray: false,
   trashDelete: false,
   language: 'en',
+  blockedWords: [],
   downloads: { parallelism: 2, chunks: 4, autoRetry: true, maxRetries: 5, keepPartOnCancel: false },
 })
 

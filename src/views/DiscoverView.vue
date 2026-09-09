@@ -1,26 +1,7 @@
 <template>
   <div class="discover-layout">
     <div class="topbar">
-      <span class="topbar-title">{{ t('discover.title') }}</span>
       <input class="search-box discover-search" v-model="query" :placeholder="t('discover.searchPlaceholder')" />
-      <select
-        class="discover-select discover-size-select"
-        v-model="sizeMin"
-        :disabled="inLibraryOnly"
-        :title="inLibraryOnly ? t('discover.sizeDisabledLocal') : t('discover.sizeMin')"
-      >
-        <option value="">{{ t('discover.sizeAny') }}</option>
-        <option v-for="b in SIZE_BUCKETS" :key="b" :value="b">{{ b }}</option>
-      </select>
-      <select
-        class="discover-select discover-size-select"
-        v-model="sizeMax"
-        :disabled="inLibraryOnly"
-        :title="inLibraryOnly ? t('discover.sizeDisabledLocal') : t('discover.sizeMax')"
-      >
-        <option value="">{{ t('discover.sizeAny') }}</option>
-        <option v-for="b in SIZE_BUCKETS" :key="b" :value="b">{{ b }}</option>
-      </select>
       <select class="discover-select" v-model="sort">
         <option v-for="s in SORT_OPTIONS" :key="s.value" :value="s.value">{{ t(s.labelKey) }}</option>
       </select>
@@ -32,6 +13,39 @@
       >
         <option v-for="d in DATE_OPTIONS" :key="d.value" :value="d.value">{{ t(d.labelKey) }}</option>
       </select>
+      <button
+        class="filter-toggle"
+        :class="{ active: showFilters, blink: blinkFilters }"
+        :title="t('discover.filters')"
+        @click="showFilters = !showFilters"
+        @animationend="blinkFilters = false"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+      </button>
+      <input class="discover-author" v-model="author" :placeholder="t('discover.authorPlaceholder')" />
+    </div>
+
+    <div v-if="showFilters" class="filter-bar">
+      <span class="filter-label">MIN</span>
+      <select
+        class="discover-select discover-size-select"
+        v-model="sizeMin"
+        :disabled="inLibraryOnly"
+        :title="inLibraryOnly ? t('discover.sizeDisabledLocal') : t('discover.sizeMin')"
+      >
+        <option value="">{{ t('discover.sizeAny') }}</option>
+        <option v-for="b in SIZE_BUCKETS" :key="b" :value="b">{{ b }}</option>
+      </select>
+      <span class="filter-label">MAX</span>
+      <select
+        class="discover-select discover-size-select"
+        v-model="sizeMax"
+        :disabled="inLibraryOnly"
+        :title="inLibraryOnly ? t('discover.sizeDisabledLocal') : t('discover.sizeMax')"
+      >
+        <option value="">{{ t('discover.sizeAny') }}</option>
+        <option v-for="b in SIZE_BUCKETS" :key="b" :value="b">{{ b }}</option>
+      </select>
       <label class="discover-toggle-label">
         <input type="checkbox" class="discover-toggle" v-model="ggufOnly" />
         {{ t('discover.ggufOnly') }}
@@ -40,8 +54,18 @@
         <input type="checkbox" class="discover-toggle" v-model="inLibraryOnly" />
         {{ t('discover.inLibraryOnly') }}
       </label>
-      <input class="discover-author" v-model="author" :placeholder="t('discover.authorPlaceholder')" />
-      <span class="discover-hint">{{ t('discover.hint') }}</span>
+      <div class="blocked-wrap">
+        <input
+          class="discover-blocked"
+          v-model="pendingWord"
+          :placeholder="t('discover.blockPlaceholder')"
+          @keydown.enter.prevent="addBlocked"
+        />
+        <span v-for="w in blockedWords" :key="w" class="blocked-chip">
+          {{ w }}
+          <button class="blocked-x" :title="t('discover.blockRemove')" @click="removeBlocked(w)">×</button>
+        </span>
+      </div>
     </div>
 
     <div class="content">
@@ -174,6 +198,7 @@ export interface SearchPage {
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { allModels } from '../stores/selectedModel'
+import { appConfig, saveConfig } from '../stores/config'
 import { t } from '../i18n'
 import RepoDownloadPanel from '../components/RepoDownloadPanel.vue'
 
@@ -182,9 +207,13 @@ const author = ref('')
 const sort = ref('trendingScore')
 const ggufOnly = ref(true)
 const inLibraryOnly = ref(false)
+const showFilters = ref(false)
+const blinkFilters = ref(false)
 const dateFilter = ref<'all' | '10d' | '30d' | '3m' | '6m' | '1y'>('all')
 const sizeMin = ref('')
 const sizeMax = ref('')
+const blockedWords = ref<string[]>([...appConfig.value.blockedWords])
+const pendingWord = ref('')
 const repos = ref<HfRepo[]>([])
 const nextCursor = ref<string | null>(null)
 const loading = ref(false)
@@ -225,6 +254,37 @@ function sizeParams(): { min: string | null, max: string | null } {
   let hi = sizeMax.value
   if (lo && hi && SIZE_BUCKETS.indexOf(lo) > SIZE_BUCKETS.indexOf(hi)) [lo, hi] = [hi, lo]
   return { min: lo || null, max: hi || null }
+}
+
+// Palabras bloqueadas (persistidas en config): ocultan repos cuyo owner/name contiene
+// la palabra con límites de palabra ("flash" mata "Qwen3-4B-Flash-GGUF", no "flashlight").
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+const blockedRe = computed(() => blockedWords.value.length
+  ? new RegExp(`\\b(?:${blockedWords.value.map(escapeRegex).join('|')})\\b`, 'i')
+  : null)
+
+function isBlocked(id: string): boolean {
+  return blockedRe.value !== null && blockedRe.value.test(id)
+}
+
+function persistBlocked(): void {
+  void saveConfig({ ...appConfig.value, blockedWords: [...blockedWords.value] })
+}
+
+function addBlocked(): void {
+  const w = pendingWord.value.trim().toLowerCase()
+  pendingWord.value = ''
+  if (!w || blockedWords.value.includes(w)) return
+  blockedWords.value = [...blockedWords.value, w]
+  persistBlocked()
+}
+
+function removeBlocked(w: string): void {
+  blockedWords.value = blockedWords.value.filter(x => x !== w)
+  persistBlocked()
 }
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
@@ -338,6 +398,7 @@ function windowMatchCount(): number {
   const cutoff = cutoffMs()
   if (cutoff === null) return 0
   return repos.value.filter(r => {
+    if (isBlocked(r.id)) return false
     const t = new Date(r.lastModified ?? r.createdAt).getTime()
     return !Number.isNaN(t) && t >= cutoff
   }).length
@@ -368,6 +429,7 @@ watch(dateFilter, () => {
 })
 
 onMounted(() => {
+  if (blockedWords.value.length > 0) blinkFilters.value = true
   void doSearch()
 })
 onUnmounted(() => {
@@ -423,7 +485,7 @@ const Q4_QUEUE_MAX = 150
 
 function scheduleQ4Sizes(list: HfRepo[]) {
   for (const r of list) {
-    if (!r.has_q4_k_m || r.id in q4Sizes || localQ4.value[r.id] !== undefined) continue
+    if (!r.has_q4_k_m || r.id in q4Sizes || localQ4.value[r.id] !== undefined || isBlocked(r.id)) continue
     if (q4Queue.length >= Q4_QUEUE_MAX) break
     q4Queue.push(r.id)
   }
@@ -488,10 +550,12 @@ const libraryRepos = computed<LocalRepo[]>(() => {
 })
 
 const visibleRepos = computed<(HfRepo | LocalRepo)[]>(() => {
-  if (inLibraryOnly.value) return libraryRepos.value
-  const cutoff = cutoffMs()
-  if (cutoff === null) return repos.value
-  return repos.value.filter(r => {
+  const list = inLibraryOnly.value ? libraryRepos.value : repos.value
+  const cutoff = inLibraryOnly.value ? null : cutoffMs()
+  if (cutoff === null && blockedRe.value === null) return list
+  return list.filter(r => {
+    if (isBlocked(r.id)) return false
+    if (cutoff === null) return true
     const t = new Date(r.lastModified ?? r.createdAt).getTime()
     return !Number.isNaN(t) && t >= cutoff
   })
@@ -558,14 +622,57 @@ function openPanel(repo: HfRepo | LocalRepo) {
   position: relative;
 }
 
+.filter-label {
+  font-size: 11px;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+/* barra de filtros plegable (tamaño, GGUF, librería): se abre con el botón del topbar */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+}
+
+.filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #2a2a2a;
+  border: 1px solid #333;
+  color: #d4d4d4;
+  border-radius: 8px;
+  padding: 5px 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.filter-toggle:hover {
+  border-color: #5a8af5;
+}
+
+.filter-toggle.active {
+  border-color: #5a8af5;
+  color: #5a8af5;
+}
+
+/* al entrar a Discover con palabras bloqueadas, el botón parpadea ~3 veces con el borde azul */
+@keyframes filter-blink {
+  0%, 100% { border-color: #333; color: #d4d4d4; }
+  50% { border-color: #5a8af5; color: #5a8af5; }
+}
+
+.filter-toggle.blink {
+  animation: filter-blink 0.5s ease-in-out 3;
+}
+
 .discover-search {
   flex: 1 1 200px;
   max-width: 340px;
-}
-
-.discover-size-select {
-  width: 78px;
-  flex-shrink: 0;
 }
 
 .discover-select {
@@ -573,10 +680,16 @@ function openPanel(repo: HfRepo | LocalRepo) {
   border: 1px solid #333;
   color: #d4d4d4;
   border-radius: 8px;
-  padding: 7px 10px;
-  font-size: 13px;
+  padding: 5px 6px;
+  font-size: 11px;
   outline: none;
   cursor: pointer;
+}
+
+/* los de tamaño llevan ancho fijo (labels cortos); sort/fecha se auto-ajustan */
+.discover-select.discover-size-select {
+  width: 62px;
+  flex-shrink: 0;
 }
 
 .discover-toggle-label {
@@ -606,16 +719,55 @@ function openPanel(repo: HfRepo | LocalRepo) {
   outline: none;
 }
 
+.discover-blocked {
+  width: 140px;
+  background: #2a2a2a;
+  border: 1px solid #333;
+  color: #d4d4d4;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 13px;
+  outline: none;
+}
+
 .discover-author:focus,
-.discover-search:focus {
+.discover-search:focus,
+.discover-blocked:focus {
   border-color: #5a8af5;
 }
 
-.discover-hint {
-  font-size: 12px;
-  color: #666;
-  margin-left: auto;
+.blocked-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.blocked-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #3a1a1a;
+  border: 1px solid #5a2a2a;
+  color: #f58a8a;
+  border-radius: 6px;
+  padding: 3px 6px;
+  font-size: 11px;
   white-space: nowrap;
+}
+
+.blocked-x {
+  background: none;
+  border: none;
+  color: #f58a8a;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0;
+}
+
+.blocked-x:hover {
+  color: #fff;
 }
 
 .discover-error {

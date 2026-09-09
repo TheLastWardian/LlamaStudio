@@ -265,6 +265,7 @@ export interface AppConfig {
   minimizeToTray: boolean
   trashDelete: boolean
   language: 'en' | 'es'
+  blockedWords: string[]
   downloads: { parallelism: number; chunks: number; autoRetry: boolean; maxRetries: number; keepPartOnCancel: boolean }
 }
 
@@ -281,11 +282,12 @@ const defaults: AppConfig = {
   minimizeToTray: false,
   trashDelete: false,
   language: 'en',
+  blockedWords: [],
   downloads: { parallelism: 2, chunks: 4, autoRetry: true, maxRetries: 5, keepPartOnCancel: false },
 }
 
 // S5: copias propias de arrays/objetos anidados (no compartir con `defaults`)
-export const appConfig = ref<AppConfig>({ ...defaults, ports: [...defaults.ports], downloads: { ...defaults.downloads } })
+export const appConfig = ref<AppConfig>({ ...defaults, ports: [...defaults.ports], blockedWords: [...defaults.blockedWords], downloads: { ...defaults.downloads } })
 
 export async function loadConfig(): Promise<AppConfig> {
   const store = await getStore()
@@ -306,6 +308,7 @@ export async function loadConfig(): Promise<AppConfig> {
     minimizeToTray: await store.get<boolean>('minimizeToTray') ?? defaults.minimizeToTray,
     trashDelete: await store.get<boolean>('trashDelete') ?? defaults.trashDelete,
     language: await store.get<'en' | 'es'>('language') ?? defaults.language,
+    blockedWords: (await store.get<string[]>('blockedWords')) ?? [...defaults.blockedWords],
     // S5: merge sobre defaults (tolerante a configs viejas sin la clave)
     downloads: {
       ...defaults.downloads,
@@ -328,9 +331,10 @@ export async function saveConfig(config: AppConfig): Promise<void> {
   await store.set('minimizeToTray', config.minimizeToTray)
   await store.set('trashDelete', config.trashDelete)
   await store.set('language', config.language)
+  await store.set('blockedWords', config.blockedWords)
   await store.set('downloads', config.downloads)
   await store.save()
-  appConfig.value = { ...config, ports: [...config.ports], downloads: { ...config.downloads } }
+  appConfig.value = { ...config, ports: [...config.ports], blockedWords: [...config.blockedWords], downloads: { ...config.downloads } }
 }
 
 export async function setChatPort(port: number): Promise<void> {
