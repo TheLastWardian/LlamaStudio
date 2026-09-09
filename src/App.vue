@@ -189,7 +189,10 @@ onMounted(async () => {
     if (logs.length > 1000) logs.splice(0, logs.length - 1000)
     serverLogsByPort.value = { ...serverLogsByPort.value, [port]: logs }
     removeLoaded(port)
-    if (loadingModelFull.value?.port === port) loadingModelFull.value = null
+    if (loadingModelFull.value?.port === port) {
+      loadingModelFull.value = null
+      modelLoading.value = false
+    }
   })
 
   await win.listen('tauri://close-requested', async () => {
