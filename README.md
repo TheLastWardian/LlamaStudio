@@ -13,11 +13,12 @@ Entirely inspired by [LM Studio](https://lmstudio.ai/) — with modifications th
 ## Features
 
 - **Model library** — scans a folder of `.gguf` models (publisher/family layout) and parses GGUF metadata directly (architecture, parameter count, max context length)
-- **Model discovery** — search Hugging Face (trending / most downloaded / most likes / recently updated / recently created, GGUF-only filter), browse a repo's files grouped (main GGUF / MTP-draft / vision-mmproj / other) and pick exactly which files to download
+- **Model discovery** — search Hugging Face with sorting (trending / most downloaded / most likes / recently updated / recently created), GGUF-only toggle, parameter-size range (min/max buckets), date window, a persistent word blocklist (whole-word match, e.g. hide every "flash" repo), an "in library only" view, Q4_K_M quant + size badges per repo, and cursor-based pagination with auto-fill
 - **Resumable parallel downloads** — file-level parallelism (1-4) plus automatic intra-file chunking for large files (≥256 MB, split into 1-8 parallel chunks), resume from `.part` (HTTP Range), auto-retry with exponential backoff and a visible countdown on 429 rate limits, and a global downloads bar with live speed and per-job pause / resume / cancel
 - **Organization** — search, groups, pinning, and drag & drop reordering
 - **VRAM fit check** — estimates total GPU memory (weights + KV cache + runtime, plus draft/vision when used) with a live breakdown, and an auto-fit mode that adjusts parameters so the model fits your GPU
 - **One-click server launch** — spawns `llama-server` with rich options: GPU offload, context length, eval/physical batches, flash attention, speculative decoding (MTP, draft model, DFlash, EAGLE-3, DSpark, plus zero-VRAM n-gram lookup drafters), sampling parameters, KV cache quantization, KV unified/offload, cache RAM, load mode (mmap/mlock), reasoning budget & effort, seed, model alias, sleep-when-idle
+- **Multiple concurrent servers** — run several models at once on configurable ports, with per-server launch logs and a choice of what to replace when all slots are full (replace first / ask)
 - **Live log console** — streams server output with log levels, in real time
 - **Built-in chat** — embeds the llama-server web UI in-app, no extra frontend needed
 - **Per-model configurations** — settings are saved per model, with sampling options (temperature, top-p, top-k, min-p, repeat penalty)
@@ -70,13 +71,17 @@ Application settings are persisted via `tauri-plugin-store` (`config.json`):
 | --- | --- | --- |
 | `modelsPath` | Folder to scan for `.gguf` models | *(none)* |
 | `llamaPath` | Path to `llama-server` | *(none)* |
-| `port` | Server port | `8080` |
+| `ports` | Server ports (one per concurrent model) | `[8080]` |
+| `serverCount` | Number of concurrent servers | `1` |
+| `chatPort` | Port used by the built-in chat | `8080` |
+| `onSlotsFull` | Behavior when all slots are busy: `replace_first` / `ask` | `replace_first` |
 | `minimizeToTray` | Minimize to tray instead of closing | `false` |
 | `trashDelete` | Deleted models go to the Windows Recycle Bin instead of being erased permanently | `false` |
 | `cudaGraphOpt` | `GGML_CUDA_GRAPH_OPT` value passed to llama-server (optional) | *(none)* |
 | `logVerbosity` | Server log verbosity (`-lv`, 1=error … 5=debug) | `3` |
 | `downloads` | Download settings: `parallelism` (1-4), `chunks` (1-8, intra-file parallelism for files ≥256 MB), `autoRetry`, `maxRetries`, `keepPartOnCancel` | `parallelism: 2, chunks: 4, autoRetry: true, maxRetries: 5, keepPartOnCancel: false` |
 | `language` | App language (`en` / `es`) | `en` |
+| `blockedWords` | Words hidden in Discover (whole-word, case-insensitive match on `owner/repo`) | `[]` |
 
 Each model additionally stores its own inference configuration (context, offload, batches, speculative decoding, reasoning, cache quantization, etc.) keyed by model path.
 
