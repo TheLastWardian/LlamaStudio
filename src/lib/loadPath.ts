@@ -27,8 +27,10 @@ export async function prepareLoad(model: ModelFile, cfg: ModelConfig): Promise<P
 // Ejecuta la decisión: evict (si aplica), auto-config de puerto manual (si aplica) y el load_model.
 // `chosenPort` = puerto elegido en el modal (flujo 'ask'); `decision.evict` = puertos
 // adicionales (p. ej. la propia instancia vieja al mover un reload). Rust mata lo que
-// haya en el puerto de carga mismo. Devuelve el puerto donde quedó cargado.
-export async function executeLoad(prep: PreparedLoad, port: number, chosenPort?: number): Promise<number> {
+// haya en el puerto de carga mismo. Devuelve el puerto donde quedó cargado y los puertos
+// que se detuvieron (el llamador debe limpiarlos del estado frontend: su kill suprime
+// llama-exited, ver stop_flag en Rust).
+export async function executeLoad(prep: PreparedLoad, port: number, chosenPort?: number): Promise<{ port: number; stopped: number[] }> {
   const { config, cfg, model, decision } = prep
   const toStop = Array.from(new Set([
     ...(decision.evict ?? []),
@@ -106,5 +108,5 @@ export async function executeLoad(prep: PreparedLoad, port: number, chosenPort?:
     minP: numOrDefault(cfg.minP, 0.05),
     repeatPenalty: numOrDefault(cfg.repeatPenalty, 1.0),
   })
-  return port
+  return { port, stopped: toStop }
 }

@@ -789,15 +789,19 @@ async function loadModel() {
       // auto full → el nuevo toma el puerto del modelo reemplazado
       port = prep.decision.manualPort ?? chosen
       evict = chosen
-      setLoading(port, model)
-      modelLoading.value = true
-      await executeLoad(prep, port, evict)
     } else {
       port = prep.decision.port
-      setLoading(port, model)
-      modelLoading.value = true
-      await executeLoad(prep, port)
     }
+    setLoading(port, model)
+    modelLoading.value = true
+    const { stopped } = await executeLoad(prep, port, evict)
+    // Los puertos parados no emiten llama-exited (stop_flag en Rust) → limpiarlos
+    // del estado frontend para que no sigan apareciendo como cargados.
+    for (const p of stopped) removeLoaded(p)
+    // En un reload in-place `activeLoadedModel` no cambia de referencia (sin
+    // removeLoaded intermedio) y el watch no refresca loadedCfg → refrescar a
+    // mano contra la config ya guardada en disco para soltar hasUnsavedChanges.
+    loadedCfg.value = { ...(await loadModelConfig(model.path)) }
   } catch (e) {
     error.value = String(e)
     modelLoading.value = false

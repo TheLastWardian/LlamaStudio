@@ -639,7 +639,10 @@ async function doLoad(model: ModelFile, cfg: ModelConfig) {
   setLoading(port, model)
   modelLoading.value = true
   try {
-    await executeLoad(prep, port, evict)
+    const { stopped } = await executeLoad(prep, port, evict)
+    // Los puertos parados no emiten llama-exited (stop_flag en Rust) → limpiarlos
+    // del estado frontend para que no sigan apareciendo como cargados.
+    for (const p of stopped) removeLoaded(p)
   } catch (e) {
     modelLoading.value = false
     loadingModelFull.value = null
