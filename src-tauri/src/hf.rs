@@ -309,6 +309,163 @@ pub async fn get_repo_readme(owner: &str, repo: &str) -> Result<String, String> 
     Ok(String::from_utf8_lossy(&buf).into())
 }
 
+// ---------- Comentarios (discussions) del repo ----------
+// `GET /api/models/{o}/{r}/discussions` trae la lista (default 50; el parámetro
+// `limit` es ignorado por la API) y `GET .../discussions/{num}` el detalle con
+// `events[]`. Solo los events `type=="comment"` son comentarios; el body vive en
+// `data.latest.raw` (markdown). Los events de pinning/locking se descartan.
+
+#[derive(Debug, Clone, Serialize)]
+pub struct Discussion {
+    pub num: u32,
+    pub title: String,
+    /// Username del autor
+    pub author: String,
+    pub created_at: String,
+    /// "open" / "closed"
+    pub status: String,
+    pub is_pull_request: bool,
+    pub num_comments: u32,
+    /// Reacciones 👍 (numReactionUsers)
+    pub num_reactions: u32,
+    pub pinned: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DiscussionComment {
+    pub author: String,
+    pub created_at: String,
+    /// Body markdown; el frontend lo renderiza con marked + DOMPurify
+    pub content: String,
+}
+
+#[derive(Deserialize)]
+struct RawDiscussionsPage {
+    #[serde(default)]
+    discussions: Vec<RawDiscussion>,
+}
+
+#[derive(Deserialize)]
+struct RawDiscussion {
+    #[serde(default)]
+    num: u32,
+    #[serde(default)]
+    title: String,
+    author: Option<RawUser>,
+    #[serde(default, rename = "createdAt")]
+    created_at: String,
+    #[serde(default)]
+    status: String,
+    #[serde(default, rename = "isPullRequest")]
+    is_pull_request: bool,
+    #[serde(default, rename = "numComments")]
+    num_comments: u32,
+    #[serde(default, rename = "numReactionUsers")]
+    num_reaction_users: u32,
+    #[serde(default)]
+    pinned: bool,
+}
+
+#[derive(Deserialize)]
+struct RawUser {
+    #[serde(default)]
+    name: String,
+}
+
+#[derive(Deserialize)]
+struct RawDiscussionDetail {
+    #[serde(default)]
+    events: Vec<RawEvent>,
+}
+
+#[derive(Deserialize)]
+struct RawEvent {
+    r#type: String,
+    author: Option<RawUser>,
+    #[serde(default, rename = "createdAt")]
+    created_at: String,
+    #[serde(default)]
+    data: Option<RawEventData>,
+}
+
+#[derive(Deserialize)]
+struct RawEventData {
+    #[serde(default)]
+    latest: Option<RawEventLatest>,
+}
+
+#[derive(Deserialize)]
+struct RawEventLatest {
+    #[serde(default)]
+    raw: String,
+}
+
+/// Lista de comentarios (discussions) del repo; 404 → Ok([]) (como get_repo_readme)
+/// para que el frontend muestre el estado vacío en vez de un error.
+pub async fn get_repo_discussions(owner: &str, repo: &str) -> Result<Vec<Discussion>, String> {
+    let resp = client()
+        .get(format!("{HF_API}/models/{owner}/{repo}/discussions"))
+        .send()
+        .await
+        .map_err(|e| format!("HF discussions: {e}"))?;
+    let status = resp.status();
+    if status.as_u16() == 404 {
+        return Ok(Vec::new());
+    }
+    if !status.is_success() {
+        return Err(format!("HF discussions: HTTP {status}"));
+    }
+    let page: RawDiscussionsPage = resp.json().await.map_err(|e| format!("HF discussions JSON: {e}"))?;
+    Ok(page
+        .discussions
+        .into_iter()
+        .map(|d| Discussion {
+            num: d.num,
+            title: d.title,
+            author: d.author.map(|a| a.name).unwrap_or_default(),
+            created_at: d.created_at,
+            status: d.status,
+            is_pull_request: d.is_pull_request,
+            num_comments: d.num_comments,
+            num_reactions: d.num_reaction_users,
+            pinned: d.pinned,
+        })
+        .collect())
+}
+
+/// Comentarios de una discusión (solo events `comment`, en orden de API).
+pub async fn get_repo_discussion_comments(owner: &str, repo: &str, num: u32) -> Result<Vec<DiscussionComment>, String> {
+    let resp = client()
+        .get(format!("{HF_API}/models/{owner}/{repo}/discussions/{num}"))
+        .send()
+        .await
+        .map_err(|e| format!("HF discussion: {e}"))?;
+    let status = resp.status();
+    if status.as_u16() == 404 {
+        return Ok(Vec::new());
+    }
+    if !status.is_success() {
+        return Err(format!("HF discussion: HTTP {status}"));
+    }
+    let detail: RawDiscussionDetail = resp.json().await.map_err(|e| format!("HF discussion JSON: {e}"))?;
+    Ok(comments_from_events(detail.events))
+}
+
+/// Pura: filtra events a `comment` y extrae autor/fecha/body.
+fn comments_from_events(events: Vec<RawEvent>) -> Vec<DiscussionComment> {
+    events.into_iter().filter_map(|e| {
+        if e.r#type != "comment" {
+            return None;
+        }
+        let content = e.data.and_then(|d| d.latest).map(|l| l.raw)?;
+        Some(DiscussionComment {
+            author: e.author.map(|a| a.name).unwrap_or_default(),
+            created_at: e.created_at,
+            content,
+        })
+    }).collect()
+}
+
 // ---------- Clasificación de archivos (puras, testeables sin red) ----------
 
 /// Deriva has_q4_k_m de siblings (llega vía expand[]=siblings en la búsqueda).
@@ -436,9 +593,11 @@ fn mark_possible_drafts(files: &mut [RepoFile], speculative_tags: bool) {
 
 /// Hosts permitidos para servir imágenes del README (match exacto). No es proxy abierto.
 /// `github.com` es el patrón `github.com/<o>/<r>/raw/...` (redirige a
-/// raw.githubusercontent.com, ya confiable); `*.gitbook.io` se chequea aparte.
-const IMG_HOSTS: [&str; 4] = [
+/// raw.githubusercontent.com, ya confiable); `cdn-uploads.huggingface.co` sirve
+/// las imágenes que la gente sube en comentarios/discussions; `*.gitbook.io` aparte.
+const IMG_HOSTS: [&str; 5] = [
     "cdn.huggingface.co",
+    "cdn-uploads.huggingface.co",
     "huggingface.co",
     "raw.githubusercontent.com",
     "github.com",
@@ -610,6 +769,38 @@ mod tests {
         assert_eq!(repos[1].downloads, 1795);
     }
 
+    // Respuesta real de /api/models/{id}/discussions (capturada 2026-09, recortada).
+    #[test]
+    fn discussions_list_deserializes() {
+        let json = r#"{"discussions":[{"num":127,"author":{"name":"danielhanchen","fullname":"Daniel (Unsloth)"},"title":"We did it! Qwen3.8-27B is now the #1 most liked GGUF of all time!","status":"open","createdAt":"2026-09-09T01:47:44.000Z","isPullRequest":false,"numComments":1,"numReactionUsers":25,"pinned":true},{"num":128,"author":null,"title":"Bild?","status":"open","createdAt":"2026-09-10T00:00:00.000Z","isPullRequest":false,"numComments":1,"pinned":false}],"count":127,"start":0,"numClosedDiscussions":38}"#;
+        let page: RawDiscussionsPage = serde_json::from_str(json).expect("discussions JSON deserializa");
+        assert_eq!(page.discussions.len(), 2);
+        assert_eq!(page.discussions[0].num, 127);
+        assert_eq!(page.discussions[0].author.as_ref().map(|a| a.name.as_str()), Some("danielhanchen"));
+        assert_eq!(page.discussions[0].num_reaction_users, 25);
+        assert!(page.discussions[0].pinned);
+        // Item sin numReactionUsers ni author: defaults sin panic
+        assert_eq!(page.discussions[1].num_reaction_users, 0);
+        assert!(page.discussions[1].author.is_none());
+    }
+
+    // Detalle real de /api/models/{id}/discussions/{num} (recortado): mezcla de
+    // events; solo `comment` son comentarios y el body va en data.latest.raw.
+    #[test]
+    fn discussion_comments_filter_event_types() {
+        let json = r#"{"num":74,"events":[{"id":"a","author":{"name":"mod"},"createdAt":"2026-08-19T16:42:07.000Z","type":"pinning-change","data":null},{"id":"b","author":{"name":"danielhanchen"},"createdAt":"2026-08-19T16:42:08.000Z","type":"comment","data":{"latest":{"raw":"hello **world**","html":"<p>hello</p>"},"edited":false}},{"id":"c","author":{"name":"anon"},"createdAt":"2026-08-19T16:42:09.000Z","type":"comment","data":null}],"pinned":true}"#;
+        let detail: RawDiscussionDetail = serde_json::from_str(json).expect("detalle JSON deserializa");
+        let comments = comments_from_events(detail.events);
+        assert_eq!(comments.len(), 1);
+        assert_eq!(comments[0].author, "danielhanchen");
+        assert_eq!(comments[0].content, "hello **world**");
+        // Event comment sin data.latest se descarta (no body que mostrar)
+        let only_nobody: Vec<RawEvent> = serde_json::from_str(
+            r#"[{"id":"c","author":{"name":"anon"},"createdAt":"2026-08-19T16:42:09.000Z","type":"comment","data":null}]"#,
+        ).unwrap();
+        assert!(comments_from_events(only_nobody).is_empty());
+    }
+
     // Header real capturado de /api/models (limit=2): el cursor va percent-encoded.
     #[test]
     fn link_header_cursor_extraction() {
@@ -721,6 +912,8 @@ mod tests {
     #[test]
     fn hfimg_resolve_accepts_allowlisted_https() {
         assert!(resolve_image_target(&enc("https://cdn.huggingface.co/img/x.png")).is_ok());
+        // Imágenes subidas por la gente en comentarios/discussions
+        assert!(resolve_image_target(&enc("https://cdn-uploads.huggingface.co/production/uploads/abc/x.png")).is_ok());
         assert!(resolve_image_target(&enc("https://huggingface.co/a/b/raw/main/x.png")).is_ok());
         assert!(resolve_image_target(&enc("https://raw.githubusercontent.com/o/r/main/x.png")).is_ok());
         assert!(resolve_image_target(&enc("https://github.com/o/r/raw/main/img/x.png")).is_ok());

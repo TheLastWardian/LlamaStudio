@@ -1,6 +1,13 @@
 <template>
   <div class="panel-overlay">
     <div class="readme-pane">
+      <div v-if="!isLocal" class="readme-topbar">
+        <button class="comments-btn" @click="showComments = true">
+          <MessagesSquare :size="15" />
+          {{ t('discover.comments') }}
+          <span v-if="discussionsLoaded && !discussionsError" class="comments-count">{{ discussions.length }}</span>
+        </button>
+      </div>
       <div v-if="readmeLoading" class="readme-status">{{ t('discover.loadingReadme') }}</div>
       <div v-else-if="readmeError" class="readme-status readme-status-error">{{ readmeError }}</div>
       <div v-else-if="!readmeHtml" class="readme-status">{{ t('discover.noReadme') }}</div>
@@ -96,25 +103,35 @@
         </button>
       </footer>
     </aside>
+    <RepoDiscussionsModal
+      v-if="showComments"
+      :repo="repo"
+      :list="discussionsLoaded ? discussions : null"
+      :list-error="discussionsError"
+      @close="showComments = false"
+    />
   </div>
 </template>
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { openUrl } from '@tauri-apps/plugin-opener'
-import { ChevronRight, Download, ExternalLink, X } from '@lucide/vue'
+import { ChevronRight, Download, ExternalLink, MessagesSquare, X } from '@lucide/vue'
+import RepoDiscussionsModal, { type Discussion } from './RepoDiscussionsModal.vue'
 import { t } from '../i18n'
 import { appConfig } from '../stores/config'
 import { allModels } from '../stores/selectedModel'
 import { startDownloads } from '../stores/downloads'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
+import { routeReadmeImages } from '../lib/hfimg'
 import {
   hasSpeculativeTag,
   licenseOf,
   relativeTime,
   fmtNum,
   type HfRepo,
+  type LocalRepo,
   type RepoFile,
 } from '../views/DiscoverView.vue'
 
@@ -145,17 +162,6 @@ const updatedLabel = computed(() => {
   const rel = relativeTime(iso)
   return rel ? t('discover.updatedAgo', { time: rel }) : t('discover.updatedJustNow')
 })
-
-// Imágenes del README: los hosts allowlistados van por el protocolo `hfimg` para que
-// el fetch lo haga llamastudio.exe (reqwest) y el webview no haga tráfico a internet.
-// Mantener en sync con IMG_HOSTS en src-tauri/src/hf.rs.
-const HFIMG_BASE = 'http://hfimg.localhost/'
-function routeReadmeImages(html: string): string {
-  return html.replace(
-    /(src\s*=\s*)(["'])(https:\/\/(?:cdn\.huggingface\.co|huggingface\.co|raw\.githubusercontent\.com|github\.com|[a-z0-9-]+\.gitbook\.io)\/[^"']+)\2/gi,
-    (_m, pre: string, q: string, u: string) => `${pre}${q}${HFIMG_BASE}${encodeURIComponent(u)}${q}`,
-  )
-}
 
 // README → HTML (marked) → sanitizado (DOMPurify) → imgs por hfimg, antes de meterlo al DOM.
 const readmeHtml = computed(() => {
@@ -283,9 +289,29 @@ async function loadReadme() {
   }
 }
 
+// Comentarios (discussions de HF): se fetchean una sola vez al abrir el panel
+// (el botón muestra el count). Los repos locales no tienen discussions.
+const showComments = ref(false)
+const discussions = ref<Discussion[]>([])
+const discussionsLoaded = ref(false)
+const discussionsError = ref<string | null>(null)
+const isLocal = computed(() => (props.repo as LocalRepo).isLocal === true)
+
+async function loadDiscussions() {
+  if (isLocal.value) return
+  try {
+    discussions.value = await invoke<Discussion[]>('get_repo_discussions', { owner: owner.value, repo: name.value })
+  } catch (e) {
+    discussionsError.value = String(e)
+  } finally {
+    discussionsLoaded.value = true
+  }
+}
+
 onMounted(() => {
   void loadFiles()
   void loadReadme()
+  void loadDiscussions()
   document.addEventListener('keydown', onKeydown)
 })
 
@@ -337,6 +363,40 @@ async function download() {
   min-width: 0;
   overflow-y: auto;
   padding: 24px 32px;
+}
+
+.readme-topbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.comments-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(90, 138, 245, 0.12);
+  border: 1px solid rgba(90, 138, 245, 0.4);
+  color: #85aef9;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 9px 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.comments-btn:hover {
+  background: rgba(90, 138, 245, 0.25);
+  border-color: #5a8af5;
+  color: #c0d6ff;
+}
+
+.comments-count {
+  background: rgba(90, 138, 245, 0.25);
+  border-radius: 8px;
+  padding: 0 7px;
+  font-size: 12px;
 }
 
 .readme-status {

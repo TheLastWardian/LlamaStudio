@@ -910,6 +910,16 @@ async fn q4k_size(owner: String, repo: String) -> Result<Option<u64>, String> {
     hf::q4k_size(&owner, &repo).await
 }
 
+#[tauri::command]
+async fn get_repo_discussions(owner: String, repo: String) -> Result<Vec<hf::Discussion>, String> {
+    hf::get_repo_discussions(&owner, &repo).await
+}
+
+#[tauri::command]
+async fn get_repo_discussion_comments(owner: String, repo: String, num: u32) -> Result<Vec<hf::DiscussionComment>, String> {
+    hf::get_repo_discussion_comments(&owner, &repo, num).await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -961,7 +971,7 @@ pub fn run() {
         })
         .manage(ServerProcess(Mutex::new(HashMap::new())))
         .manage(downloads::DownloadManager::new())
-        .invoke_handler(tauri::generate_handler![scan_models, delete_models, load_model, stop_model, save_window_state, load_window_state, get_cpu_threads, get_system_ram, get_gpu_memory, get_file_size, search_hf_models, get_repo_files, get_repo_readme, q4k_size, downloads::start_downloads, downloads::pause_download, downloads::resume_download, downloads::cancel_download, downloads::list_downloads, downloads::remove_download])
+        .invoke_handler(tauri::generate_handler![scan_models, delete_models, load_model, stop_model, save_window_state, load_window_state, get_cpu_threads, get_system_ram, get_gpu_memory, get_file_size, search_hf_models, get_repo_files, get_repo_readme, q4k_size, get_repo_discussions, get_repo_discussion_comments, downloads::start_downloads, downloads::pause_download, downloads::resume_download, downloads::cancel_download, downloads::list_downloads, downloads::remove_download])
         .build(tauri::generate_context!())
         .and_then(|app| {
             app.run(|app_handle, event| {
