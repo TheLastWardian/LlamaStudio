@@ -43,7 +43,12 @@
           <div v-if="!hasMain" class="panel-warn panel-warn-orange">{{ t('discover.draftWithoutMain') }}</div>
           <div v-if="mmprojCount > 0" class="panel-warn panel-warn-info">{{ t('discover.mmprojInfo') }}</div>
 
-          <section v-for="g in groups" :key="g.key" class="file-group">
+          <section
+            v-for="g in groups"
+            :key="g.key"
+            class="file-group"
+            :class="{ 'is-collapsed': collapsed[g.key] }"
+          >
             <header class="file-group-head">
               <button
                 class="group-chevron"
@@ -66,7 +71,7 @@
               <span class="group-help" :title="t(g.helpKey)">?</span>
             </header>
 
-            <div v-show="!collapsed[g.key]">
+            <div v-show="!collapsed[g.key]" class="file-group-files">
             <div
               v-for="f in g.files"
               :key="f.path"
@@ -553,7 +558,7 @@ async function download() {
   font-size: 12px;
   padding: 8px 10px;
   border-radius: 6px;
-  margin-bottom: 10px;
+  margin-bottom: 16px;
   border: 1px solid;
 }
 
@@ -569,16 +574,28 @@ async function download() {
   color: #7ab0e8;
 }
 .file-group {
-  margin-bottom: 14px;
+  margin-bottom: 18px;
 }
 
 .file-group-head {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 8px;
+  padding: 7px 8px;
   background: #1a1a2a;
-  border-bottom: 1px solid #2a2a2a;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px 8px 0 0;
+}
+
+.file-group.is-collapsed .file-group-head {
+  border-radius: 8px;
+}
+
+.file-group-files {
+  background: #141418;
+  border: 1px solid #2a2a2a;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
 }
 
 .group-chevron {
