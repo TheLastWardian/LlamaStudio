@@ -272,19 +272,29 @@
             <div class="field">
               <label>{{ t('load.kCacheQuant') }}</label>
               <select class="field-select" v-model="tempCfg.kCacheQuant">
-                <option value="F32">F32</option>
                 <option value="F16">F16</option>
+                <option value="F32">F32</option>
+                <option value="BF16">BF16</option>
                 <option value="Q8_0">Q8_0</option>
                 <option value="Q4_0">Q4_0</option>
+                <option value="Q4_1">Q4_1</option>
+                <option value="IQ4_NL">IQ4_NL</option>
+                <option value="Q5_0">Q5_0</option>
+                <option value="Q5_1">Q5_1</option>
               </select>
             </div>
             <div class="field">
               <label>{{ t('load.vCacheQuant') }}</label>
               <select class="field-select" v-model="tempCfg.vCacheQuant">
-                <option value="F32">F32</option>
                 <option value="F16">F16</option>
+                <option value="F32">F32</option>
+                <option value="BF16">BF16</option>
                 <option value="Q8_0">Q8_0</option>
                 <option value="Q4_0">Q4_0</option>
+                <option value="Q4_1">Q4_1</option>
+                <option value="IQ4_NL">IQ4_NL</option>
+                <option value="Q5_0">Q5_0</option>
+                <option value="Q5_1">Q5_1</option>
               </select>
             </div>
             <div class="field" :title="t('load.cacheReuseTooltip')">

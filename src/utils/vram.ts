@@ -1,8 +1,14 @@
 import type { ModelFile } from '../stores/selectedModel'
 
-// KV bytes per token per head per tensor. Q4_0/Q8_0 block sizes include
-// scale bytes, so they are slightly above the naive 0.5/1.0.
-const KV_BYTES: Record<string, number> = { F32: 4, F16: 2, Q8_0: 1.0625, Q4_0: 0.5625 }
+// KV bytes per token per head per tensor. Quantized block sizes include
+// scale (and Q4_1/Q5_1 min) bytes, so they are slightly above the naive
+// bit widths (Q4_1 4.5+1/32=0.625, Q5_0 5.5+1/32=0.6875, Q5_1 5.5+2/32=0.75).
+const KV_BYTES: Record<string, number> = {
+  F32: 4, F16: 2, BF16: 2,
+  Q8_0: 1.0625,
+  Q4_0: 0.5625, Q4_1: 0.625, IQ4_NL: 0.5625,
+  Q5_0: 0.6875, Q5_1: 0.75,
+}
 const GIB = 1024 ** 3
 
 export interface VramEstimate {
