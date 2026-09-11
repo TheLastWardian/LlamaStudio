@@ -1,6 +1,8 @@
 <template>
   <div class="disc-overlay" @click.self="close">
     <div class="disc-modal" role="dialog" aria-modal="true">
+      <!-- buffer: anillo que absorbe clicks cerca del borde del modal (no cierra "sin querer") -->
+      <div class="disc-buffer" />
       <header class="disc-head">
         <div class="disc-title">
           <MessagesSquare :size="15" />
@@ -153,7 +155,14 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   justify-content: center;
 }
 
+.disc-buffer {
+  position: absolute;
+  inset: -100px;
+  z-index: -1;
+}
+
 .disc-modal {
+  position: relative;
   width: min(780px, 92%);
   height: 84%;
   background: #1e1e1e;
@@ -325,19 +334,23 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 }
 
 .disc-comment {
-  margin: 10px 0;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
 }
 
 .disc-comment-head {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .disc-comment-author {
-  color: #d4d4d4;
-  font-size: 12px;
+  color: #fff;
+  font-size: 12.5px;
   font-weight: 600;
 }
 
