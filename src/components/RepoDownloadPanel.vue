@@ -152,7 +152,7 @@ const updatedLabel = computed(() => {
 const HFIMG_BASE = 'http://hfimg.localhost/'
 function routeReadmeImages(html: string): string {
   return html.replace(
-    /(src\s*=\s*)(["'])(https:\/\/(?:cdn\.huggingface\.co|huggingface\.co|raw\.githubusercontent\.com)\/[^"']+)\2/gi,
+    /(src\s*=\s*)(["'])(https:\/\/(?:cdn\.huggingface\.co|huggingface\.co|raw\.githubusercontent\.com|github\.com|[a-z0-9-]+\.gitbook\.io)\/[^"']+)\2/gi,
     (_m, pre: string, q: string, u: string) => `${pre}${q}${HFIMG_BASE}${encodeURIComponent(u)}${q}`,
   )
 }

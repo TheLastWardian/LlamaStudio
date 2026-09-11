@@ -435,13 +435,23 @@ fn mark_possible_drafts(files: &mut [RepoFile], speculative_tags: bool) {
 // (https + allowlist) y fetchea con el reqwest compartido. El socket lo abre llamastudio.exe.
 
 /// Hosts permitidos para servir imágenes del README (match exacto). No es proxy abierto.
-const IMG_HOSTS: [&str; 3] = [
+/// `github.com` es el patrón `github.com/<o>/<r>/raw/...` (redirige a
+/// raw.githubusercontent.com, ya confiable); `*.gitbook.io` se chequea aparte.
+const IMG_HOSTS: [&str; 4] = [
     "cdn.huggingface.co",
     "huggingface.co",
     "raw.githubusercontent.com",
+    "github.com",
 ];
-/// Imagen > 5 MB es anómala; limita la memoria que un repo malicioso puede forzar (como README_MAX_BYTES).
-const IMG_MAX_BYTES: usize = 5 * 1024 * 1024;
+fn host_allowed(host: &str) -> bool {
+    // GitBook sirve los assets de sus docs desde subdominios numéricos
+    // (p. ej. `3215535692-files.gitbook.io`), comunes en READMEs de HF.
+    IMG_HOSTS.contains(&host) || host == "gitbook.io" || host.ends_with(".gitbook.io")
+}
+/// Imagen > 20 MB es anómala; limita la memoria que un repo malicioso puede forzar
+/// (como README_MAX_BYTES). El cap se aplica en streaming en `fetch_image`, así
+/// acota la memoria pico real (cap + 1 chunk), no solo lo que se acepta al final.
+const IMG_MAX_BYTES: usize = 20 * 1024 * 1024;
 
 /// Decodifica un segmento de path percent-encodiado por `encodeURIComponent` de JS.
 fn percent_decode(s: &str) -> Option<String> {
@@ -480,7 +490,7 @@ fn resolve_image_target(path: &str) -> Result<String, ()> {
         .split(':')
         .next()
         .unwrap_or("");
-    if !IMG_HOSTS.contains(&host) {
+    if !host_allowed(host) {
         return Err(());
     }
     Ok(url)
@@ -502,11 +512,19 @@ async fn fetch_image(url: &str, max_bytes: usize) -> Result<(Option<String>, Vec
         .get(reqwest::header::CONTENT_TYPE)
         .and_then(|v| v.to_str().ok())
         .map(|s| s.to_string());
-    let body = resp.bytes().await.map_err(|_| ())?;
-    if body.len() > max_bytes {
-        return Err(());
+    // Streaming con aborto temprano: `bytes()` descargaba el body completo antes de
+    // chequear el cap, y un servidor que omite/mente Content-Length podía forzar la
+    // descarga entera en memoria.
+    let mut body: Vec<u8> = Vec::new();
+    let mut stream = resp.bytes_stream();
+    while let Some(chunk) = stream.next().await {
+        let bytes = chunk.map_err(|_| ())?;
+        if body.len() + bytes.len() > max_bytes {
+            return Err(());
+        }
+        body.extend_from_slice(&bytes);
     }
-    Ok((ct, body.to_vec()))
+    Ok((ct, body))
 }
 
 /// Handler asíncrono del protocolo `hfimg` (corre en el proceso de la app).
@@ -705,6 +723,8 @@ mod tests {
         assert!(resolve_image_target(&enc("https://cdn.huggingface.co/img/x.png")).is_ok());
         assert!(resolve_image_target(&enc("https://huggingface.co/a/b/raw/main/x.png")).is_ok());
         assert!(resolve_image_target(&enc("https://raw.githubusercontent.com/o/r/main/x.png")).is_ok());
+        assert!(resolve_image_target(&enc("https://github.com/o/r/raw/main/img/x.png")).is_ok());
+        assert!(resolve_image_target(&enc("https://3215535692-files.gitbook.io/~/files/v0/x.gif?token=abc")).is_ok());
     }
 
     #[test]
@@ -713,6 +733,8 @@ mod tests {
         assert!(resolve_image_target(&enc("https://evil.com/x.png")).is_err());
         assert!(resolve_image_target(&enc("https://cdn.huggingface.co.evil.com/x.png")).is_err());
         assert!(resolve_image_target(&enc("https://sub.cdn.huggingface.co/x.png")).is_err());
+        assert!(resolve_image_target(&enc("https://gitbook.io.evil.com/x.png")).is_err());
+        assert!(resolve_image_target(&enc("https://evil-gitbook.io/x.png")).is_err());
         assert!(resolve_image_target(&enc("javascript:alert(1)")).is_err());
         assert!(resolve_image_target("no percent encoding").is_err());
         assert!(resolve_image_target("").is_err());
@@ -745,6 +767,29 @@ mod tests {
             axum::body::Body::from(vec![7u8; 4096])
         }
         let app = axum::Router::new().route("/big", axum::routing::get(serve_big));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            let _ = axum::serve(listener, app).await;
+        });
+        assert!(fetch_image(&format!("http://{addr}/big"), 1024).await.is_err());
+    }
+
+    // Content-Length ausente o mentiroso: el cap debe aplicarse en streaming
+    // (aborta al exceder el cap) en vez de esperar al body completo.
+    #[tokio::test]
+    async fn hfimg_fetch_enforces_size_cap_on_stream() {
+        async fn serve_chunked() -> axum::response::Response {
+            let stream = futures_util::stream::iter(vec![
+                Ok::<_, std::io::Error>(axum::body::Bytes::from(vec![7u8; 2048])),
+                Ok(axum::body::Bytes::from(vec![7u8; 2048])),
+            ]);
+            axum::response::Response::builder()
+                .header("content-type", "image/png")
+                .body(axum::body::Body::from_stream(stream))
+                .unwrap()
+        }
+        let app = axum::Router::new().route("/big", axum::routing::get(serve_chunked));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
         tokio::spawn(async move {
