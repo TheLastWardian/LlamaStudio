@@ -17,7 +17,7 @@ Entirely inspired by [LM Studio](https://lmstudio.ai/) — with modifications th
 - **Resumable parallel downloads** — file-level parallelism (1-4) plus automatic intra-file chunking for large files (≥256 MB, split into 1-8 parallel chunks), resume from `.part` (HTTP Range), auto-retry with exponential backoff and a visible countdown on 429 rate limits, and a global downloads bar with live speed and per-job pause / resume / cancel
 - **Organization** — search, groups, pinning, and drag & drop reordering
 - **VRAM fit check** — estimates total GPU memory (weights + KV cache + runtime, plus draft/vision when used) with a live breakdown, and an auto-fit mode that adjusts parameters so the model fits your GPU
-- **One-click server launch** — spawns `llama-server` with rich options: GPU offload, context length, eval/physical batches, flash attention, speculative decoding (MTP, draft model, DFlash, EAGLE-3, DSpark, plus zero-VRAM n-gram lookup drafters), sampling parameters, KV cache quantization, KV unified/offload, cache RAM, load mode (mmap/mlock), reasoning budget & effort, seed, model alias, sleep-when-idle
+- **One-click server launch** — spawns `llama-server` with rich options: GPU offload, context length, eval/physical batches, flash attention, speculative decoding (MTP, draft model, DFlash, EAGLE-3, DSpark, plus zero-VRAM n-gram lookup drafters), sampling parameters, KV cache quantization, KV unified/offload, cache RAM, load mode (mmap/mlock), reasoning budget & effort, seed, model alias, sleep-when-idle, vision mmproj with a GPU/CPU offload toggle
 - **Multiple concurrent servers** — run several models at once on configurable ports, with per-server launch logs and a choice of what to replace when all slots are full (replace first / ask)
 - **Live log console** — streams server output with log levels, in real time
 - **Built-in chat** — embeds the llama-server web UI in-app, no extra frontend needed
@@ -40,7 +40,7 @@ Entirely inspired by [LM Studio](https://lmstudio.ai/) — with modifications th
 - Node.js 20+ (LTS)
 - [pnpm](https://pnpm.io/) 9+
 - WebView2 Runtime (Windows; preinstalled on Windows 10/11)
-- A `llama-server` build from [llama.cpp](https://github.com/ggml-org/llama.cpp) — not included in the repo, path configurable in Settings. **Tested with build `b10840` (win-cuda-12.4-x64)** — other versions use different CLI flags and may not work correctly
+- A `llama-server` build from [llama.cpp](https://github.com/ggml-org/llama.cpp) — not included in the repo, path configurable in Settings. **Tested with build `b10917` (win-cuda-12.4-x64)** — other versions use different CLI flags and may not work correctly
 
 ### Setup
 
