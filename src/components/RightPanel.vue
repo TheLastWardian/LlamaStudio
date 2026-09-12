@@ -822,6 +822,9 @@ async function loadModel() {
 }
 
 const stopTarget = computed<number | null>(() => {
+  // Una carga en curso también se puede parar: el proceso queda registrado en
+  // Rust desde el spawn, aunque el modelo aún no esté en loadedModels.
+  if (modelLoading.value && loadingModelFull.value) return loadingModelFull.value.port
   if (props.currentView === 'models') {
     const sel = selectedModel.value
     return sel ? portOfModel(sel) : null
@@ -832,9 +835,13 @@ const stopTarget = computed<number | null>(() => {
 async function stopModel() {
   const port = stopTarget.value
   if (port === null) return
+  const wasLoading = modelLoading.value && loadingModelFull.value?.port === port
   await invoke('stop_model', { port })
   removeLoaded(port)
   modelLoading.value = false
+  // stop_model suprime llama-exited (stop_flag en Rust) → limpiar la carga
+  // pendiente a mano, como hace el catch de doLoad
+  if (wasLoading) loadingModelFull.value = null
 }
 
 function copy(text: string) {
