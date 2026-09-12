@@ -579,6 +579,7 @@ fn load_model(
     vision_enabled: bool,
     mmproj_path: String,
     image_min_tokens: i32,
+    mmproj_gpu: bool,
     seed: i32,
     temp: f64,
     top_p: f64,
@@ -758,6 +759,9 @@ fn load_model(
 
     if vision_enabled && !mmproj_path.is_empty() {
         cmd.arg("--mmproj").arg(&mmproj_path);
+        if !mmproj_gpu {
+            cmd.arg("--no-mmproj-offload");
+        }
         if image_min_tokens > 0 {
             cmd.arg("--image-min-tokens").arg(image_min_tokens.to_string());
         }

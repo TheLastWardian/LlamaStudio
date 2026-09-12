@@ -102,6 +102,7 @@ export interface ModelConfig {
   visionEnabled: boolean
   mmprojPath: string
   imageMinTokens: number
+  mmprojGpu: boolean
   seed: number
   temp: number
   topP: number
@@ -166,6 +167,7 @@ const modelDefaults: ModelConfig = {
   visionEnabled: false,
   mmprojPath: '',
   imageMinTokens: 0,
+  mmprojGpu: true,
   seed: -1,
   temp: 0.8,
   topP: 0.95,

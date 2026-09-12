@@ -250,6 +250,8 @@ export default {
     imageMinTokens: 'Mín. tokens de imagen',
     imageMinTokensPlaceholder: '512 (default)',
     imageMinTokensGemma: 'Gemma: solo se pueden usar 70, 140, 280, 560 u 1120.',
+    mmprojGpu: 'mmproj en GPU',
+    mmprojGpuTooltip: 'Mantiene el encoder de visión en la GPU. Apagado: corre en la CPU y libera VRAM a costa de velocidad. Se envía como --no-mmproj-offload.',
     visionNeedsMmproj: 'La visión requiere un modelo mmproj.',
     gemmaUbatch: 'Gemma 4: subí el physical batch (ahora {ub}) a ≥ {n} ({n} tokens de imagen).',
     reasoning: 'Razonamiento',

@@ -316,6 +316,10 @@
             <input type="number" v-model.number="modelCfg.imageMinTokens" class="field-input" min="0" step="1" :placeholder="t('load.imageMinTokensPlaceholder')" />
             <div class="field-extra" v-if="activeModel?.arch === 'gemma4'">{{ t('load.imageMinTokensGemma') }}</div>
           </div>
+          <div class="field" v-if="modelCfg.visionEnabled" :title="t('load.mmprojGpuTooltip')">
+            <label>{{ t('load.mmprojGpu') }}</label>
+            <input type="checkbox" v-model="modelCfg.mmprojGpu" class="toggle" />
+          </div>
         </div>
       </template>
 
@@ -539,7 +543,7 @@ const hasUnsavedChanges = computed(() => {
     'ctxCheckpoints', 'checkpointMinStep',
     'reasoning', 'reasoningBudget', 'reasoningBudgetCustom', 'reasoningEffort', 'parallel', 'mlock', 'nCpuMoe', 'expertsPerToken',
     'mmap', 'kvUnified', 'seed', 'draftModelPath', 'threadsHttp', 'alias',
-    'host', 'portMode', 'serverPort', 'noWarmup', 'sleepIdle', 'reasoningPreserve', 'fit', 'visionEnabled', 'mmprojPath', 'imageMinTokens',
+    'host', 'portMode', 'serverPort', 'noWarmup', 'sleepIdle', 'reasoningPreserve', 'fit', 'visionEnabled', 'mmprojPath', 'imageMinTokens', 'mmprojGpu',
     'kvOffload', 'cacheRam', 'temp', 'topP', 'topK', 'minP', 'repeatPenalty'
   ]
 
@@ -614,6 +618,7 @@ const modelCfg = ref<ModelConfig>({
   visionEnabled: false,
   mmprojPath: '',
   imageMinTokens: 0,
+  mmprojGpu: true,
   seed: -1,
   temp: 0.8,
   topP: 0.95,
@@ -679,7 +684,7 @@ const vramEstimate = computed(() => estimateVram(activeModel.value, {
   nParallel: modelCfg.value.parallel,
   specMtp: modelCfg.value.specType === 'MTP',
   draftModel: draftModelFile.value,
-  mmprojSizeBytes: modelCfg.value.visionEnabled ? mmprojSize.value : 0,
+  mmprojSizeBytes: modelCfg.value.visionEnabled && modelCfg.value.mmprojGpu ? mmprojSize.value : 0,
 }))
 
 const vramTooltip = computed(() => {

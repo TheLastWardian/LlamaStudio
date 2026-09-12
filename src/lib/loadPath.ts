@@ -101,6 +101,7 @@ export async function executeLoad(prep: PreparedLoad, port: number, chosenPort?:
     visionEnabled: cfg.visionEnabled,
     mmprojPath: cfg.mmprojPath,
     imageMinTokens: numOrDefault(cfg.imageMinTokens, 0),
+    mmprojGpu: cfg.mmprojGpu,
     seed: numOrDefault(cfg.seed, -1),
     temp: numOrDefault(cfg.temp, 0.8),
     topP: numOrDefault(cfg.topP, 0.95),

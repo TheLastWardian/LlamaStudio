@@ -331,6 +331,10 @@
                 <input type="number" v-model.number="tempCfg.imageMinTokens" class="field-input" min="0" step="1" :placeholder="t('load.imageMinTokensPlaceholder')" />
                 <div class="field-extra" v-if="configModel?.arch === 'gemma4'">{{ t('load.imageMinTokensGemma') }}</div>
               </div>
+              <div class="field" v-if="tempCfg.visionEnabled" :title="t('load.mmprojGpuTooltip')">
+                <label>{{ t('load.mmprojGpu') }}</label>
+                <input type="checkbox" v-model="tempCfg.mmprojGpu" class="toggle" />
+              </div>
             </div>
           </template>
 
@@ -533,7 +537,7 @@ const vramEstimate = computed(() => estimateVram(configModel.value, {
   nParallel: tempCfg.value?.parallel ?? 1,
   specMtp: tempCfg.value?.specType === 'MTP',
   draftModel: draftModelFile.value,
-  mmprojSizeBytes: tempCfg.value?.visionEnabled ? mmprojSize.value : 0,
+  mmprojSizeBytes: tempCfg.value?.visionEnabled && tempCfg.value.mmprojGpu ? mmprojSize.value : 0,
 }))
 
 const vramTooltip = computed(() => {
