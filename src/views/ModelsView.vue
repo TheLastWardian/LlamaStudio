@@ -233,6 +233,13 @@ async function rescanModels() {
   }
 }
 
+// El store re-escanea allModels al completar descargas; sincronizar la vista
+// para que el modelo aparezca sin apretar ⟳ ni salir de la vista
+watch(allModels, (v) => {
+  models.value = v
+  listVersion.value++
+})
+
 const deleteTarget = ref<ModelFile | null>(null)
 const deleteRelated = ref<{ path: string, name: string, sizeBytes: number, kind: 'vision' | 'draft' }[]>([])
 const trashDelete = ref(false)
