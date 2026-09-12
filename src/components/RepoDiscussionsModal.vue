@@ -44,7 +44,7 @@
                 class="disc-comment"
               >
                 <div class="disc-comment-head">
-                  <span class="disc-comment-author">{{ c.author }}</span>
+                  <span class="disc-comment-author" :style="{ color: authorColor(c.author) }">{{ c.author }}</span>
                   <span class="disc-comment-time">{{ timeOf(c.created_at) }}</span>
                 </div>
                 <div class="disc-comment-body" v-html="htmlOf(c.content)"></div>
@@ -110,6 +110,13 @@ function htmlOf(md: string): string {
 function timeOf(iso: string): string {
   const rel = relativeTime(iso)
   return rel || t('discover.now')
+}
+
+// Color estable por nick (hash del nombre → tono), legible sobre fondo oscuro
+function authorColor(name: string): string {
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
+  return `hsl(${h % 360}, 65%, 72%)`
 }
 
 // Abre/cierra el hilo; los comentarios se fetchean una sola vez (cache en threadComments).
@@ -349,7 +356,6 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 }
 
 .disc-comment-author {
-  color: #fff;
   font-size: 12.5px;
   font-weight: 600;
 }
@@ -359,7 +365,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   font-size: 11px;
 }
 .disc-comment-body {
-  color: #ccc;
+  color: #e8e8e8;
   font-size: 13px;
   line-height: 1.55;
   word-wrap: break-word;
