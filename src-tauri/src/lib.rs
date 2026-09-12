@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -261,6 +261,45 @@ fn delete_models(paths: Vec<String>, models_path: String, use_trash: bool) -> Re
     Ok(deleted)
 }
 
+/// true si el nombre de directorio parece una carpeta de cuantización
+/// (AP-Q4_K_XL, UD-Q4_K_S, IQ4_XS, TQ1_0, F16, GPTQ-Int4, ...) y no un repo
+fn is_quant_dir(name: &str) -> bool {
+    let n = name.trim();
+    if n.is_empty() {
+        return false;
+    }
+    if n.starts_with("GPTQ") || n.starts_with("AWQ") || n == "E4M3" {
+        return true;
+    }
+    let core = n
+        .strip_prefix("AP-")
+        .or_else(|| n.strip_prefix("UD-"))
+        .or_else(|| n.strip_prefix("QAT-"))
+        .or_else(|| n.strip_prefix("MTP-"))
+        .unwrap_or(n);
+    if matches!(core, "F16" | "F32" | "F64" | "BF16" | "TF32") {
+        return true;
+    }
+    let rest = match core
+        .strip_prefix("IQ")
+        .or_else(|| core.strip_prefix('T').and_then(|r| r.strip_prefix('Q')))
+        .or_else(|| core.strip_prefix('Q'))
+    {
+        Some(r) => r,
+        None => return false,
+    };
+    let head_len = rest.chars().take_while(|c| c.is_ascii_digit()).count();
+    if head_len == 0 {
+        return false;
+    }
+    let tail = &rest[head_len..];
+    if tail.is_empty() {
+        return true;
+    }
+    (tail.starts_with('_') || tail.starts_with('-'))
+        && tail[1..].chars().all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_')
+}
+
 #[tauri::command]
 fn scan_models(models_path: String) -> Vec<ModelFile> {
     let base = PathBuf::from(&models_path);
@@ -302,6 +341,10 @@ fn scan_models(models_path: String) -> Vec<ModelFile> {
             .map(|c| c.as_os_str().to_string_lossy().to_string())
             .collect();
         dirs.pop(); // último componente = nombre del archivo
+        // subcarpetas de cuantización (AP-Q4_K_XL, UD-Q4_K_S, ...) no son el repo
+        while dirs.len() > 1 && is_quant_dir(dirs.last().unwrap()) {
+            dirs.pop();
+        }
         let publisher = dirs.first().cloned().unwrap_or_else(|| "Ungrouped".to_string());
         let model_family = dirs.last().cloned()
             .or_else(|| base.file_name().map(|n| n.to_string_lossy().to_string()))
@@ -313,10 +356,26 @@ fn scan_models(models_path: String) -> Vec<ModelFile> {
             .to_string_lossy()
             .to_string();
         let path_str = file_path.to_string_lossy().to_string();
-        let mmproj_paths = mmproj_by_dir
-            .get(&file_path.parent().map(|p| p.to_path_buf()).unwrap_or_default())
-            .cloned()
-            .unwrap_or_default();
+        let own_dir = file_path.parent().map(|p| p.to_path_buf()).unwrap_or_default();
+        let mut mmproj_paths = mmproj_by_dir.get(&own_dir).cloned().unwrap_or_default();
+        // El mmproj puede vivir en la carpeta del repo (lo comparten todas sus
+        // quants). Se buscan los ancestros del dir del modelo, del más cercano
+        // al más lejano, pero nunca la raíz del publisher (depth 1): ahí pueden
+        // convivir modelos distintos con vision incompatibles. Dedupe por
+        // nombre: si el archivo existe en varios niveles, vale el más cercano.
+        if let Ok(rel_dir) = own_dir.strip_prefix(&base) {
+            let comps: Vec<std::path::Component> = rel_dir.components().collect();
+            let name_of = |p: &str| Path::new(p).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+            for d in (2..comps.len()).rev() {
+                let anc = comps[..d].iter().fold(base.clone(), |p, c| p.join(c.as_os_str()));
+                for p in mmproj_by_dir.get(&anc).cloned().unwrap_or_default() {
+                    let n = name_of(&p);
+                    if !mmproj_paths.iter().any(|e| name_of(e) == n) {
+                        mmproj_paths.push(p);
+                    }
+                }
+            }
+        }
 
         let (meta, tensor_count) = read_gguf_metadata(&path_str);
         let arch = meta.get("general.architecture").cloned().unwrap_or_default();
@@ -1003,7 +1062,7 @@ mod tests {
         assert!(parse_port(65536).is_err());
         assert!(parse_port(-1).is_err());
     }
-    use super::{analyze_chat_template, parse_port, read_gguf_metadata, scan_models, delete_models, ModelFile};
+    use super::{analyze_chat_template, is_quant_dir, parse_port, read_gguf_metadata, scan_models, delete_models, ModelFile};
     use std::collections::HashMap;
     use std::fs;
 
@@ -1056,6 +1115,27 @@ mod tests {
     }
 
     #[test]
+    fn real_models_mmproj_scope() {
+        let root = r"F:\Users\Wardian\.lmstudio\models";
+        let models = scan_models(root.to_string());
+        if models.is_empty() { return; } // sin los modelos en esta máquina
+        let by_name: HashMap<&str, &ModelFile> = models.iter().map(|m| (m.name.as_str(), m)).collect();
+
+        if let Some(sig) = by_name.get("Signal-3.8-27B-AP-Q4_K_XL.gguf") {
+            assert_eq!(sig.model_family, "Signal-3.8-27B-GGUF", "quant subfolder must not be the repo");
+            assert!(sig.mmproj_paths.iter().any(|p| p.ends_with("mmproj-BF16.gguf")),
+                "model in quant subfolder must see the repo mmproj: {:?}", sig.mmproj_paths);
+        }
+        if let Some(q) = by_name.get("Qwen3.8-27B-UD-Q4_K_XL.gguf") {
+            // solo el mmproj de su propio dir; la copia de respaldo en la raíz
+            // del publisher no debe aparecer
+            assert_eq!(q.mmproj_paths.len(), 1, "unexpected mmproj for Qwen3.8: {:?}", q.mmproj_paths);
+            assert!(q.mmproj_paths[0].contains(r"Qwen3.8-27B-GGUF\mmproj"),
+                "publisher root mmproj must not leak: {:?}", q.mmproj_paths);
+        }
+    }
+
+    #[test]
     fn analyze_plain_template() {
         let tmpl = "{%- for message in messages %}{{ message.content }}{%- endfor %}";
         let (thinking, effort, levels) = analyze_chat_template(tmpl);
@@ -1069,20 +1149,28 @@ mod tests {
         let root = std::env::temp_dir().join(format!("llamastudio-scan-test-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(root.join("pub/fam/deep")).unwrap();
+        fs::create_dir_all(root.join("pub/fam/AP-Q4_K_XL")).unwrap();
         fs::create_dir_all(root.join("solo")).unwrap();
+        fs::create_dir_all(root.join("solo2/Q4_K_XL")).unwrap();
         fs::create_dir_all(root.join(".hidden")).unwrap();
         fs::write(root.join("flat.gguf"), b"").unwrap();
         fs::write(root.join("solo/one.gguf"), b"").unwrap();
         fs::write(root.join("pub/fam/model.gguf"), b"").unwrap();
         fs::write(root.join("pub/fam/mmproj-x.gguf"), b"").unwrap();
+        fs::write(root.join("pub/fam/mmproj-repo.gguf"), b"").unwrap();
         fs::write(root.join("pub/fam/deep/deeper.gguf"), b"").unwrap();
+        fs::write(root.join("pub/fam/AP-Q4_K_XL/quant.gguf"), b"").unwrap();
+        fs::write(root.join("pub/fam/AP-Q4_K_XL/mmproj-Q.gguf"), b"").unwrap();
+        fs::write(root.join("pub/fam/AP-Q4_K_XL/mmproj-x.gguf"), b"").unwrap();
+        fs::write(root.join("solo2/Q4_K_XL/degen.gguf"), b"").unwrap();
+        fs::write(root.join("solo2/mmproj-root.gguf"), b"").unwrap();
         fs::write(root.join(".hidden/secret.gguf"), b"").unwrap();
         fs::write(root.join("nota.txt"), b"").unwrap();
 
         let models = scan_models(root.to_string_lossy().to_string());
         let by_name: std::collections::HashMap<String, &ModelFile> = models.iter().map(|m| (m.name.clone(), m)).collect();
 
-        assert_eq!(models.len(), 4, "hidden dir, non-gguf files and mmproj must not be models");
+        assert_eq!(models.len(), 6, "hidden dir, non-gguf files and mmproj must not be models");
 
         let flat = by_name.get("flat.gguf").unwrap();
         assert_eq!(flat.publisher, "Ungrouped");
@@ -1095,15 +1183,45 @@ mod tests {
         let m = by_name.get("model.gguf").unwrap();
         assert_eq!(m.publisher, "pub");
         assert_eq!(m.model_family, "fam");
-        assert_eq!(m.mmproj_paths.len(), 1);
-        assert!(m.mmproj_paths[0].ends_with("mmproj-x.gguf"));
+        // propio dir == repo: se ven los mmproj del dir, sin duplicados
+        assert_eq!(m.mmproj_paths.len(), 2);
+        assert!(m.mmproj_paths.iter().any(|p| p.ends_with("mmproj-x.gguf")));
+        assert!(m.mmproj_paths.iter().any(|p| p.ends_with("mmproj-repo.gguf")));
 
         let d = by_name.get("deeper.gguf").unwrap();
         assert_eq!(d.publisher, "pub");
         assert_eq!(d.model_family, "deep");
-        assert!(d.mmproj_paths.is_empty());
+        // subcarpeta del repo ve los mmproj compartidos del repo
+        assert_eq!(d.mmproj_paths.len(), 2);
+        assert!(d.mmproj_paths.iter().any(|p| p.ends_with("mmproj-x.gguf")));
+        assert!(d.mmproj_paths.iter().any(|p| p.ends_with("mmproj-repo.gguf")));
+
+        let q = by_name.get("quant.gguf").unwrap();
+        assert_eq!(q.publisher, "pub");
+        assert_eq!(q.model_family, "fam", "quant subfolder must not be the repo");
+        // propio dir (mmproj-Q, mmproj-x) + repo (mmproj-repo); mmproj-x no se repite
+        assert_eq!(q.mmproj_paths.len(), 3);
+        assert!(q.mmproj_paths.iter().any(|p| p.ends_with("mmproj-Q.gguf")));
+        assert!(q.mmproj_paths.iter().any(|p| p.ends_with("mmproj-repo.gguf")));
+        assert_eq!(q.mmproj_paths.iter().filter(|p| p.ends_with("mmproj-x.gguf")).count(), 1);
+
+        let g = by_name.get("degen.gguf").unwrap();
+        assert_eq!(g.publisher, "solo2");
+        assert_eq!(g.model_family, "solo2");
+        // sin carpeta de repo: la raíz del publisher no se busca
+        assert!(g.mmproj_paths.is_empty());
 
         let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn is_quant_dir_classifies_quant_folders() {
+        for q in ["AP-Q4_K_XL", "Q4_K_XL", "UD-Q4_K_S", "QAT-Q4_K_M", "IQ4_XS", "TQ1_0", "Q8_0", "F16", "F32", "BF16", "GPTQ-Int4", "AWQ", "E4M3"] {
+            assert!(is_quant_dir(q), "{q} must be a quant dir");
+        }
+        for r in ["Qwen3.8-27B-GGUF", "Signal-3.8-27B-GGUF", "Qwen3.6-35B-A3B-MTP-GGUF", "gemma-4-26B-A4B", "Qwen", "IQ", "", "Qwen3.8-27B", "deep", "fam"] {
+            assert!(!is_quant_dir(r), "{r} must not be a quant dir");
+        }
     }
 
     fn del_test_root(tag: &str) -> std::path::PathBuf {
